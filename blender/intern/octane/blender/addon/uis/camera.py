@@ -216,6 +216,7 @@ class OCTANE_CAMERA_PT_camera_octane_camera_data_node(OctanePropertyPanel, Panel
 
         col = layout.column()
         row = col.row(heading="Always use camera resolution")
+        row.active = not context.scene.render.use_border
         row.prop(oct_cam, "use_camera_dimension_as_preview_resolution", text="")
 
 

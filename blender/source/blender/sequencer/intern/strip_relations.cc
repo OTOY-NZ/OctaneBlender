@@ -324,7 +324,9 @@ static Sequence *sequencer_check_scene_recursion(Scene *scene, ListBase *seqbase
     }
 
     if (seq->type == SEQ_TYPE_SCENE && (seq->flag & SEQ_SCENE_STRIPS)) {
-      if (seq->scene->ed && sequencer_check_scene_recursion(scene, &seq->scene->ed->seqbase)) {
+      if (seq->scene && seq->scene->ed &&
+          sequencer_check_scene_recursion(scene, &seq->scene->ed->seqbase))
+      {
         return seq;
       }
     }
@@ -377,8 +379,7 @@ bool SEQ_relations_render_loop_check(Sequence *seq_main, Sequence *seq)
   }
 
   if ((seq_main->seq1 && SEQ_relations_render_loop_check(seq_main->seq1, seq)) ||
-      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)) ||
-      (seq_main->seq3 && SEQ_relations_render_loop_check(seq_main->seq3, seq)))
+      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)))
   {
     return true;
   }

@@ -21,21 +21,21 @@
 
 #include "BLI_utildefines.h"
 
-#include "bpy_library.h"
-#include "bpy_rna.h"
-#include "bpy_rna_callback.h"
-#include "bpy_rna_context.h"
-#include "bpy_rna_data.h"
-#include "bpy_rna_id_collection.h"
-#include "bpy_rna_text.h"
-#include "bpy_rna_types_capi.h"
-#include "bpy_rna_ui.h"
+#include "bpy_library.hh"
+#include "bpy_rna.hh"
+#include "bpy_rna_callback.hh"
+#include "bpy_rna_context.hh"
+#include "bpy_rna_data.hh"
+#include "bpy_rna_id_collection.hh"
+#include "bpy_rna_text.hh"
+#include "bpy_rna_types_capi.hh"
+#include "bpy_rna_ui.hh"
 
-#include "bpy_rna_operator.h"
+#include "bpy_rna_operator.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -113,7 +113,7 @@ PyDoc_STRVAR(
     pyrna_WindowManager_clipboard_doc,
     "Clipboard text storage.\n"
     "\n"
-    ":type: string");
+    ":type: str");
 static PyObject *pyrna_WindowManager_clipboard_get(PyObject * /*self*/, void * /*flag*/)
 {
   int text_len = 0;
@@ -158,9 +158,9 @@ PyDoc_STRVAR(
     "      A function that will be called when the cursor is drawn.\n"
     "      It gets the specified arguments as input with the mouse position (tuple) as last "
     "argument.\n"
-    "   :type callback: function\n"
+    "   :type callback: Callable[[Any, ..., tuple[int, int]], Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
-    "   :type args: tuple\n"
+    "   :type args: tuple[Any, ...]\n"
     "   :arg space_type: The space type the callback draws in; for example ``VIEW_3D``. "
     "(:class:`bpy.types.Space.type`)\n"
     "   :type space_type: str\n"
@@ -229,10 +229,10 @@ PyDoc_STRVAR(
     "\n"
     "   :arg callback:\n"
     "      A function that will be called when the region is drawn.\n"
-    "      It gets the specified arguments as input.\n"
-    "   :type callback: function\n"
+    "      It gets the specified arguments as input, it's return value is ignored.\n"
+    "   :type callback: Callable[[Any, ...], Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
-    "   :type args: tuple\n"
+    "   :type args: tuple[Any, ...]\n"
     "   :arg region_type: The region type the callback draws in; usually ``WINDOW``. "
     "(:class:`bpy.types.Region.type`)\n"
     "   :type region_type: str\n"

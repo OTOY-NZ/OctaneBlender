@@ -66,7 +66,7 @@ template<class T> static inline const T *get_original(const T *id)
 #ifndef NDEBUG
 bool is_valid_input_id(const ID &id)
 {
-  return (id.tag & LIB_TAG_LOCALIZED) || DEG_is_original_id(&id);
+  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original_id(&id);
 }
 #endif
 
@@ -446,7 +446,6 @@ void Cache::end_build(const Scene &scene)
   shadow_linking_.end_build(scene, shadow_emitter_data_map_);
 }
 
-/* Set runtime data in light linking. */
 void Cache::eval_runtime_data(Object &object_eval) const
 {
   static const LightLinkingRuntime runtime_no_links = {

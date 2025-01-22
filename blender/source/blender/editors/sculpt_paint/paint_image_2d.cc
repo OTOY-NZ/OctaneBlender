@@ -24,7 +24,7 @@
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -70,11 +70,12 @@ struct BrushPainterCache {
 
   CurveMaskCache curve_mask_cache;
 
-  int image_size[2];
+  // int image_size[2]; /* UNUSED. */
 };
 
 struct BrushPainter {
   Scene *scene;
+  const Paint *paint;
   Brush *brush;
 
   bool firsttouch; /* first paint op */
@@ -120,7 +121,7 @@ struct ImagePaintState {
   Scene *scene;
 
   Brush *brush;
-  short tool, blend;
+  short brush_type, blend;
   Image *image;
   ImBuf *clonecanvas;
 
@@ -134,12 +135,16 @@ struct ImagePaintState {
   BlurKernel *blurkernel;
 };
 
-static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush, bool invert)
+static BrushPainter *brush_painter_2d_new(Scene *scene,
+                                          const Paint *paint,
+                                          Brush *brush,
+                                          bool invert)
 {
   BrushPainter *painter = MEM_cnew<BrushPainter>(__func__);
 
   painter->brush = brush;
   painter->scene = scene;
+  painter->paint = paint;
   painter->firsttouch = true;
   painter->cache_invert = invert;
 
@@ -169,8 +174,10 @@ static void brush_painter_2d_require_imbuf(
   cache->use_float = use_float;
   cache->use_color_correction = use_float && use_color_correction;
   cache->invert = invert;
-  cache->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true :
-                                                                                        false;
+  cache->is_texbrush = (brush->mtex.tex &&
+                        brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ?
+                           true :
+                           false;
   cache->is_maskbrush = (brush->mask_mtex.tex) ? true : false;
 }
 
@@ -367,6 +374,7 @@ static ImBuf *brush_painter_imbuf_new(
     BrushPainter *painter, ImagePaintTile *tile, const int size, float pressure, float distance)
 {
   Scene *scene = painter->scene;
+  const Paint *paint = painter->paint;
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
 
@@ -387,9 +395,16 @@ static ImBuf *brush_painter_imbuf_new(
   ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_rectfloat : IB_rect);
 
   /* get brush color */
-  if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-    paint_brush_color_get(
-        scene, brush, use_color_correction, cache->invert, distance, pressure, brush_rgb, display);
+  if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
+    paint_brush_color_get(scene,
+                          paint,
+                          brush,
+                          use_color_correction,
+                          cache->invert,
+                          distance,
+                          pressure,
+                          display,
+                          brush_rgb);
   }
   else {
     brush_rgb[0] = 1.0f;
@@ -449,6 +464,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
                                        int yt)
 {
   Scene *scene = painter->scene;
+  const Paint *paint = painter->paint;
   Brush *brush = painter->brush;
   const MTex *mtex = &brush->mtex;
   BrushPainterCache *cache = &tile->cache;
@@ -471,9 +487,9 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   ImBuf *texibuf = cache->texibuf;
 
   /* get brush color */
-  if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
+  if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
     paint_brush_color_get(
-        scene, brush, use_color_correction, cache->invert, 0.0f, 1.0f, brush_rgb, display);
+        scene, paint, brush, use_color_correction, cache->invert, 0.0f, 1.0f, display, brush_rgb);
   }
   else {
     brush_rgb[0] = 1.0f;
@@ -631,7 +647,7 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s,
                                          const float pos[2],
                                          const float mouse[2],
                                          int mapmode,
-                                         rctf *mapping)
+                                         rctf *r_mapping)
 {
   float invw = 1.0f / float(tile->canvas->x);
   float invh = 1.0f / float(tile->canvas->y);
@@ -648,33 +664,33 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s,
     UI_view2d_view_to_region_fl(
         s->v2d, (start[0] + diameter) * invw, (start[1] + diameter) * invh, &xmax, &ymax);
 
-    /* output mapping from brush ibuf x/y to region coordinates */
-    mapping->xmax = (xmax - xmin) / float(diameter);
-    mapping->ymax = (ymax - ymin) / float(diameter);
-    mapping->xmin = xmin + (tile->uv_origin[0] * tile->size[0] * mapping->xmax);
-    mapping->ymin = ymin + (tile->uv_origin[1] * tile->size[1] * mapping->ymax);
+    /* output r_mapping from brush ibuf x/y to region coordinates */
+    r_mapping->xmax = (xmax - xmin) / float(diameter);
+    r_mapping->ymax = (ymax - ymin) / float(diameter);
+    r_mapping->xmin = xmin + (tile->uv_origin[0] * tile->size[0] * r_mapping->xmax);
+    r_mapping->ymin = ymin + (tile->uv_origin[1] * tile->size[1] * r_mapping->ymax);
   }
   else if (mapmode == MTEX_MAP_MODE_3D) {
     /* 3D mapping, just mapping to canvas 0..1. */
-    mapping->xmin = 2.0f * (start[0] * invw - 0.5f);
-    mapping->ymin = 2.0f * (start[1] * invh - 0.5f);
-    mapping->xmax = 2.0f * invw;
-    mapping->ymax = 2.0f * invh;
+    r_mapping->xmin = 2.0f * (start[0] * invw - 0.5f);
+    r_mapping->ymin = 2.0f * (start[1] * invh - 0.5f);
+    r_mapping->xmax = 2.0f * invw;
+    r_mapping->ymax = 2.0f * invh;
   }
   else if (ELEM(mapmode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_RANDOM)) {
     /* view mapping */
-    mapping->xmin = mouse[0] - diameter * 0.5f + 0.5f;
-    mapping->ymin = mouse[1] - diameter * 0.5f + 0.5f;
-    mapping->xmax = 1.0f;
-    mapping->ymax = 1.0f;
+    r_mapping->xmin = mouse[0] - diameter * 0.5f + 0.5f;
+    r_mapping->ymin = mouse[1] - diameter * 0.5f + 0.5f;
+    r_mapping->xmax = 1.0f;
+    r_mapping->ymax = 1.0f;
   }
   else /* if (mapmode == MTEX_MAP_MODE_TILED) */ {
-    mapping->xmin = int(-diameter * 0.5) + int(floorf(pos[0])) -
-                    int(floorf(tile->start_paintpos[0]));
-    mapping->ymin = int(-diameter * 0.5) + int(floorf(pos[1])) -
-                    int(floorf(tile->start_paintpos[1]));
-    mapping->xmax = 1.0f;
-    mapping->ymax = 1.0f;
+    r_mapping->xmin = int(-diameter * 0.5) + int(floorf(pos[0])) -
+                      int(floorf(tile->start_paintpos[0]));
+    r_mapping->ymin = int(-diameter * 0.5) + int(floorf(pos[1])) -
+                      int(floorf(tile->start_paintpos[1]));
+    r_mapping->xmax = 1.0f;
+    r_mapping->ymax = 1.0f;
   }
 }
 
@@ -1298,11 +1314,11 @@ static int paint_2d_op(void *state,
   paint_2d_convert_brushco(ibufb, pos, bpos);
 
   /* lift from canvas */
-  if (s->tool == PAINT_TOOL_SOFTEN) {
+  if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
     paint_2d_lift_soften(s, tile, canvas, ibufb, bpos, paint_tile);
     blend = IMB_BLEND_INTERPOLATE;
   }
-  else if (s->tool == PAINT_TOOL_SMEAR) {
+  else if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_SMEAR) {
     if (lastpos[0] == pos[0] && lastpos[1] == pos[1]) {
       return 0;
     }
@@ -1311,7 +1327,7 @@ static int paint_2d_op(void *state,
     paint_2d_lift_smear(canvas, ibufb, blastpos, paint_tile);
     blend = IMB_BLEND_INTERPOLATE;
   }
-  else if (s->tool == PAINT_TOOL_CLONE && s->clonecanvas) {
+  else if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE && s->clonecanvas) {
     liftpos[0] = pos[0] - offset[0] * canvas->x;
     liftpos[1] = pos[1] - offset[1] * canvas->y;
 
@@ -1407,7 +1423,7 @@ static int paint_2d_op(void *state,
 static int paint_2d_canvas_set(ImagePaintState *s)
 {
   /* set clone canvas */
-  if (s->tool == PAINT_TOOL_CLONE) {
+  if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
     Image *ima = s->brush->clone.image;
     ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, nullptr);
 
@@ -1442,7 +1458,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 
   if (s->blurkernel) {
     paint_delete_blur_kernel(s->blurkernel);
-    MEM_freeN(s->blurkernel);
+    MEM_delete(s->blurkernel);
   }
 }
 
@@ -1563,6 +1579,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   ToolSettings *settings = scene->toolsettings;
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 
   ImagePaintState *s = MEM_cnew<ImagePaintState>(__func__);
@@ -1572,7 +1589,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   s->scene = scene;
 
   s->brush = brush;
-  s->tool = brush->imagepaint_tool;
+  s->brush_type = brush->image_brush_type;
   s->blend = brush->blend;
 
   s->image = s->sima->image;
@@ -1636,14 +1653,14 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
     return nullptr;
   }
 
-  if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
+  if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
     s->blurkernel = paint_new_blur_kernel(brush, false);
   }
 
   paint_brush_init_tex(s->brush);
 
   /* create painter */
-  s->painter = brush_painter_2d_new(scene, s->brush, mode == BRUSH_STROKE_INVERT);
+  s->painter = brush_painter_2d_new(scene, paint, s->brush, mode == BRUSH_STROKE_INVERT);
 
   return s;
 }

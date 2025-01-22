@@ -266,7 +266,7 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
     const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
     Vector<Mesh *> mesh_by_layer(grease_pencil.layers().size(), nullptr);
     for (const int layer_index : grease_pencil.layers().index_range()) {
-      const Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+      const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
       if (drawing == nullptr) {
         continue;
       }
@@ -347,7 +347,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

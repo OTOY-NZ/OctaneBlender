@@ -10,6 +10,26 @@ from octane.utils import consts, utility
 octane_blender = core.get_octane_blender_binary_module()
 
 
+class FrameBufferResolution(object):
+    def __init__(self, width, height, region_width, region_height, camera_border_width, camera_border_height,
+                 region_center_x, region_center_y):
+        self.width = width
+        self.height = height
+        self.region_width = region_width
+        self.region_height = region_height
+        self.camera_border_width = camera_border_width
+        self.camera_border_height = camera_border_height
+        self.region_center_x = region_center_x
+        self.region_center_y = region_center_y
+        self.use_offset = camera_border_width > 0 and camera_border_height > 0
+
+    def __repr__(self):
+        return "FrameBufferResolution(width=%d, height=%d, region_width=%d, region_height=%d, camera_border_width=%d, " \
+               "camera_border_height=%d, region_center_x=%f, region_center_y=%f)" % (
+                   self.width, self.height, self.region_width, self.region_height, self.camera_border_width,
+                   self.camera_border_height, self.region_center_x, self.region_center_y)
+
+
 class ViewportDrawData(object):
     ENABLE_PROFILE = True
     ENABLE_MULTITHREAD = False
@@ -50,15 +70,31 @@ class ViewportDrawData(object):
         self.render_result_update_time = 0
 
     def init(self):
-        self.update_vertex_data(False, 0, 0, 0, 0)
+        self.update_vertex_data()
 
-    def update_vertex_data(self, use_offset, region_width, region_height, camera_border_width, camera_border_height):
+    def update_vertex_data(self, frame_buffer_resolution=None):
         frame_buffer = self.frame_buffer
         width = frame_buffer.width
         height = frame_buffer.height
+        if frame_buffer_resolution is not None:
+            region_width = frame_buffer_resolution.region_width
+            region_height = frame_buffer_resolution.region_height
+            camera_border_width = frame_buffer_resolution.camera_border_width
+            camera_border_height = frame_buffer_resolution.camera_border_height
+            region_center_x = frame_buffer_resolution.region_center_x
+            region_center_y = frame_buffer_resolution.region_center_y
+            use_offset = frame_buffer_resolution.use_offset
+        else:
+            region_width = 0
+            region_height = 0
+            camera_border_width = 0
+            camera_border_height = 0
+            region_center_x = 0.5
+            region_center_y = 0.5
+            use_offset = False
         if use_offset:
-            self.offset_x = (region_width - camera_border_width) // 2
-            self.offset_y = (region_height - camera_border_height) // 2
+            self.offset_x = region_width * region_center_x - camera_border_width // 2
+            self.offset_y = region_height * region_center_y - camera_border_height // 2
             display_region_width = camera_border_width
             display_region_height = camera_border_height
         else:

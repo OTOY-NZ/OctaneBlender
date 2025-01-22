@@ -12,7 +12,7 @@ namespace blender::nodes::node_geo_input_named_layer_selection__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Name");
+  b.add_input<decl::String>("Name").hide_label();
   b.add_output<decl::Bool>("Selection").field_source_reference_all();
 }
 
@@ -29,13 +29,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Selection", std::move(selection_field));
 }
 
-static void search_link_ops(GatherLinkSearchOpParams &params)
-{
-  if (U.experimental.use_grease_pencil_version3) {
-    nodes::search_link_ops_for_basic_node(params);
-  }
-}
-
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -44,8 +37,7 @@ static void node_register()
       &ntype, GEO_NODE_INPUT_NAMED_LAYER_SELECTION, "Named Layer Selection", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.gather_link_search_ops = search_link_ops;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

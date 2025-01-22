@@ -46,6 +46,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -119,8 +120,8 @@ static struct WMInitStruct {
    *   instead of the size stored in the factory startup.
    *   Otherwise the window geometry saved in the blend-file is used and these values are ignored.
    */
-  int size_x, size_y;
-  int start_x, start_y;
+  blender::int2 size;
+  blender::int2 start;
 
   GHOST_TWindowState windowstate = GHOST_WINDOW_STATE_DEFAULT;
   eWinOverrideFlag override_flag;
@@ -164,41 +165,41 @@ enum ModSide {
  * \{ */
 
 static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool activate);
-static bool wm_window_timers_process(const bContext *C, int *sleep_us);
+static bool wm_window_timers_process(const bContext *C, int *sleep_us_p);
 static uint8_t wm_ghost_modifier_query(const enum ModSide side);
 
-bool wm_get_screensize(int *r_width, int *r_height)
+bool wm_get_screensize(int r_size[2])
 {
   uint32_t uiwidth, uiheight;
   if (GHOST_GetMainDisplayDimensions(g_system, &uiwidth, &uiheight) == GHOST_kFailure) {
     return false;
   }
-  *r_width = uiwidth;
-  *r_height = uiheight;
+  r_size[0] = uiwidth;
+  r_size[1] = uiheight;
   return true;
 }
 
-bool wm_get_desktopsize(int *r_width, int *r_height)
+bool wm_get_desktopsize(int r_size[2])
 {
   uint32_t uiwidth, uiheight;
   if (GHOST_GetAllDisplayDimensions(g_system, &uiwidth, &uiheight) == GHOST_kFailure) {
     return false;
   }
-  *r_width = uiwidth;
-  *r_height = uiheight;
+  r_size[0] = uiwidth;
+  r_size[1] = uiheight;
   return true;
 }
 
 /** Keeps size within monitor bounds. */
 static void wm_window_check_size(rcti *rect)
 {
-  int width, height;
-  if (wm_get_screensize(&width, &height)) {
-    if (BLI_rcti_size_x(rect) > width) {
-      BLI_rcti_resize_x(rect, width);
+  blender::int2 scr_size;
+  if (wm_get_screensize(scr_size)) {
+    if (BLI_rcti_size_x(rect) > scr_size[0]) {
+      BLI_rcti_resize_x(rect, scr_size[0]);
     }
-    if (BLI_rcti_size_y(rect) > height) {
-      BLI_rcti_resize_y(rect, height);
+    if (BLI_rcti_size_y(rect) > scr_size[1]) {
+      BLI_rcti_resize_y(rect, scr_size[1]);
     }
   }
 }
@@ -481,19 +482,31 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   WM_main_add_notifier(NC_WINDOW | NA_REMOVED, nullptr);
 }
 
-void wm_window_title(wmWindowManager *wm, wmWindow *win)
+void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
 {
   if (win->ghostwin == nullptr) {
     return;
   }
 
-  if (WM_window_is_temp_screen(win)) {
-    /* Nothing to do for 'temp' windows,
-     * because #WM_window_open always sets window title. */
+  GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+
+  if (title) {
+    GHOST_SetTitle(handle, title);
     return;
   }
 
-  GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+  if (win->parent || WM_window_is_temp_screen(win)) {
+    /* Not a main window. */
+    bScreen *screen = WM_window_get_active_screen(win);
+    const bool is_single = screen && BLI_listbase_is_single(&screen->areabase);
+    ScrArea *area = (screen) ? static_cast<ScrArea *>(screen->areabase.first) : nullptr;
+    const char *name = "Blender";
+    if (is_single && area && area->spacetype != SPACE_EMPTY) {
+      name = IFACE_(ED_area_name(area).c_str());
+    }
+    GHOST_SetTitle(handle, name);
+    return;
+  }
 
   const char *filepath = BKE_main_blendfile_path_from_global();
   const char *filename = BLI_path_basename(filepath);
@@ -703,6 +716,8 @@ static void wm_window_ensure_eventstate(wmWindow *win)
   wm_window_update_eventstate(win);
 }
 
+static bool wm_window_update_size_position(wmWindow *win);
+
 /* Belongs to below. */
 static void wm_window_ghostwindow_add(wmWindowManager *wm,
                                       const char *title,
@@ -721,15 +736,18 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 
   eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpuSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpuSettings.preferred_device.index = U.gpu_preferred_index;
+  gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
 
   int posx = 0;
   int posy = 0;
 
   if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) {
-    int scr_w, scr_h;
-    if (wm_get_desktopsize(&scr_w, &scr_h)) {
+    blender::int2 scr_size;
+    if (wm_get_desktopsize(scr_size)) {
       posx = win->posx;
-      posy = (scr_h - win->posy - win->sizey);
+      posy = (scr_size[1] - win->posy - win->sizey);
     }
   }
 
@@ -766,17 +784,12 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     wm_window_ensure_eventstate(win);
 
     /* Store actual window size in blender window. */
-    GHOST_RectangleHandle bounds = GHOST_GetClientBounds(
-        static_cast<GHOST_WindowHandle>(win->ghostwin));
-
     /* WIN32: gives undefined window size when minimized. */
     if (GHOST_GetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin)) !=
         GHOST_kWindowStateMinimized)
     {
-      win->sizex = GHOST_GetWidthRectangle(bounds);
-      win->sizey = GHOST_GetHeightRectangle(bounds);
+      wm_window_update_size_position(win);
     }
-    GHOST_DisposeRectangle(bounds);
 
 #ifndef __APPLE__
     /* Set the state here, so minimized state comes up correct on windows. */
@@ -806,10 +819,10 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 {
   if (win->ghostwin == nullptr) {
     if ((win->sizex == 0) || (wm_init_state.override_flag & WIN_OVERRIDE_GEOM)) {
-      win->posx = wm_init_state.start_x;
-      win->posy = wm_init_state.start_y;
-      win->sizex = wm_init_state.size_x;
-      win->sizey = wm_init_state.size_y;
+      win->posx = wm_init_state.start[0];
+      win->posy = wm_init_state.start[1];
+      win->sizex = wm_init_state.size[0];
+      win->sizey = wm_init_state.size[1];
 
       if (wm_init_state.override_flag & WIN_OVERRIDE_GEOM) {
         win->windowstate = GHOST_kWindowStateNormal;
@@ -858,7 +871,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_dropbox_handler(&win->handlers, lb);
   }
-  wm_window_title(wm, win);
+  WM_window_title(wm, win);
 
   /* Add top-bar. */
   ED_screen_global_areas_refresh(win);
@@ -872,18 +885,16 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
    * Note that these values will be used only
    * when there is no startup.blend yet.
    */
-  if (wm_init_state.size_x == 0) {
-    if (UNLIKELY(!wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y))) {
+  if (wm_init_state.size[0] == 0) {
+    if (UNLIKELY(!wm_get_screensize(wm_init_state.size))) {
       /* Use fallback values. */
-      wm_init_state.size_x = 0;
-      wm_init_state.size_y = 0;
+      wm_init_state.size = blender::int2(0);
     }
 
     /* NOTE: this isn't quite correct, active screen maybe offset 1000s if PX,
      * we'd need a #wm_get_screensize like function that gives offset,
      * in practice the window manager will likely move to the correct monitor. */
-    wm_init_state.start_x = 0;
-    wm_init_state.start_y = 0;
+    wm_init_state.start = blender::int2(0);
   }
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
@@ -919,10 +930,10 @@ static bool wm_window_update_size_position(wmWindow *win)
   int posy = 0;
 
   if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) {
-    int scr_w, scr_h;
-    if (wm_get_desktopsize(&scr_w, &scr_h)) {
+    blender::int2 scr_size;
+    if (wm_get_desktopsize(scr_size)) {
       posx = l;
-      posy = scr_h - t - win->sizey;
+      posy = scr_size[1] - t - win->sizey;
     }
   }
 
@@ -1080,11 +1091,11 @@ wmWindow *WM_window_open(bContext *C,
   }
 
   /* Refresh screen dimensions, after the effective window size is known. */
-  ED_screen_refresh(wm, win);
+  ED_screen_refresh(C, wm, win);
 
   if (win->ghostwin) {
     wm_window_raise(win);
-    GHOST_SetTitle(static_cast<GHOST_WindowHandle>(win->ghostwin), title);
+    WM_window_title(wm, win, title);
     return win;
   }
 
@@ -1121,7 +1132,7 @@ int wm_window_new_exec(bContext *C, wmOperator *op)
   };
 
   bool ok = (WM_window_open(C,
-                            IFACE_("Blender"),
+                            nullptr,
                             &window_rect,
                             area->spacetype,
                             false,
@@ -1878,6 +1889,7 @@ void wm_ghost_init(bContext *C)
   GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
 
   g_system = GHOST_CreateSystem();
+  GPU_backend_ghost_system_set(g_system);
 
   if (UNLIKELY(g_system == nullptr)) {
     /* GHOST will have reported the back-ends that failed to load. */
@@ -1918,6 +1930,7 @@ void wm_ghost_init_background()
   GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
 
   g_system = GHOST_CreateSystemBackground();
+  GPU_backend_ghost_system_set(g_system);
 
   GHOST_Debug debug = {0};
   if (G.debug & G_DEBUG_GHOST) {
@@ -2047,6 +2060,59 @@ void wm_test_opengl_deprecation_warning(bContext *C)
   }
 
   message_shown = true;
+}
+
+static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
+{
+  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_block_emboss_set(block, UI_EMBOSS);
+
+  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
+
+  /* Title and explanation text. */
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiItemL_ex(
+      col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
+  uiItemL(col, RPT_(""), ICON_NONE);
+  uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
+  uiItemL(col,
+          RPT_("The graphics backend can be changed in the System section of the Preferences."),
+          ICON_NONE);
+
+  uiItemS(layout);
+
+  UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
+
+  return block;
+}
+
+void wm_test_gpu_backend_fallback(bContext *C)
+{
+  if (!bool(G.f & G_FLAG_GPU_BACKEND_FALLBACK)) {
+    return;
+  }
+
+  /* Have we already shown a message during this Blender session. */
+  if (bool(G.f & G_FLAG_GPU_BACKEND_FALLBACK_QUIET)) {
+    return;
+  }
+  G.f |= G_FLAG_GPU_BACKEND_FALLBACK_QUIET;
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = static_cast<wmWindow *>((wm->winactive) ? wm->winactive : wm->windows.first);
+
+  if (win) {
+    /* We want this warning on the Main window, not a child window even if active. See #118765. */
+    if (win->parent) {
+      win = win->parent;
+    }
+
+    wmWindow *prevwin = CTX_wm_window(C);
+    CTX_wm_window_set(C, win);
+    UI_popup_block_invoke(C, block_create_gpu_backend_fallback, nullptr, nullptr);
+    CTX_wm_window_set(C, prevwin);
+  }
 }
 
 eWM_CapabilitiesFlag WM_capabilities_flag()
@@ -2469,12 +2535,6 @@ void WM_progress_clear(wmWindow *win)
 /** \name Window Position/Size (internal)
  * \{ */
 
-void wm_window_get_position(wmWindow *win, int *r_pos_x, int *r_pos_y)
-{
-  *r_pos_x = win->posx;
-  *r_pos_y = win->posy;
-}
-
 void wm_window_set_size(wmWindow *win, int width, int height)
 {
   GHOST_SetClientSize(static_cast<GHOST_WindowHandle>(win->ghostwin), width, height);
@@ -2568,10 +2628,8 @@ wmWindow *WM_window_find_by_area(wmWindowManager *wm, const ScrArea *area)
 
 void WM_init_state_size_set(int stax, int stay, int sizx, int sizy)
 {
-  wm_init_state.start_x = stax; /* Left hand position. */
-  wm_init_state.start_y = stay; /* Bottom position. */
-  wm_init_state.size_x = sizx < 640 ? 640 : sizx;
-  wm_init_state.size_y = sizy < 480 ? 480 : sizy;
+  wm_init_state.start = blender::int2(stax, stay); /* Left hand bottom position. */
+  wm_init_state.size = blender::int2(std::max(sizx, 640), std::max(sizy, 480));
   wm_init_state.override_flag |= WIN_OVERRIDE_GEOM;
 }
 
@@ -2657,22 +2715,38 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
 /** \name Window Size (public)
  * \{ */
 
-int WM_window_pixels_x(const wmWindow *win)
+int WM_window_native_pixel_x(const wmWindow *win)
 {
-  float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
+  const float fac = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
 
-  return int(f * float(win->sizex));
+  return int(fac * float(win->sizex));
 }
-int WM_window_pixels_y(const wmWindow *win)
+int WM_window_native_pixel_y(const wmWindow *win)
 {
-  float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
+  const float fac = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
 
-  return int(f * float(win->sizey));
+  return int(fac * float(win->sizey));
+}
+
+blender::int2 WM_window_native_pixel_size(const wmWindow *win)
+{
+  const float fac = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
+
+  return blender::int2(int(fac * float(win->sizex)), int(fac * float(win->sizey)));
+}
+
+void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y)
+{
+  const float fac = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
+
+  *x *= fac;
+  *y *= fac;
 }
 
 void WM_window_rect_calc(const wmWindow *win, rcti *r_rect)
 {
-  BLI_rcti_init(r_rect, 0, WM_window_pixels_x(win), 0, WM_window_pixels_y(win));
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
+  BLI_rcti_init(r_rect, 0, win_size[0], 0, win_size[1]);
 }
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect)
 {
@@ -2907,11 +2981,10 @@ bool WM_window_is_temp_screen(const wmWindow *win)
  * \{ */
 
 #ifdef WITH_INPUT_IME
-/**
- * \note Keep in mind #wm_window_IME_begin is also used to reposition the IME window.
- */
 void wm_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete)
 {
+  /* NOTE: Keep in mind #wm_window_IME_begin is also used to reposition the IME window. */
+
   BLI_assert(win);
   if ((WM_capabilities_flag() & WM_CAPABILITY_INPUT_IME) == 0) {
     return;
@@ -2970,6 +3043,10 @@ void *WM_system_gpu_context_create()
   if (G.debug & G_DEBUG_GPU) {
     gpuSettings.flags |= GHOST_gpuDebugContext;
   }
+  gpuSettings.preferred_device.index = U.gpu_preferred_index;
+  gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
+
   return GHOST_CreateGPUContext(g_system, gpuSettings);
 }
 

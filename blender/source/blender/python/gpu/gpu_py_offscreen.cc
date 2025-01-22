@@ -30,10 +30,10 @@
 
 #include "ED_view3d_offscreen.hh"
 
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
 #include "gpu_py.hh"
 #include "gpu_py_texture.hh"
@@ -322,7 +322,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_width_doc,
     "Width of the texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_width_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -334,7 +334,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_height_doc,
     "Height of the texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_height_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -346,7 +346,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_color_texture_doc,
     "OpenGL bindcode for the color texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_color_texture_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);

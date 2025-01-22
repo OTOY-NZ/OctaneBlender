@@ -11,6 +11,8 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
 
+#include "BLI_math_matrix_types.hh"
+
 #define BCM_CONFIG_FILE "config.ocio"
 
 struct ColorManagedColorspaceSettings;
@@ -83,7 +85,18 @@ BLI_INLINE void IMB_colormanagement_aces_to_scene_linear(float scene_linear[3],
                                                          const float aces[3]);
 BLI_INLINE void IMB_colormanagement_scene_linear_to_aces(float aces[3],
                                                          const float scene_linear[3]);
-const float *IMB_colormanagement_get_xyz_to_scene_linear();
+blender::float3x3 IMB_colormanagement_get_xyz_to_scene_linear();
+blender::float3x3 IMB_colormanagement_get_scene_linear_to_xyz();
+
+/**
+ * Functions for converting between color temperature/tint and RGB white points.
+ */
+void IMB_colormanagement_get_whitepoint(const float temperature,
+                                        const float tint,
+                                        float whitepoint[3]);
+bool IMB_colormanagement_set_whitepoint(const float whitepoint[3],
+                                        float &temperature,
+                                        float &tint);
 
 /** \} */
 
@@ -149,8 +162,9 @@ void IMB_colormanagement_transform_v4(float pixel[4],
                                       const char *to_colorspace);
 
 /**
- * Convert pixel from specified by descriptor color space to scene linear
- * used by performance-critical areas such as renderer and baker.
+ * Convert pixel from specified color space to scene linear space.
+ * For performance, use #IMB_colormanagement_colorspace_to_scene_linear
+ * when converting an array of pixels.
  */
 void IMB_colormanagement_colorspace_to_scene_linear_v3(float pixel[3], ColorSpace *colorspace);
 void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4],
@@ -158,17 +172,31 @@ void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4],
                                                        ColorSpace *colorspace);
 
 /**
- * Same as #IMB_colormanagement_colorspace_to_scene_linear_v4,
- * but converts colors in opposite direction.
+ * Convert pixel from scene linear space to specified color space.
+ * For performance, use #IMB_colormanagement_scene_linear_to_colorspace
+ * when converting an array of pixels.
  */
 void IMB_colormanagement_scene_linear_to_colorspace_v3(float pixel[3], ColorSpace *colorspace);
 
+/**
+ * Converts a (width)x(height) block of float pixels from given color space to
+ * scene linear space. This is much higher performance than converting pixels
+ * one by one.
+ */
 void IMB_colormanagement_colorspace_to_scene_linear(
     float *buffer, int width, int height, int channels, ColorSpace *colorspace, bool predivide);
 
+/**
+ * Converts a (width)x(height) block of float pixels from scene linear space
+ * to given color space. This is much higher performance than converting pixels
+ * one by one.
+ */
+void IMB_colormanagement_scene_linear_to_colorspace(
+    float *buffer, int width, int height, int channels, ColorSpace *colorspace);
+
 void IMB_colormanagement_imbuf_to_byte_texture(unsigned char *out_buffer,
-                                               int x,
-                                               int y,
+                                               int offset_x,
+                                               int offset_y,
                                                int width,
                                                int height,
                                                const ImBuf *ibuf,
@@ -464,7 +492,7 @@ bool IMB_colormanagement_setup_glsl_draw(const ColorManagedViewSettings *view_se
 bool IMB_colormanagement_setup_glsl_draw_from_space(
     const ColorManagedViewSettings *view_settings,
     const ColorManagedDisplaySettings *display_settings,
-    ColorSpace *colorspace,
+    ColorSpace *from_colorspace,
     float dither,
     bool predivide,
     bool do_overlay_merge);
@@ -477,7 +505,7 @@ bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bo
  * but color management settings are guessing from a given context.
  */
 bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
-                                                        ColorSpace *colorspace,
+                                                        ColorSpace *from_colorspace,
                                                         float dither,
                                                         bool predivide);
 /**

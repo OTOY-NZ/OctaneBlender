@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
+"Project-Id-Version: Blender 4.3.0 Release Candidate (b'7dfe47164a63')\n"
 "Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: 2024-04-29 13:23+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
@@ -99,16 +99,52 @@ msgid "Main Meshes"
 msgstr "Ихадоу Аҿарԥагақәа"
 
 
-msgid "Mode"
-msgstr "А́иҿкаашьа"
+msgid "Armature"
+msgstr "Абаҩ"
 
 
-msgid "Marker"
-msgstr "Ашьҭа"
+msgid "Camera"
+msgstr "Акамера"
+
+
+msgid "Curve"
+msgstr "Архәара"
 
 
 msgid "Image"
 msgstr "Асахьанҵа"
+
+
+msgid "Lattice"
+msgstr "Аҭыџьеихац"
+
+
+msgid "Library"
+msgstr "Ашәҟәыԥхьарҭа"
+
+
+msgid "Light"
+msgstr "Алашара"
+
+
+msgid "Mesh"
+msgstr "Аҿарҧага"
+
+
+msgid "Metaball"
+msgstr "Метампыл"
+
+
+msgid "Speaker"
+msgstr "Абжьы Ахыҵхырҭа"
+
+
+msgid "Text"
+msgstr "Аҳәоу"
+
+
+msgid "Mode"
+msgstr "А́иҿкаашьа"
 
 
 msgid "Rotation"
@@ -119,20 +155,8 @@ msgid "Scale"
 msgstr "Ашәага"
 
 
-msgid "Curve"
-msgstr "Архәара"
-
-
 msgid "Difference"
 msgstr "Аиԥшымра"
-
-
-msgid "Armature"
-msgstr "Абаҩ"
-
-
-msgid "Camera"
-msgstr "Акамера"
 
 
 msgid "Location"
@@ -187,38 +211,6 @@ msgid "Window"
 msgstr "Аԥенџьыр"
 
 
-msgid "Edit Mode"
-msgstr "Аиҭакра Аиҿкаашьа"
-
-
-msgid "Lattice"
-msgstr "Аҭыџьеихац"
-
-
-msgid "Library"
-msgstr "Ашәҟәыԥхьарҭа"
-
-
-msgid "Light"
-msgstr "Алашара"
-
-
-msgid "Mesh"
-msgstr "Аҿарҧага"
-
-
-msgid "Metaball"
-msgstr "Метампыл"
-
-
-msgid "Speaker"
-msgstr "Абжьы Ахыҵхырҭа"
-
-
-msgid "Text"
-msgstr "Аҳәоу"
-
-
 msgid "Local"
 msgstr "Ҷыдала"
 
@@ -261,6 +253,10 @@ msgid "Object Mode"
 msgstr "Амаҭәар Аиҿкаашьа"
 
 
+msgid "Edit Mode"
+msgstr "Аиҭакра Аиҿкаашьа"
+
+
 msgid "Sculpt Mode"
 msgstr "Ашәаҳара Аиҿкаашьа"
 
@@ -284,6 +280,10 @@ msgstr "Аҭацәы"
 
 msgid "3D Cursor"
 msgstr "3Д Ахырхага"
+
+
+msgid "Marker"
+msgstr "Ашьҭа"
 
 
 msgid "Keying"
@@ -313,11 +313,6 @@ msgstr "Аҿыц"
 msgctxt "Operator"
 msgid "Add Circle"
 msgstr "Ацҵара Аицыгьежь"
-
-
-msgctxt "Operator"
-msgid "Scale"
-msgstr "Ашәага"
 
 
 msgctxt "Operator"
@@ -385,6 +380,11 @@ msgid "New"
 msgstr "Аҿыц"
 
 
+msgctxt "Operator"
+msgid "Scale"
+msgstr "Ашәага"
+
+
 msgctxt "Sequence"
 msgid "Text"
 msgstr "Аҳәоу"
@@ -446,11 +446,6 @@ msgstr "Аҭыԥ"
 msgctxt "Operator"
 msgid "Rotation"
 msgstr "Агьежьра"
-
-
-msgctxt "Image"
-msgid "New"
-msgstr "Аҿыц"
 
 
 msgctxt "Operator"
@@ -544,6 +539,11 @@ msgstr "Аҿыц"
 
 
 msgctxt "GPencil"
+msgid "New"
+msgstr "Аҿыц"
+
+
+msgctxt "Image"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -701,9 +701,4 @@ msgstr "Аԥшра"
 
 msgid "cursor"
 msgstr "Ахырхага"
-
-
-msgctxt "Action"
-msgid "Group"
-msgstr "Агәыԥ"
 

@@ -10,15 +10,18 @@
 
 #include "gpu_texture_private.hh"
 
-#include "vk_bindable_resource.hh"
 #include "vk_context.hh"
 #include "vk_image_view.hh"
 
 namespace blender::gpu {
 
 class VKSampler;
+class VKDescriptorSetTracker;
+class VKVertexBuffer;
 
-class VKTexture : public Texture, public VKBindableResource {
+class VKTexture : public Texture {
+  friend class VKDescriptorSetTracker;
+
   /**
    * Texture format how the texture is stored on the device.
    *
@@ -29,6 +32,15 @@ class VKTexture : public Texture, public VKBindableResource {
 
   /** When set the instance is considered to be a texture view from `source_texture_` */
   VKTexture *source_texture_ = nullptr;
+
+  /**
+   * Store of source vertex buffer. Related to `GPU_texture_create_from_vertbuf`.
+   *
+   * In vulkan a texel buffer is a buffer and not a texture. Calls will be forwarded to the vertex
+   * buffer in this case. GPU_texture_create_from_vertbuf should be phased out (currently only used
+   * by particle hair).
+   */
+  VKVertexBuffer *source_buffer_ = nullptr;
   VkImage vk_image_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
 
@@ -50,9 +62,10 @@ class VKTexture : public Texture, public VKBindableResource {
   VKImageViewInfo image_view_info_ = {eImageViewUsage::ShaderBinding,
                                       IndexRange(0, VK_REMAINING_ARRAY_LAYERS),
                                       IndexRange(0, VK_REMAINING_MIP_LEVELS),
-                                      {'r', 'g', 'b', 'a'},
+                                      {{'r', 'g', 'b', 'a'}},
                                       false,
-                                      false};
+                                      false,
+                                      VKImageViewArrayed::DONT_CARE};
 
  public:
   VKTexture(const char *name) : Texture(name) {}
@@ -72,7 +85,7 @@ class VKTexture : public Texture, public VKBindableResource {
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat format) override;
   void read_sub(
-      int mip, eGPUDataFormat format, const int area[6], IndexRange layers, void *r_data);
+      int mip, eGPUDataFormat format, const int region[6], IndexRange layers, void *r_data);
   void update_sub(
       int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) override;
   void update_sub(int offset[3],
@@ -82,11 +95,6 @@ class VKTexture : public Texture, public VKBindableResource {
 
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
-
-  void add_to_descriptor_set(AddToDescriptorSetContext &data,
-                             int location,
-                             shader::ShaderCreateInfo::Resource::BindType bind_type,
-                             const GPUSamplerState sampler_state) override;
 
   VkImage vk_image_handle() const
   {
@@ -114,7 +122,7 @@ class VKTexture : public Texture, public VKBindableResource {
   /**
    * Get the current image view for this texture.
    */
-  const VKImageView &image_view_get();
+  const VKImageView &image_view_get(VKImageViewArrayed arrayed);
 
  protected:
   bool init_internal() override;
@@ -141,56 +149,6 @@ class VKTexture : public Texture, public VKBindableResource {
    * Determine the VkExtent3D for the given mip_level.
    */
   VkExtent3D vk_extent_3d(int mip_level) const;
-
-  /* -------------------------------------------------------------------- */
-  /** \name Image Layout
-   * \{ */
- public:
-  /**
-   * Update the current layout attribute, without actually changing the layout.
-   *
-   * Vulkan can change the layout of an image, when a command is being executed.
-   * The start of a render pass or the end of a render pass can also alter the
-   * actual layout of the image. This method allows to change the last known layout
-   * that the image is using.
-   *
-   * NOTE: When we add command encoding, this should partly being done inside
-   * the command encoder, as there is more accurate determination of the transition
-   * of the layout. Only the final transition should then be stored inside the texture
-   * to be used by as initial layout for the next set of commands.
-   */
-  void current_layout_set(VkImageLayout new_layout);
-  VkImageLayout current_layout_get() const;
-
-  /**
-   * Ensure the layout of the texture. This also performs the conversion by adding a memory
-   * barrier to the active command buffer to perform the conversion.
-   *
-   * When texture is already in the requested layout, nothing will be done.
-   */
-  void layout_ensure(VKContext &context,
-                     VkImageLayout requested_layout,
-                     VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                     VkAccessFlags src_access = VK_ACCESS_MEMORY_WRITE_BIT,
-                     VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                     VkAccessFlags dst_access = VK_ACCESS_MEMORY_READ_BIT);
-
- private:
-  /**
-   * Internal function to ensure the layout of a single mipmap level. Note that the caller is
-   * responsible to update the current_layout of the image at the end of the operation and make
-   * sure that all mipmap levels are in that given layout.
-   */
-  void layout_ensure(VKContext &context,
-                     IndexRange mipmap_range,
-                     VkImageLayout current_layout,
-                     VkImageLayout requested_layout,
-                     VkPipelineStageFlags src_stage,
-                     VkAccessFlags src_access,
-                     VkPipelineStageFlags dst_stage,
-                     VkAccessFlags dst_access);
-
-  /** \} */
 
   /* -------------------------------------------------------------------- */
   /** \name Image Views

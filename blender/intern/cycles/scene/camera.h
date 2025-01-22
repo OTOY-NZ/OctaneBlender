@@ -87,6 +87,11 @@ class Camera : public Node {
   NODE_SOCKET_API(float, fisheye_polynomial_k3)
   NODE_SOCKET_API(float, fisheye_polynomial_k4)
 
+  NODE_SOCKET_API(float, central_cylindrical_range_u_min)
+  NODE_SOCKET_API(float, central_cylindrical_range_u_max)
+  NODE_SOCKET_API(float, central_cylindrical_range_v_min)
+  NODE_SOCKET_API(float, central_cylindrical_range_v_max)
+
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)
   NODE_SOCKET_API(bool, use_spherical_stereo)
@@ -154,7 +159,6 @@ class Camera : public Node {
   Transform worldtocamera;
 
   ProjectionTransform rastertocamera;
-  ProjectionTransform cameratoraster;
 
   ProjectionTransform full_rastertocamera;
 

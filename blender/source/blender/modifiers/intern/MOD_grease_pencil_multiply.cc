@@ -40,7 +40,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_modifiertypes.hh"
@@ -120,7 +120,6 @@ static bke::CurvesGeometry duplicate_strokes(const bke::CurvesGeometry &curves,
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = true;
   options.realize_instance_attributes = true;
-  options.propagation_info = {};
   bke::GeometrySet result_geo = geometry::realize_instances(
       bke::GeometrySet::from_instances(instances.release()), options);
   return std::move(result_geo.get_curves_for_write()->geometry.wrap());
@@ -249,7 +248,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(col, ptr, "distance", UI_ITEM_NONE, nullptr, ICON_NONE);
   uiItemR(col, ptr, "offset", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
 
-  if (uiLayout *fade_panel = uiLayoutPanelProp(C, layout, ptr, "open_fading_panel", "Fade")) {
+  if (uiLayout *fade_panel = uiLayoutPanelProp(
+          C, layout, ptr, "open_fading_panel", IFACE_("Fade")))
+  {
     uiLayoutSetPropSep(fade_panel, true);
     uiItemR(fade_panel, ptr, "use_fade", UI_ITEM_NONE, nullptr, ICON_NONE);
 
@@ -262,7 +263,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

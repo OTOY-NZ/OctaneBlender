@@ -10,7 +10,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Strength").default_value(1.0f).min(0.0f).max(1000000.0f);
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("Emission");
 }
 
@@ -53,5 +53,5 @@ void register_node_type_sh_emission()
   ntype.gpu_fn = file_ns::node_shader_gpu_emission;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -23,7 +23,7 @@ if(WITH_COMPOSITOR_CPU)
     ../render
     ../render/intern
 
-    # RNA_prototypes.h
+    # RNA_prototypes.hh
     ${CMAKE_BINARY_DIR}/source/blender/makesrna
   )
 
@@ -463,6 +463,8 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_ColorBalanceASCCDLOperation.h
     operations/COM_ColorBalanceLGGOperation.cc
     operations/COM_ColorBalanceLGGOperation.h
+    operations/COM_ColorBalanceWhitepointOperation.cc
+    operations/COM_ColorBalanceWhitepointOperation.h
     operations/COM_InvertOperation.cc
     operations/COM_InvertOperation.h
     operations/COM_MapRangeOperation.cc
@@ -574,13 +576,9 @@ if(WITH_COMPOSITOR_CPU)
   )
 
   if(WITH_TBB)
-    list(APPEND INC_SYS
-      ${TBB_INCLUDE_DIRS}
-    )
-    add_definitions(-DWITH_TBB)
     if(WIN32)
       # TBB includes Windows.h which will define min/max macros
-      # that will collide with the stl versions.
+      # that will collide with the STL versions.
       add_definitions(-DNOMINMAX)
     endif()
   endif()
@@ -636,7 +634,7 @@ if(WITH_COMPOSITOR_CPU)
     blender_add_test_suite_lib(compositor "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   add_dependencies(bf_compositor bf_rna)
 
 # End WITH_COMPOSITOR_CPU.

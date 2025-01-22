@@ -30,7 +30,7 @@
 #include "BKE_node_tree_update.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
@@ -54,14 +54,23 @@ namespace blender::ed::space_node {
 
 /* describes an instance of a node type and a specific socket to link */
 struct NodeLinkItem {
-  int socket_index = -1;             /* index for linking */
-  int socket_type = SOCK_CUSTOM;     /* socket type for compatibility check */
-  const char *socket_name = nullptr; /* ui label of the socket */
-  const char *node_name = nullptr;   /* ui label of the node */
+  int socket_index;        /* index for linking */
+  int socket_type;         /* socket type for compatibility check */
+  const char *socket_name; /* ui label of the socket */
+  const char *node_name;   /* ui label of the node */
 
   /* extra settings */
-  bNodeTree *ngroup = nullptr; /* group node tree */
+  bNodeTree *ngroup; /* group node tree */
 };
+
+static void node_link_item_init(NodeLinkItem &item)
+{
+  item.socket_index = -1;
+  item.socket_type = SOCK_CUSTOM;
+  item.socket_name = nullptr;
+  item.node_name = nullptr;
+  item.ngroup = nullptr;
+}
 
 /* Compare an existing node to a link item to see if it can be reused.
  * item must be for the same node type!
@@ -151,7 +160,7 @@ static void node_remove_linked(Main *bmain, bNodeTree *ntree, bNode *rem_node)
     next = node->next;
 
     if (node->flag & NODE_TEST) {
-      bke::nodeRemoveNode(bmain, ntree, node, true);
+      bke::node_remove_node(bmain, ntree, node, true);
     }
   }
 }
@@ -166,7 +175,7 @@ static void node_socket_disconnect(Main *bmain,
     return;
   }
 
-  bke::nodeRemLink(ntree, sock_to->link);
+  bke::node_remove_link(ntree, sock_to->link);
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
@@ -203,7 +212,7 @@ static void node_socket_add_replace(const bContext *C,
   /* unlink existing node */
   if (sock_to->link) {
     node_prev = sock_to->link->fromnode;
-    bke::nodeRemLink(ntree, sock_to->link);
+    bke::node_remove_link(ntree, sock_to->link);
   }
 
   /* find existing node that we can use */
@@ -226,7 +235,7 @@ static void node_socket_add_replace(const bContext *C,
     node_from = node_prev;
   }
   else if (!node_from) {
-    node_from = bke::nodeAddStaticNode(C, ntree, type);
+    node_from = bke::node_add_static_node(C, ntree, type);
     if (node_prev != nullptr) {
       /* If we're replacing existing node, use its location. */
       node_from->locx = node_prev->locx;
@@ -236,25 +245,27 @@ static void node_socket_add_replace(const bContext *C,
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-      bke::nodePositionRelative(node_from, node_to, sock_from_tmp, sock_to);
+      bke::node_position_relative(node_from, node_to, sock_from_tmp, sock_to);
     }
 
     node_link_item_apply(ntree, node_from, item);
     ED_node_tree_propagate_change(C, bmain, ntree);
   }
 
-  bke::nodeSetActive(ntree, node_from);
+  bke::node_set_active(ntree, node_from);
 
   /* add link */
   sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-  bke::nodeAddLink(ntree, node_from, sock_from_tmp, node_to, sock_to);
+  bke::node_add_link(ntree, node_from, sock_from_tmp, node_to, sock_to);
   sock_to->flag &= ~SOCK_COLLAPSED;
 
   /* copy input sockets from previous node */
   if (node_prev && node_from != node_prev) {
     LISTBASE_FOREACH (bNodeSocket *, sock_prev, &node_prev->inputs) {
       LISTBASE_FOREACH (bNodeSocket *, sock_from, &node_from->inputs) {
-        if (bke::nodeCountSocketLinks(ntree, sock_from) >= bke::nodeSocketLinkLimit(sock_from)) {
+        if (bke::node_count_socket_links(ntree, sock_from) >=
+            bke::node_socket_link_limit(sock_from))
+        {
           continue;
         }
 
@@ -264,8 +275,8 @@ static void node_socket_add_replace(const bContext *C,
           bNodeLink *link = sock_prev->link;
 
           if (link && link->fromnode) {
-            bke::nodeAddLink(ntree, link->fromnode, link->fromsock, node_from, sock_from);
-            bke::nodeRemLink(ntree, link);
+            bke::node_add_link(ntree, link->fromnode, link->fromsock, node_from, sock_from);
+            bke::node_remove_link(ntree, link);
           }
 
           node_socket_copy_default_value(sock_from, sock_prev);
@@ -325,7 +336,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
     {
       const char *disabled_hint;
       if ((ngroup->type != arg->ntree->type) ||
-          !bke::nodeGroupPoll(arg->ntree, ngroup, &disabled_hint))
+          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
       {
         continue;
       }
@@ -336,7 +347,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
     {
       const char *disabled_hint;
       if ((ngroup->type != arg->ntree->type) ||
-          !bke::nodeGroupPoll(arg->ntree, ngroup, &disabled_hint))
+          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
       {
         continue;
       }
@@ -348,6 +359,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
       for (const int index : iosockets.index_range()) {
         bNodeTreeInterfaceSocket *iosock = iosockets[index];
         NodeLinkItem item;
+        node_link_item_init(item);
         item.socket_index = index;
         /* NOTE: int stemp->type is not fully reliable, not used for node group
          * interface sockets. use the typeinfo->type instead.
@@ -374,6 +386,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
     for (const SocketDeclaration *socket_decl_ptr : socket_decls) {
       const SocketDeclaration &socket_decl = *socket_decl_ptr;
       NodeLinkItem item;
+      node_link_item_init(item);
       item.socket_index = index++;
       item.socket_type = socket_decl.socket_type;
       item.socket_name = socket_decl.name.c_str();
@@ -393,6 +406,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
         continue;
       }
       NodeLinkItem item;
+      node_link_item_init(item);
       item.socket_index = i;
       item.socket_type = stemp->type;
       item.socket_name = stemp->name;
@@ -795,10 +809,11 @@ void uiTemplateNodeLink(
   uiBut *but;
   float socket_col[4];
 
-  arg = MEM_new<NodeLinkArg>("NodeLinkArg");
+  arg = MEM_cnew<NodeLinkArg>("NodeLinkArg");
   arg->ntree = ntree;
   arg->node = node;
   arg->sock = input;
+  node_link_item_init(arg->item);
 
   PointerRNA node_ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
   node_socket_color_get(*C, *ntree, node_ptr, *input, socket_col);
@@ -822,6 +837,8 @@ void uiTemplateNodeLink(
 
   but->poin = (char *)but;
   but->func_argN = arg;
+  but->func_argN_free_fn = MEM_freeN;
+  but->func_argN_copy_fn = MEM_dupallocN;
 
   if (input->link && input->link->fromnode) {
     if (input->link->fromnode->flag & NODE_ACTIVE_TEXTURE) {
@@ -979,10 +996,10 @@ static void ui_node_draw_input(uiLayout &layout,
   PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
 
   row = uiLayoutRow(&layout, true);
-  /* Decorations are added manually here. */
-  uiLayoutSetPropDecorate(row, false);
 
   uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
+  /* Decorations are added manually here. */
+  uiLayoutSetPropDecorate(row, false);
   /* Empty decorator item for alignment. */
   bool add_dummy_decorator = false;
 
@@ -1045,8 +1062,10 @@ static void ui_node_draw_input(uiLayout &layout,
         case SOCK_BOOLEAN:
         case SOCK_RGBA:
           uiItemR(sub, &inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
-          uiItemDecoratorR(
-              split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+          if (split_wrapper.decorate_column) {
+            uiItemDecoratorR(
+                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+          }
           break;
         case SOCK_STRING: {
           const bNodeTree *node_tree = (const bNodeTree *)nodeptr.owner_id;
@@ -1059,8 +1078,10 @@ static void ui_node_draw_input(uiLayout &layout,
           else {
             uiItemR(sub, &inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           }
-          uiItemDecoratorR(
-              split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+          if (split_wrapper.decorate_column) {
+            uiItemDecoratorR(
+                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+          }
           break;
         }
         case SOCK_MENU:
@@ -1075,7 +1096,7 @@ static void ui_node_draw_input(uiLayout &layout,
     }
   }
 
-  if (add_dummy_decorator) {
+  if (add_dummy_decorator && split_wrapper.decorate_column) {
     uiItemDecoratorR(split_wrapper.decorate_column, nullptr, nullptr, 0);
   }
 

@@ -30,10 +30,13 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
+#include "ED_anim_api.hh"
 #include "ED_keyframes_draw.hh"
 #include "ED_keyframes_keylist.hh"
 
 #include "ANIM_action.hh"
+
+using namespace blender;
 
 /* *************************** Keyframe Drawing *************************** */
 
@@ -387,6 +390,7 @@ enum class ChannelType {
   OBJECT,
   FCURVE,
   ACTION_LAYERED,
+  ACTION_SLOT,
   ACTION_LEGACY,
   ACTION_GROUP,
   GREASE_PENCIL_CELS,
@@ -406,6 +410,7 @@ struct ChannelListElement {
   eSAction_Flag saction_flag;
   bool channel_locked;
 
+  /* TODO: check which of these can be put into a `union`: */
   bAnimContext *ac;
   bDopeSheet *ads;
   Scene *sce;
@@ -413,6 +418,7 @@ struct ChannelListElement {
   AnimData *adt;
   FCurve *fcu;
   bAction *act;
+  animrig::Slot *action_slot;
   bActionGroup *agrp;
   bGPDlayer *gpl;
   const GreasePencilLayer *grease_pencil_layer;
@@ -444,6 +450,17 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       action_to_keylist(elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
       break;
     }
+    case ChannelType::ACTION_SLOT: {
+      BLI_assert(elem->act);
+      BLI_assert(elem->action_slot);
+      action_slot_to_keylist(elem->adt,
+                             elem->act->wrap(),
+                             elem->action_slot->handle,
+                             elem->keylist,
+                             elem->saction_flag,
+                             range);
+      break;
+    }
     case ChannelType::ACTION_LEGACY: {
       action_to_keylist(elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
       break;
@@ -463,6 +480,9 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::GREASE_PENCIL_DATA: {
+      if (elem->ac->datatype != ANIMCONT_GPENCIL && elem->adt) {
+        action_to_keylist(elem->adt, elem->adt->action, elem->keylist, elem->saction_flag, range);
+      }
       grease_pencil_data_block_to_keylist(
           elem->adt, elem->grease_pencil, elem->keylist, elem->saction_flag, false);
       break;
@@ -732,6 +752,25 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
   draw_elem->channel_locked = locked;
 }
 
+void ED_add_action_slot_channel(ChannelDrawList *channel_list,
+                                AnimData *adt,
+                                animrig::Action &action,
+                                animrig::Slot &slot,
+                                const float ypos,
+                                const float yscale_fac,
+                                int saction_flag)
+{
+  const bool locked = (ID_IS_LINKED(&action) || ID_IS_OVERRIDE_LIBRARY(&action));
+  saction_flag &= ~SACTION_SHOW_EXTREMES;
+
+  ChannelListElement *draw_elem = channel_list_add_element(
+      channel_list, ChannelType::ACTION_SLOT, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->adt = adt;
+  draw_elem->act = &action;
+  draw_elem->action_slot = &slot;
+  draw_elem->channel_locked = locked;
+}
+
 void ED_add_action_channel(ChannelDrawList *channel_list,
                            AnimData *adt,
                            bAction *act,
@@ -754,7 +793,8 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
 }
 
 void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
-                                            bDopeSheet * /*ads*/,
+                                            bAnimContext *ac,
+                                            AnimData *adt,
                                             const GreasePencil *grease_pencil,
                                             const float ypos,
                                             const float yscale_fac,
@@ -765,7 +805,12 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
                                                            ypos,
                                                            yscale_fac,
                                                            eSAction_Flag(saction_flag));
+  /* GreasePencil properties can be animated via an Action, so the GP-related
+   * animation data is not limited to GP drawings. */
+  draw_elem->adt = adt;
+  draw_elem->act = adt ? adt->action : nullptr;
   draw_elem->grease_pencil = grease_pencil;
+  draw_elem->ac = ac;
 }
 
 void ED_add_grease_pencil_cels_channel(ChannelDrawList *channel_list,

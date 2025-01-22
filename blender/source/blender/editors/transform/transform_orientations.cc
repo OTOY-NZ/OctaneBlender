@@ -31,7 +31,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -701,7 +701,7 @@ short ED_transform_calc_orientation_from_type_ex(const Scene *scene,
       break;
     }
     case V3D_ORIENT_CURSOR: {
-      BKE_scene_cursor_rot_to_mat3(&scene->cursor, r_mat);
+      copy_m3_m3(r_mat, scene->cursor.matrix<blender::float3x3>().ptr());
       break;
     }
     case V3D_ORIENT_CUSTOM_MATRIX: {

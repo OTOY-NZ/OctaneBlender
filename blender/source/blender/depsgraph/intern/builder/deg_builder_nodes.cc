@@ -52,7 +52,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -68,7 +68,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -96,7 +96,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "DEG_depsgraph.hh"
@@ -365,7 +365,7 @@ ID *DepsgraphNodeBuilder::get_cow_id(const ID *id_orig) const
 
 ID *DepsgraphNodeBuilder::ensure_cow_id(ID *id_orig)
 {
-  if (id_orig->tag & LIB_TAG_COPIED_ON_EVAL) {
+  if (id_orig->tag & ID_TAG_COPIED_ON_EVAL) {
     /* ID is already remapped to copy-on-evaluation. */
     return id_orig;
   }
@@ -506,7 +506,7 @@ void DepsgraphNodeBuilder::update_invalid_cow_pointers()
       /* Node/ID already tagged for copy-on-eval flush, no need to check it. */
       continue;
     }
-    if ((id_node->id_cow->flag & LIB_EMBEDDED_DATA) != 0) {
+    if ((id_node->id_cow->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
       /* For now, we assume embedded data are managed by their owner IDs and do not need to be
        * checked here.
        *
@@ -856,6 +856,10 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   OperationNode *instance_node = add_operation_node(
       &object->id, NodeType::INSTANCING, OperationCode::INSTANCE);
   instance_node->flag |= OperationFlag::DEPSOP_FLAG_PINNED;
+
+  OperationNode *instance_geometry_node = add_operation_node(
+      &object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY);
+  instance_geometry_node->flag |= OperationFlag::DEPSOP_FLAG_PINNED;
 
   build_object_light_linking(object);
 
@@ -1282,7 +1286,7 @@ void DepsgraphNodeBuilder::build_animation_images(ID *id)
    * we have to check if they might be created during evaluation. */
   bool has_image_animation = false;
   if (ELEM(GS(id->name), ID_MA, ID_WO)) {
-    bNodeTree *ntree = *bke::BKE_ntree_ptr_from_id(id);
+    bNodeTree *ntree = *bke::node_tree_ptr_from_id(id);
     if (ntree != nullptr && ntree->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION)
     {
       has_image_animation = true;
@@ -1400,6 +1404,9 @@ void DepsgraphNodeBuilder::build_driver_id_property(const PointerRNA &target_pro
   if (!rna_prop_affects_parameters_node(&ptr, prop)) {
     return;
   }
+  if (ptr.owner_id) {
+    build_id(ptr.owner_id);
+  }
   const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
   /* Custom properties of bones are placed in their components to improve granularity. */
   if (RNA_struct_is_a(ptr.type, &RNA_PoseBone)) {
@@ -1449,7 +1456,6 @@ void DepsgraphNodeBuilder::build_dimensions(Object *object)
   add_operation_node(&object->id, NodeType::PARAMETERS, OperationCode::DIMENSIONS);
 }
 
-/* Recursively build graph for world */
 void DepsgraphNodeBuilder::build_world(World *world)
 {
   if (built_map_.checkIsBuiltAndTag(world)) {
@@ -1655,7 +1661,6 @@ void DepsgraphNodeBuilder::build_particle_settings(ParticleSettings *particle_se
   }
 }
 
-/* Shape-keys. */
 void DepsgraphNodeBuilder::build_shapekeys(Key *key)
 {
   if (built_map_.checkIsBuiltAndTag(key)) {
@@ -1776,18 +1781,6 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
       break;
     }
 
-    case ID_GD_LEGACY: {
-      /* GPencil evaluation operations. */
-      op_node = add_operation_node(obdata,
-                                   NodeType::GEOMETRY,
-                                   OperationCode::GEOMETRY_EVAL,
-                                   [obdata_cow](::Depsgraph *depsgraph) {
-                                     BKE_gpencil_frame_active_set(depsgraph,
-                                                                  (bGPdata *)obdata_cow);
-                                   });
-      op_node->set_as_entry();
-      break;
-    }
     case ID_CV: {
       Curves *curves_id = reinterpret_cast<Curves *>(obdata);
 
@@ -2032,7 +2025,6 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   /* TODO: link from nodetree to owner_component? */
 }
 
-/* Recursively build graph for material */
 void DepsgraphNodeBuilder::build_material(Material *material)
 {
   if (built_map_.checkIsBuiltAndTag(material)) {
@@ -2065,7 +2057,6 @@ void DepsgraphNodeBuilder::build_materials(Material **materials, int num_materia
   }
 }
 
-/* Recursively build graph for texture */
 void DepsgraphNodeBuilder::build_texture(Tex *texture)
 {
   if (built_map_.checkIsBuiltAndTag(texture)) {

@@ -291,11 +291,11 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
  * \note The only panels that should need to be deleted at runtime are panels with the
  * #PANEL_TYPE_INSTANCED flag set.
  */
-static void panel_delete(const bContext *C, ARegion *region, ListBase *panels, Panel *panel)
+static void panel_delete(ARegion *region, ListBase *panels, Panel *panel)
 {
   /* Recursively delete children. */
   LISTBASE_FOREACH_MUTABLE (Panel *, child, &panel->children) {
-    panel_delete(C, region, &panel->children, child);
+    panel_delete(region, &panel->children, child);
   }
   BLI_freelistN(&panel->children);
 
@@ -315,11 +315,11 @@ void UI_panels_free_instanced(const bContext *C, ARegion *region)
 
       /* Free panel's custom data. */
       if (panel->runtime->custom_data_ptr != nullptr) {
-        MEM_freeN(panel->runtime->custom_data_ptr);
+        MEM_delete(panel->runtime->custom_data_ptr);
       }
 
       /* Free the panel and its sub-panels. */
-      panel_delete(C, region, &region->panels, panel);
+      panel_delete(region, &region->panels, panel);
     }
   }
 }
@@ -1099,7 +1099,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
                                        const bool region_search_filter_active)
 {
   const bool is_subpanel = panel->type->parent != nullptr;
-  const uiFontStyle *fontstyle = (is_subpanel) ? &style->widgetlabel : &style->paneltitle;
+  const uiFontStyle *fontstyle = (is_subpanel) ? &style->widget : &style->paneltitle;
 
   const int header_height = BLI_rcti_size_y(header_rect);
   const int scaled_unit = round_fl_to_int(UI_UNIT_X / aspect);
@@ -1375,7 +1375,9 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   const uiFontStyle *fstyle = &style->widget;
   const int fontid = fstyle->uifont_id;
   float fstyle_points = fstyle->points;
-  const float aspect = ((uiBlock *)region->uiblocks.first)->aspect;
+  const float aspect = BLI_listbase_is_empty(&region->uiblocks) ?
+                           1.0f :
+                           ((uiBlock *)region->uiblocks.first)->aspect;
   const float zoom = 1.0f / aspect;
   const int px = U.pixelsize;
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
@@ -2147,7 +2149,7 @@ void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->eventstate;
-  uiPanelDragCollapseHandle *dragcol_data = MEM_new<uiPanelDragCollapseHandle>(__func__);
+  uiPanelDragCollapseHandle *dragcol_data = MEM_cnew<uiPanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
@@ -2172,7 +2174,7 @@ bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
 }
 
 static void ui_handle_layout_panel_header(
-    const bContext *C, const uiBlock *block, const int /*mx*/, const int my, const int event_type)
+    bContext *C, const uiBlock *block, const int /*mx*/, const int my, const int event_type)
 {
   Panel *panel = block->panel;
   BLI_assert(panel->type != nullptr);
@@ -2183,6 +2185,7 @@ static void ui_handle_layout_panel_header(
   }
   const bool new_state = ui_layout_panel_toggle_open(C, header);
   ED_region_tag_redraw(CTX_wm_region(C));
+  WM_tooltip_clear(C, CTX_wm_window(C));
 
   if (event_type == LEFTMOUSE) {
     ui_panel_drag_collapse_handler_add(C, !new_state);
@@ -2526,7 +2529,9 @@ int ui_handler_panel_region(bContext *C,
     return retval;
   }
 
-  const bool region_has_active_button = (ui_region_find_active_but(region) != nullptr);
+  const uiBut *region_active_but = ui_region_find_active_but(region);
+  const bool region_has_active_button = region_active_but &&
+                                        region_active_but->type != UI_BTYPE_LABEL;
 
   LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
     Panel *panel = block->panel;
@@ -2611,7 +2616,7 @@ void UI_panel_custom_data_set(Panel *panel, PointerRNA *custom_data)
 
   /* Free the old custom data, which should be shared among all of the panel's sub-panels. */
   if (panel->runtime->custom_data_ptr != nullptr) {
-    MEM_freeN(panel->runtime->custom_data_ptr);
+    MEM_delete(panel->runtime->custom_data_ptr);
   }
 
   ui_panel_custom_data_set_recursive(panel, custom_data);

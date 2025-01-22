@@ -14,7 +14,7 @@ class OCTANE_OBJECT_PT_object_properties(OctanePropertyPanel, Panel):
     def poll(cls, context):
         ob = context.object
         return (OctanePropertyPanel.poll(context) and
-                ob and ((ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT', 'VOLUME'}) or
+                ob and ((ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT', 'VOLUME', 'GREASEPENCIL'}) or
                         (ob.instance_type == 'COLLECTION' and ob.instance_collection)))
 
     def draw(self, context):

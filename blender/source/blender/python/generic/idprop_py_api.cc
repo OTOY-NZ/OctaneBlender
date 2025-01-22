@@ -14,8 +14,8 @@
 
 #include "BLI_utildefines.h"
 
-#include "idprop_py_api.h"
-#include "idprop_py_ui_api.h"
+#include "idprop_py_api.hh"
+#include "idprop_py_ui_api.hh"
 
 #include "BKE_idprop.hh"
 
@@ -24,14 +24,14 @@
 #define USE_STRING_COERCE
 
 #ifdef USE_STRING_COERCE
-#  include "py_capi_utils.h"
+#  include "py_capi_utils.hh"
 #endif
 
-#include "python_utildefines.h"
+#include "python_utildefines.hh"
 
-extern "C" bool pyrna_id_FromPyObject(PyObject *obj, ID **id);
-extern "C" PyObject *pyrna_id_CreatePyObject(ID *id);
-extern "C" bool pyrna_id_CheckPyObject(PyObject *obj);
+extern bool pyrna_id_FromPyObject(PyObject *obj, ID **id);
+extern PyObject *pyrna_id_CreatePyObject(ID *id);
+extern bool pyrna_id_CheckPyObject(PyObject *obj);
 
 /* Currently there is no need to expose this publicly. */
 static PyObject *BPy_IDGroup_IterKeys_CreatePyObject(BPy_IDProperty *group, const bool reversed);
@@ -410,19 +410,19 @@ static const char *idp_try_read_name(PyObject *name_obj)
  * \{ */
 
 /**
- * The 'idp_from_Py*' functions expect that the input type has been checked before
+ * The `idp_from_Py*` functions expect that the input type has been checked before
  * and return nullptr if the IDProperty can't be created.
  *
- * \param prop_exist If not null, attempt to assign given `ob` value to this property first, and
- *                   only create a new one if not possible.
- *                   If no assignment (or conversion and assignment) is possible, the current
- *                   value remains unchanged.
+ * \param prop_exist: If not null, attempt to assign given `ob` value to this property first, and
+ * only create a new one if not possible.
+ * If no assignment (or conversion and assignment) is possible, the current
+ * value remains unchanged.
  *
- * \param do_conversion If `true`, allow some 'reasonable' conversion of input value to match the
- *                     `prop_exist` property type. E.g. can convert an `int` to a `float`, but not
- *                     the other way around.
+ * \param do_conversion: If `true`, allow some 'reasonable' conversion of input value to match the
+ * `prop_exist` property type. E.g. can convert an `int` to a `float`, but not
+ * the other way around.
  *
- * \param can_create Whether creating a new IDProperty is allowed.
+ * \param can_create: Whether creating a new IDProperty is allowed.
  *
  * \return `prop_exist` if given and it could be assigned given `ob` value, a new IDProperty
  *         otherwise.
@@ -980,6 +980,12 @@ static IDProperty *idp_from_DatablockPointer(IDProperty *prop_exist,
   IDProperty *prop = nullptr;
   ID *value = nullptr;
   pyrna_id_FromPyObject(ob, &value);
+
+  if (value && (value->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
+    PyErr_SetString(PyExc_ValueError, "Cannot assign an embedded ID pointer to an id-property");
+    return nullptr;
+  }
+
   if (prop_exist) {
     if (prop_exist->type == IDP_ID) {
       IDP_AssignID(prop_exist, value, 0);
@@ -1676,9 +1682,9 @@ PyDoc_STRVAR(
     "   :raises KeyError: When the item doesn't exist.\n"
     "\n"
     "   :arg key: Name of item to remove.\n"
-    "   :type key: string\n"
+    "   :type key: str\n"
     "   :arg default: Value to return when key isn't found, otherwise raise an exception.\n"
-    "   :type default: Undefined\n");
+    "   :type default: Any\n");
 static PyObject *BPy_IDGroup_pop(BPy_IDProperty *self, PyObject *args)
 {
   IDProperty *idprop;
@@ -1697,7 +1703,7 @@ static PyObject *BPy_IDGroup_pop(BPy_IDProperty *self, PyObject *args)
       PyErr_SetString(PyExc_KeyError, "item not in group");
       return nullptr;
     }
-    return Py_INCREF_RET(def);
+    return Py_NewRef(def);
   }
 
   pyform = BPy_IDGroup_MapDataToPy(idprop);
@@ -1720,7 +1726,7 @@ static void BPy_IDGroup_CorrectListLen(IDProperty *prop, PyObject *seq, int len,
 
   /* fill rest of list with valid references to None */
   for (j = len; j < prop->len; j++) {
-    PyList_SET_ITEM(seq, j, Py_INCREF_RET(Py_None));
+    PyList_SET_ITEM(seq, j, Py_NewRef(Py_None));
   }
 
   /* Set correct group length. */
@@ -1878,7 +1884,8 @@ PyDoc_STRVAR(
     "   Update key, values.\n"
     "\n"
     "   :arg other: Updates the values in the group with this.\n"
-    "   :type other: :class:`IDPropertyGroup` or dict\n");
+    /* TODO: replace `Any` with an alias for all types an ID property can use. */
+    "   :type other: :class:`IDPropertyGroup` | dict[str, Any]\n");
 static PyObject *BPy_IDGroup_update(BPy_IDProperty *self, PyObject *value)
 {
   PyObject *pkey, *pval;

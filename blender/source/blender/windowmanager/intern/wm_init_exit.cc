@@ -23,7 +23,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -38,7 +38,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -62,12 +62,11 @@
 #include "RE_pipeline.h" /* `RE_` free stuff. */
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_python.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_python.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "GHOST_C-api.h"
-#include "GHOST_Path-api.hh"
 
 #include "RNA_define.hh"
 
@@ -103,6 +102,7 @@
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 
+#include "GPU_compilation_subprocess.hh"
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
@@ -204,8 +204,6 @@ void WM_init(bContext *C, int argc, const char **argv)
     wm_init_cursor_data();
     BKE_sound_jack_sync_callback_set(sound_jack_sync_callback);
   }
-
-  GHOST_CreateSystemPaths();
 
   BKE_addon_pref_type_init();
   BKE_keyconfig_pref_type_init();
@@ -660,6 +658,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     DRW_gpu_context_enable_ex(false);
     UI_exit();
     GPU_pass_cache_free();
+    GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
@@ -677,8 +676,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   if (C) {
     CTX_free(C);
   }
-
-  GHOST_DisposeSystemPaths();
 
   DNA_sdna_current_free();
 
@@ -709,7 +706,6 @@ void WM_exit(bContext *C, const int exit_code)
 
   OCT_Rlease_API();
 
-  printf("\nBlender quit\n");
   if (!G.quiet) {
     printf("\nBlender quit\n");
   }

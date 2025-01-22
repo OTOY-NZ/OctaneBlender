@@ -99,12 +99,12 @@ if NOT "%1" == "" (
 	) else if "%1" == "test" (
 		set TEST=1
 		set NOBUILD=1
+	) else if "%1" == "license" (
+		set LICENSE=1
+		goto EOF
 	) else if "%1" == "format" (
 		set FORMAT=1
 		set FORMAT_ARGS=%2 %3 %4 %5 %6 %7 %8 %9
-		goto EOF
-	) else if "%1" == "icons" (
-		set ICONS=1
 		goto EOF
 	) else if "%1" == "icons_geom" (
 		set ICONS_GEOM=1

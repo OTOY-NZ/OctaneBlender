@@ -116,6 +116,13 @@ void MeshComponent::ensure_owns_direct_data()
   }
 }
 
+void MeshComponent::count_memory(MemoryCounter &memory) const
+{
+  if (mesh_) {
+    mesh_->count_memory(memory);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -876,33 +883,38 @@ static void tag_component_sharpness_changed(void *owner)
  */
 class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider {
  public:
-  GAttributeReader try_get_for_read(const void *owner,
-                                    const AttributeIDRef &attribute_id) const final
+  GAttributeReader try_get_for_read(const void *owner, const StringRef attribute_id) const final
   {
-    if (attribute_id.is_anonymous()) {
+    if (bke::attribute_name_is_anonymous(attribute_id)) {
       return {};
     }
     const Mesh *mesh = static_cast<const Mesh *>(owner);
     if (mesh == nullptr) {
       return {};
     }
-    const std::string name = attribute_id.name();
-    const int vertex_group_index = BLI_findstringindex(
-        &mesh->vertex_group_names, name.c_str(), offsetof(bDeformGroup, name));
+    const int vertex_group_index = BKE_defgroup_name_index(&mesh->vertex_group_names,
+                                                           attribute_id);
     if (vertex_group_index < 0) {
       return {};
     }
     const Span<MDeformVert> dverts = mesh->deform_verts();
+    return this->get_for_vertex_group_index(*mesh, dverts, vertex_group_index);
+  }
+
+  GAttributeReader get_for_vertex_group_index(const Mesh &mesh,
+                                              const Span<MDeformVert> dverts,
+                                              const int vertex_group_index) const
+  {
+    BLI_assert(vertex_group_index >= 0);
     if (dverts.is_empty()) {
-      static const float default_value = 0.0f;
-      return {VArray<float>::ForSingle(default_value, mesh->verts_num), AttrDomain::Point};
+      return {VArray<float>::ForSingle(0.0f, mesh.verts_num), AttrDomain::Point};
     }
     return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
   }
 
-  GAttributeWriter try_get_for_write(void *owner, const AttributeIDRef &attribute_id) const final
+  GAttributeWriter try_get_for_write(void *owner, const StringRef attribute_id) const final
   {
-    if (attribute_id.is_anonymous()) {
+    if (bke::attribute_name_is_anonymous(attribute_id)) {
       return {};
     }
     Mesh *mesh = static_cast<Mesh *>(owner);
@@ -910,9 +922,8 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
       return {};
     }
 
-    const std::string name = attribute_id.name();
-    const int vertex_group_index = BLI_findstringindex(
-        &mesh->vertex_group_names, name.c_str(), offsetof(bDeformGroup, name));
+    const int vertex_group_index = BKE_defgroup_name_index(&mesh->vertex_group_names,
+                                                           attribute_id);
     if (vertex_group_index < 0) {
       return {};
     }
@@ -920,9 +931,9 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
     return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
   }
 
-  bool try_delete(void *owner, const AttributeIDRef &attribute_id) const final
+  bool try_delete(void *owner, const StringRef attribute_id) const final
   {
-    if (attribute_id.is_anonymous()) {
+    if (bke::attribute_name_is_anonymous(attribute_id)) {
       return false;
     }
     Mesh *mesh = static_cast<Mesh *>(owner);
@@ -930,7 +941,7 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
       return true;
     }
 
-    const std::string name = attribute_id.name();
+    const std::string name = attribute_id;
 
     int index;
     bDeformGroup *group;
@@ -948,15 +959,25 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
     return true;
   }
 
-  bool foreach_attribute(const void *owner, const AttributeForeachCallback callback) const final
+  bool foreach_attribute(const void *owner,
+                         const FunctionRef<void(const AttributeIter &)> fn) const final
   {
     const Mesh *mesh = static_cast<const Mesh *>(owner);
     if (mesh == nullptr) {
       return true;
     }
 
-    LISTBASE_FOREACH (const bDeformGroup *, group, &mesh->vertex_group_names) {
-      if (!callback(group->name, {AttrDomain::Point, CD_PROP_FLOAT})) {
+    const Span<MDeformVert> dverts = mesh->deform_verts();
+
+    int group_index = 0;
+    LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &mesh->vertex_group_names, group_index) {
+      const auto get_fn = [&]() {
+        return this->get_for_vertex_group_index(*mesh, dverts, group_index);
+      };
+
+      AttributeIter iter{group->name, AttrDomain::Point, CD_PROP_FLOAT, get_fn};
+      fn(iter);
+      if (iter.is_stopped()) {
         return false;
       }
     }

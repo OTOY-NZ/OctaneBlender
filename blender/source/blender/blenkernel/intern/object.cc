@@ -65,7 +65,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_path.h"
 #include "BKE_anim_visualization.h"
@@ -96,7 +96,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -143,8 +143,10 @@
 
 #include "SEQ_sequencer.hh"
 
+#include "ANIM_action_legacy.hh"
+
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 #include "CCGSubSurf.h"
@@ -260,9 +262,7 @@ static void object_copy_data(Main *bmain,
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
 
-  /* Do not copy object's preview
-   * (mostly due to the fact renderers create temp copy of objects). */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO: temp hack. */
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&ob_dst->id, &ob_src->id);
   }
   else {
@@ -707,7 +707,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   ob->proxy_from = nullptr;
 
   const bool is_undo = BLO_read_data_is_undo(reader);
-  if (ob->id.tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT)) {
+  if (ob->id.tag & (ID_TAG_EXTERN | ID_TAG_INDIRECT)) {
     /* Do not allow any non-object mode for linked data.
      * See #34776, #42780, #81027 for more information. */
     ob->mode &= ~OB_MODE_ALL_MODE_DATA;
@@ -736,7 +736,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, bConstraintChannel, &ob->constraintChannels);
   /* >>> XXX deprecated - old animation system */
 
-  BLO_read_pointer_array(reader, (void **)&ob->mat);
+  BLO_read_pointer_array(reader, ob->totcol, (void **)&ob->mat);
   BLO_read_char_array(reader, ob->totcol, &ob->matbits);
 
   /* do it here, below old data gets converted */
@@ -808,7 +808,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     sb->scratch = nullptr;
     /* although not used anymore */
     /* still have to be loaded to be compatible with old files */
-    BLO_read_pointer_array(reader, (void **)&sb->keys);
+    BLO_read_pointer_array(reader, sb->totkey, (void **)&sb->keys);
     if (sb->keys) {
       for (int a = 0; a < sb->totkey; a++) {
         BLO_read_struct(reader, SBVertex, &sb->keys[a]);
@@ -1445,23 +1445,6 @@ bool BKE_object_copy_modifier(Main *bmain,
   return true;
 }
 
-bool BKE_object_copy_gpencil_modifier(Object *ob_dst, GpencilModifierData *gmd_src)
-{
-  BLI_assert(ob_dst->type == OB_GPENCIL_LEGACY);
-
-  GpencilModifierData *gmd_dst = BKE_gpencil_modifier_new(gmd_src->type);
-  STRNCPY(gmd_dst->name, gmd_src->name);
-
-  const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-      (GpencilModifierType)gmd_src->type);
-  mti->copy_data(gmd_src, gmd_dst);
-
-  BLI_addtail(&ob_dst->greasepencil_modifiers, gmd_dst);
-  BKE_gpencil_modifier_unique_name(&ob_dst->greasepencil_modifiers, gmd_dst);
-
-  return true;
-}
-
 bool BKE_object_modifier_stack_copy(Object *ob_dst,
                                     const Object *ob_src,
                                     const bool do_copy_all,
@@ -1492,13 +1475,6 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
 
     ModifierData *md_dst = BKE_modifier_copy_ex(md_src, flag_subdata);
     BLI_addtail(&ob_dst->modifiers, md_dst);
-  }
-
-  LISTBASE_FOREACH (GpencilModifierData *, gmd_src, &ob_src->greasepencil_modifiers) {
-    GpencilModifierData *gmd_dst = BKE_gpencil_modifier_new(gmd_src->type);
-    STRNCPY(gmd_dst->name, gmd_src->name);
-    BKE_gpencil_modifier_copydata_ex(gmd_src, gmd_dst, flag_subdata);
-    BLI_addtail(&ob_dst->greasepencil_modifiers, gmd_dst);
   }
 
   /* This could be copied from anywhere, since no other modifier actually use this data. But for
@@ -1616,13 +1592,13 @@ static void object_update_from_subsurf_ccg(Object *object)
 
 void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_owned)
 {
-  BLI_assert(object_eval->id.tag & LIB_TAG_COPIED_ON_EVAL);
+  BLI_assert(object_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
   BLI_assert(object_eval->runtime->data_eval == nullptr);
-  BLI_assert(data_eval->tag & LIB_TAG_NO_MAIN);
+  BLI_assert(data_eval->tag & ID_TAG_NO_MAIN);
 
   if (is_owned) {
     /* Set flag for debugging. */
-    data_eval->tag |= LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT;
+    data_eval->tag |= ID_TAG_COPIED_ON_EVAL_FINAL_RESULT;
   }
 
   /* Assigned evaluated data. */
@@ -1634,7 +1610,7 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   if (GS(data->name) == GS(data_eval->name)) {
     /* NOTE: we are not supposed to invoke evaluation for original objects,
      * but some areas are still being ported, so we play safe here. */
-    if (object_eval->id.tag & LIB_TAG_COPIED_ON_EVAL) {
+    if (object_eval->id.tag & ID_TAG_COPIED_ON_EVAL) {
       object_eval->data = data_eval;
     }
   }
@@ -1688,12 +1664,6 @@ void BKE_object_free_derived_caches(Object *ob)
   BKE_object_free_curve_cache(ob);
 
   BKE_crazyspace_api_eval_clear(ob);
-
-  /* Clear grease pencil data. */
-  if (ob->runtime->gpd_eval != nullptr) {
-    BKE_gpencil_eval_delete(ob->runtime->gpd_eval);
-    ob->runtime->gpd_eval = nullptr;
-  }
 
   if (ob->runtime->geometry_set_eval != nullptr) {
     delete ob->runtime->geometry_set_eval;
@@ -2024,7 +1994,7 @@ static void object_init(Object *ob, const short ob_type)
     ob->upflag = OB_POSY;
   }
 
-  if (ob->type == OB_GPENCIL_LEGACY) {
+  if (ob->type == OB_GREASE_PENCIL) {
     ob->dtx |= OB_USE_GPENCIL_LIGHTS;
   }
 
@@ -2431,7 +2401,7 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         break;
       }
       case OB_GPENCIL_LEGACY: {
-        if ((ob->mode & OB_MODE_WEIGHT_GPENCIL_LEGACY) == 0) {
+        if ((ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
           return nullptr;
         }
         break;
@@ -2689,14 +2659,14 @@ Object *BKE_object_duplicate(Main *bmain,
   }
 
   if (!is_subprocess) {
-    /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW. */
+    /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
     BKE_libblock_relink_to_newid(bmain, &obn->id, 0);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-      BLI_assert((id_iter->tag & LIB_TAG_NEW) == 0);
+      BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
     }
     FOREACH_MAIN_ID_END;
 #endif
@@ -3043,7 +3013,8 @@ static bool ob_parcurve(const Object *ob, Object *par, float r_mat[4][4])
           par, ctime, vec, nullptr, (cu->flag & CU_FOLLOW) ? quat : nullptr, &radius, nullptr))
   {
     if (cu->flag & CU_FOLLOW) {
-      quat_apply_track(quat, ob->trackflag, ob->upflag);
+      quat_apply_track(
+          quat, std::clamp<short>(ob->trackflag, 0, 5), std::clamp<short>(ob->upflag, 0, 2));
       normalize_qt(quat);
       quat_to_mat4(r_mat, quat);
     }
@@ -3887,30 +3858,6 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
   return ok;
 }
 
-struct GPencilStrokePointIterData {
-  const float (*obmat)[4];
-
-  void (*point_func_cb)(const float co[3], void *user_data);
-  void *user_data;
-};
-
-static void foreach_display_point_gpencil_stroke_fn(bGPDlayer * /*layer*/,
-                                                    bGPDframe * /*frame*/,
-                                                    bGPDstroke *stroke,
-                                                    void *thunk)
-{
-  GPencilStrokePointIterData *iter_data = (GPencilStrokePointIterData *)thunk;
-  {
-    bGPDspoint *pt;
-    int i;
-    for (i = 0, pt = stroke->points; i < stroke->totpoints; i++, pt++) {
-      float3 co;
-      mul_v3_m4v3(co, iter_data->obmat, &pt->x);
-      iter_data->point_func_cb(co, iter_data->user_data);
-    }
-  }
-}
-
 void BKE_object_foreach_display_point(Object *ob,
                                       const float obmat[4][4],
                                       void (*func_cb)(const float[3], void *),
@@ -3921,20 +3868,11 @@ void BKE_object_foreach_display_point(Object *ob,
   float3 co;
 
   if (mesh_eval != nullptr) {
-    const Span<float3> positions = mesh_eval->vert_positions();
+    const Span<float3> positions = BKE_mesh_wrapper_vert_coords(mesh_eval);
     for (const int i : positions.index_range()) {
       mul_v3_m4v3(co, obmat, positions[i]);
       func_cb(co, user_data);
     }
-  }
-  else if (ob->type == OB_GPENCIL_LEGACY) {
-    GPencilStrokePointIterData iter_data{};
-    iter_data.obmat = obmat;
-    iter_data.point_func_cb = func_cb;
-    iter_data.user_data = user_data;
-
-    BKE_gpencil_visible_stroke_iter(
-        (bGPdata *)ob->data, nullptr, foreach_display_point_gpencil_stroke_fn, &iter_data);
   }
   else if (ob->runtime->curve_cache && ob->runtime->curve_cache->disp.first) {
     LISTBASE_FOREACH (DispList *, dl, &ob->runtime->curve_cache->disp) {
@@ -4180,40 +4118,40 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
   return BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object);
 }
 
-Mesh *BKE_object_get_evaluated_mesh_unchecked(const Object *object)
+Mesh *BKE_object_get_evaluated_mesh_unchecked(const Object *object_eval)
 {
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object);
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object_eval);
   if (!mesh) {
     return nullptr;
   }
 
-  if (object->data && GS(((const ID *)object->data)->name) == ID_ME) {
+  if (object_eval->data && GS(((const ID *)object_eval->data)->name) == ID_ME) {
     mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
   }
 
   return mesh;
 }
 
-Mesh *BKE_object_get_evaluated_mesh(const Object *object)
+Mesh *BKE_object_get_evaluated_mesh(const Object *object_eval)
 {
-  if (!DEG_object_geometry_is_evaluated(*object)) {
+  if (!DEG_object_geometry_is_evaluated(*object_eval)) {
     return nullptr;
   }
-  return BKE_object_get_evaluated_mesh_unchecked(object);
+  return BKE_object_get_evaluated_mesh_unchecked(object_eval);
 }
 
 Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
 {
   if (object->type == OB_MESH && object->runtime->data_orig != nullptr) {
-    BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_EVAL);
+    BLI_assert(object->id.tag & ID_TAG_COPIED_ON_EVAL);
     BLI_assert(object->id.orig_id != nullptr);
     BLI_assert(object->runtime->data_orig->orig_id == ((Object *)object->id.orig_id)->data);
     Mesh *result = (Mesh *)object->runtime->data_orig;
-    BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_EVAL) != 0);
-    BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT) == 0);
+    BLI_assert((result->id.tag & ID_TAG_COPIED_ON_EVAL) != 0);
+    BLI_assert((result->id.tag & ID_TAG_COPIED_ON_EVAL_FINAL_RESULT) == 0);
     return result;
   }
-  BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_EVAL) == 0);
+  BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   return (Mesh *)object->data;
 }
 
@@ -4221,16 +4159,15 @@ Mesh *BKE_object_get_original_mesh(const Object *object)
 {
   Mesh *result = nullptr;
   if (object->id.orig_id == nullptr) {
-    BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_EVAL) == 0);
+    BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
     result = (Mesh *)object->data;
   }
   else {
-    BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_EVAL) != 0);
+    BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) != 0);
     result = (Mesh *)((Object *)object->id.orig_id)->data;
   }
   BLI_assert(result != nullptr);
-  BLI_assert((result->id.tag & (LIB_TAG_COPIED_ON_EVAL | LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT)) ==
-             0);
+  BLI_assert((result->id.tag & (ID_TAG_COPIED_ON_EVAL | ID_TAG_COPIED_ON_EVAL_FINAL_RESULT)) == 0);
   return result;
 }
 
@@ -4315,12 +4252,13 @@ static int pc_cmp(const void *a, const void *b)
   return 0;
 }
 
-/* TODO: Review the usages of this function, currently with copy-on-eval it will be called for orig
- * object and then again for evaluated copies of it, think this is bad since there is no guarantee
- * that we get the same stack index in both cases? Order is important since this index is used for
- * filenames on disk. */
 int BKE_object_insert_ptcache(Object *ob)
 {
+  /* TODO: Review the usages of this function, currently with copy-on-eval it will be called for
+   * orig object and then again for evaluated copies of it, think this is bad since there is no
+   * guarantee that we get the same stack index in both cases? Order is important since this index
+   * is used for filenames on disk. */
+
   LinkData *link = nullptr;
   int i = 0;
 
@@ -4767,7 +4705,7 @@ static bool modifiers_has_animation_check(const Object *ob)
   if (ob->adt != nullptr) {
     AnimData *adt = ob->adt;
     if (adt->action != nullptr) {
-      LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
+      for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
         if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
           return true;
         }
@@ -4903,7 +4841,6 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
 {
   blender::bke::ObjectRuntime *runtime = object->runtime;
   runtime->data_eval = nullptr;
-  runtime->gpd_eval = nullptr;
   runtime->mesh_deform_eval = nullptr;
   runtime->curve_cache = nullptr;
   runtime->object_as_temp_mesh = nullptr;
@@ -4952,13 +4889,13 @@ static Object *obrel_armature_find(Object *ob)
 
 static bool obrel_list_test(Object *ob)
 {
-  return ob && !(ob->id.tag & LIB_TAG_DOIT);
+  return ob && !(ob->id.tag & ID_TAG_DOIT);
 }
 
 static void obrel_list_add(LinkNode **links, Object *ob)
 {
   BLI_linklist_prepend(links, ob);
-  ob->id.tag |= LIB_TAG_DOIT;
+  ob->id.tag |= ID_TAG_DOIT;
 }
 
 LinkNode *BKE_object_relational_superset(const Scene *scene,
@@ -4971,7 +4908,7 @@ LinkNode *BKE_object_relational_superset(const Scene *scene,
   /* Remove markers from all objects */
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->object->id.tag &= ~LIB_TAG_DOIT;
+    base->object->id.tag &= ~ID_TAG_DOIT;
   }
 
   /* iterate over all selected and visible objects */

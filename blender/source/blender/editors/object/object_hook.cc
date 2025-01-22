@@ -24,7 +24,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
@@ -41,7 +41,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_curve.hh"
 #include "ED_mesh.hh"

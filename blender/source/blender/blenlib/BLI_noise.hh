@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
 namespace blender::noise {
@@ -28,6 +29,7 @@ uint32_t hash_float(float kx);
 uint32_t hash_float(float2 k);
 uint32_t hash_float(float3 k);
 uint32_t hash_float(float4 k);
+uint32_t hash_float(const float4x4 &k);
 
 /* Hash integers to `float` between 0 and 1. */
 
@@ -44,6 +46,8 @@ float hash_float_to_float(float3 k);
 float hash_float_to_float(float4 k);
 
 float2 hash_float_to_float2(float2 k);
+float2 hash_float_to_float2(float3 k);
+float2 hash_float_to_float2(float4 k);
 
 float3 hash_float_to_float3(float k);
 float3 hash_float_to_float3(float2 k);
@@ -214,6 +218,30 @@ VoronoiOutput fractal_voronoi_x_fx(const VoronoiParams &params,
                                    const bool calc_color);
 template<typename T>
 float fractal_voronoi_distance_to_edge(const VoronoiParams &params, const T coord);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Gabor Noise
+ * \{ */
+
+void gabor(const float2 coordinates,
+           const float scale,
+           const float frequency,
+           const float anisotropy,
+           const float orientation,
+           float *r_value,
+           float *r_phase,
+           float *r_intensity);
+
+void gabor(const float3 coordinates,
+           const float scale,
+           const float frequency,
+           const float anisotropy,
+           const float3 orientation,
+           float *r_value,
+           float *r_phase,
+           float *r_intensity);
 
 /** \} */
 

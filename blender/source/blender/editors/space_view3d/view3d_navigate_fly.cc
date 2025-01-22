@@ -36,6 +36,7 @@
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
+#include "ED_undo.hh"
 
 #include "UI_resources.hh"
 
@@ -225,7 +226,7 @@ static void drawFlyPixel(const bContext * /*C*/, ARegion * /*region*/, void *arg
 
   if (ED_view3d_cameracontrol_object_get(fly->v3d_camera_control)) {
     ED_view3d_calc_camera_border(
-        fly->scene, fly->depsgraph, fly->region, fly->v3d, fly->rv3d, &viewborder, false);
+        fly->scene, fly->depsgraph, fly->region, fly->v3d, fly->rv3d, false, &viewborder);
     xoff = int(viewborder.xmin);
     yoff = int(viewborder.ymin);
   }
@@ -387,7 +388,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
   /* Calculate center. */
   if (ED_view3d_cameracontrol_object_get(fly->v3d_camera_control)) {
     ED_view3d_calc_camera_border(
-        fly->scene, fly->depsgraph, fly->region, fly->v3d, fly->rv3d, &viewborder, false);
+        fly->scene, fly->depsgraph, fly->region, fly->v3d, fly->rv3d, false, &viewborder);
 
     fly->viewport_size[0] = BLI_rctf_size_x(&viewborder);
     fly->viewport_size[1] = BLI_rctf_size_y(&viewborder);
@@ -1119,7 +1120,12 @@ static int fly_modal(bContext *C, wmOperator *op, const wmEvent *event)
   exit_code = flyEnd(C, fly);
 
   if (exit_code == OPERATOR_FINISHED) {
-    ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    /* If generic 'locked camera' code did not push an undo, but there is a valid 'flying
+     * object', an undo push is still needed, since that object transform was modified. */
+    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(C)) {
+      ED_undo_push(C, op->type->name);
+    }
   }
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;

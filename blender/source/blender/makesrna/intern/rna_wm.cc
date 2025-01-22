@@ -168,9 +168,8 @@ static const EnumPropertyItem event_ndof_type_items[] = {
     {NDOF_BUTTON_8, "NDOF_BUTTON_8", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 8"), ""},
     {NDOF_BUTTON_9, "NDOF_BUTTON_9", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 9"), ""},
     {NDOF_BUTTON_10, "NDOF_BUTTON_10", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 10"), ""},
-    {NDOF_BUTTON_A, "NDOF_BUTTON_A", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button A"), ""},
-    {NDOF_BUTTON_B, "NDOF_BUTTON_B", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button B"), ""},
-    {NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button C"), ""},
+    {NDOF_BUTTON_11, "NDOF_BUTTON_11", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 11"), ""},
+    {NDOF_BUTTON_12, "NDOF_BUTTON_12", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 12"), ""},
 #  if 0 /* Never used (converted to keyboard events by GHOST). */
     /* keyboard emulation */
     {NDOF_BUTTON_ESC, "NDOF_BUTTON_ESC", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Esc")},
@@ -422,9 +421,12 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {NDOF_BUTTON_CTRL, "NDOF_BUTTON_CTRL", 0, "NDOF Ctrl", "NdofCtrl"},
 #endif
     /* View buttons. */
-    {NDOF_BUTTON_V1, "NDOF_BUTTON_V1", 0, "NDOF View 1", ""},
-    {NDOF_BUTTON_V2, "NDOF_BUTTON_V2", 0, "NDOF View 2", ""},
-    {NDOF_BUTTON_V3, "NDOF_BUTTON_V3", 0, "NDOF View 3", ""},
+    {NDOF_BUTTON_V1, "NDOF_BUTTON_V1", 0, "NDOF View 1", "NdofView1"},
+    {NDOF_BUTTON_V2, "NDOF_BUTTON_V2", 0, "NDOF View 2", "NdofView2"},
+    {NDOF_BUTTON_V3, "NDOF_BUTTON_V3", 0, "NDOF View 3", "NdofView3"},
+    {NDOF_BUTTON_SAVE_V1, "NDOF_BUTTON_SAVE_V1", 0, "NDOF Save View 1", "NdofSaveView1"},
+    {NDOF_BUTTON_SAVE_V2, "NDOF_BUTTON_SAVE_V2", 0, "NDOF Save View 2", "NdofSaveView2"},
+    {NDOF_BUTTON_SAVE_V3, "NDOF_BUTTON_SAVE_V3", 0, "NDOF Save View 3", "NdofSaveView3"},
     /* general-purpose buttons */
     {NDOF_BUTTON_1, "NDOF_BUTTON_1", 0, "NDOF Button 1", "NdofB1"},
     {NDOF_BUTTON_2, "NDOF_BUTTON_2", 0, "NDOF Button 2", "NdofB2"},
@@ -436,9 +438,9 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {NDOF_BUTTON_8, "NDOF_BUTTON_8", 0, "NDOF Button 8", "NdofB8"},
     {NDOF_BUTTON_9, "NDOF_BUTTON_9", 0, "NDOF Button 9", "NdofB9"},
     {NDOF_BUTTON_10, "NDOF_BUTTON_10", 0, "NDOF Button 10", "NdofB10"},
-    {NDOF_BUTTON_A, "NDOF_BUTTON_A", 0, "NDOF Button A", "NdofBA"},
-    {NDOF_BUTTON_B, "NDOF_BUTTON_B", 0, "NDOF Button B", "NdofBB"},
-    {NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, "NDOF Button C", "NdofBC"},
+    {NDOF_BUTTON_11, "NDOF_BUTTON_11", 0, "NDOF Button 11", "NdofB11"},
+    {NDOF_BUTTON_12, "NDOF_BUTTON_12", 0, "NDOF Button 12", "NdofB12"},
+
     /* Action Zones. */
     {EVT_ACTIONZONE_AREA, "ACTIONZONE_AREA", 0, "ActionZone Area", "AZone Area"},
     {EVT_ACTIONZONE_REGION, "ACTIONZONE_REGION", 0, "ActionZone Region", "AZone Region"},
@@ -518,7 +520,12 @@ const EnumPropertyItem rna_enum_operator_type_flag_items[] = {
      0,
      "Register",
      "Display in the info window and support the redo toolbar panel"},
-    {OPTYPE_UNDO, "UNDO", 0, "Undo", "Push an undo event (needed for operator redo)"},
+    {OPTYPE_UNDO,
+     "UNDO",
+     0,
+     "Undo",
+     "Push an undo event when the operator returns `FINISHED` (needed for operator redo, "
+     "mandatory if the operator modifies Blender data)"},
     {OPTYPE_UNDO_GROUPED,
      "UNDO_GROUPED",
      0,
@@ -548,7 +555,7 @@ const EnumPropertyItem rna_enum_operator_type_flag_items[] = {
      0,
      "Modal Priority",
      "Handle events before other modal operators without this option. Use with caution, do not "
-     "modify data that other modal operators assume is unchanged during their operation"},
+     "modify data that other modal operators assume is unchanged during their operation."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -616,7 +623,7 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 #  include "MEM_guardedalloc.h"
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
@@ -1608,8 +1615,8 @@ static bool rna_Operator_unregister(Main *bmain, StructRNA *type);
 
 /* `bpy_operator_wrap.cc` */
 
-extern "C" void BPY_RNA_operator_wrapper(wmOperatorType *ot, void *userdata);
-extern "C" void BPY_RNA_operator_macro_wrapper(wmOperatorType *ot, void *userdata);
+extern void BPY_RNA_operator_wrapper(wmOperatorType *ot, void *userdata);
+extern void BPY_RNA_operator_macro_wrapper(wmOperatorType *ot, void *userdata);
 
 static StructRNA *rna_Operator_register(Main *bmain,
                                         ReportList *reports,
@@ -1928,7 +1935,10 @@ static void rna_Operator_bl_idname_set(PointerRNA *ptr, const char *value)
   wmOperator *data = (wmOperator *)(ptr->data);
   char *str = (char *)data->type->idname;
   if (!str[0]) {
-    BLI_strncpy(str, value, OP_MAX_TYPENAME); /* utf8 already ensured */
+    /* Calling UTF8 copy is disputable since registering ensures the value isn't truncated.
+     * Use a UTF8 copy to ensure truncating never causes an incomplete UTF8 sequence,
+     * even before registration. */
+    BLI_strncpy_utf8(str, value, OP_MAX_TYPENAME);
   }
   else {
     BLI_assert_msg(0, "setting the bl_idname on a non-builtin operator");
@@ -1940,7 +1950,7 @@ static void rna_Operator_bl_label_set(PointerRNA *ptr, const char *value)
   wmOperator *data = (wmOperator *)(ptr->data);
   char *str = (char *)data->type->name;
   if (!str[0]) {
-    BLI_strncpy(str, value, OP_MAX_TYPENAME); /* utf8 already ensured */
+    BLI_strncpy_utf8(str, value, OP_MAX_TYPENAME);
   }
   else {
     BLI_assert_msg(0, "setting the bl_label on a non-builtin operator");
@@ -1958,12 +1968,10 @@ static void rna_Operator_bl_label_set(PointerRNA *ptr, const char *value)
       wmOperator *data = (wmOperator *)(ptr->data); \
       char *str = (char *)data->type->attr; \
       if (str && !str[0]) { \
-        BLI_strncpy(str, value, attr_maxncpy); /* utf8 already ensured */ \
+        BLI_strncpy_utf8(str, value, attr_maxncpy); \
       } \
       else { \
-        BLI_assert_msg( \
-            false, \
-            "setting the bl_" STRINGIFY(translation_context) " on a non-builtin operator"); \
+        BLI_assert_msg(false, "setting the bl_" #attr " on a non-builtin operator"); \
       } \
     } \
     static void rna_Operator_bl_##attr##_get(PointerRNA *ptr, char *value) \

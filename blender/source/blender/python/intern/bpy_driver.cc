@@ -24,16 +24,16 @@
 #include "BKE_idtype.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "bpy_rna_driver.h" /* For #pyrna_driver_get_variable_value. */
+#include "bpy_rna_driver.hh" /* For #pyrna_driver_get_variable_value. */
 
-#include "bpy_intern_string.h"
+#include "bpy_intern_string.hh"
 
-#include "bpy_driver.h"
-#include "bpy_rna.h"
+#include "bpy_driver.hh"
+#include "bpy_rna.hh"
 
-#include "BPY_extern.h"
+#include "BPY_extern.hh"
 
 #define USE_RNA_AS_PYOBJECT
 
@@ -583,6 +583,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
     /* Maybe this can be removed but for now best keep until were sure. */
     driver_orig->flag |= DRIVER_FLAG_RENAMEVAR;
     driver_orig->flag &= ~DRIVER_FLAG_PYTHON_BLOCKED;
+
 #ifdef USE_BYTECODE_WHITELIST
     is_recompile = true;
 #endif

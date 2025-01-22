@@ -49,6 +49,8 @@ class SessionParams {
   int samples;
   ::OctaneEngine::OctaneClient::RenderStatistics image_stat;
   ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type;
+  int export_frame_start;
+  int export_frame_end;
 
   AnimationMode anim_mode;
   int width;
@@ -91,6 +93,8 @@ class SessionParams {
     render_priority = 0;
     resource_cache_type = ::OctaneDataTransferObject::DISABLE_CACHE_SYSTEM;
     export_type = ::OctaneEngine::SceneExportTypes::NONE;
+    export_frame_start = 0;
+    export_frame_end = 0;
 
     addon_dev_enabled = false;
     out_of_core_enabled = false;

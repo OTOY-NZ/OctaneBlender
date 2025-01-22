@@ -23,7 +23,7 @@
 #endif
 
 #ifdef WIN32
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #endif
 
 #include <Dwmapi.h>
@@ -61,7 +61,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
                                      bool alphaBackground,
                                      GHOST_WindowWin32 *parentwindow,
                                      bool is_debug,
-                                     bool dialog)
+                                     bool dialog,
+                                     const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, wantStereoVisual, false),
       m_mousePresent(false),
       m_inLiveResize(false),
@@ -70,6 +71,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_hWnd(0),
       m_hDC(0),
       m_isDialog(dialog),
+      m_preferred_device(preferred_device),
       m_hasMouseCaptured(false),
       m_hasGrabMouse(false),
       m_nPressedButtons(0),
@@ -620,7 +622,8 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
   switch (type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(false, m_hWnd, 1, 2, m_debug_context);
+      GHOST_Context *context = new GHOST_ContextVK(
+          false, m_hWnd, 1, 2, m_debug_context, m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -758,7 +761,16 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
       cursor = ::LoadImage(module, "zoomout_cursor", IMAGE_CURSOR, cx, cy, flags);
       break;
     case GHOST_kStandardCursorMove:
+      cursor = ::LoadImage(nullptr, IDC_SIZEALL, IMAGE_CURSOR, cx, cy, flags);
+      break;
+    case GHOST_kStandardCursorHandOpen:
       cursor = ::LoadImage(module, "handopen_cursor", IMAGE_CURSOR, cx, cy, flags);
+      break;
+    case GHOST_kStandardCursorHandClosed:
+      cursor = ::LoadImage(module, "handclosed_cursor", IMAGE_CURSOR, cx, cy, flags);
+      break;
+    case GHOST_kStandardCursorHandPoint:
+      cursor = ::LoadImage(module, "handpoint_cursor", IMAGE_CURSOR, cx, cy, flags);
       break;
     case GHOST_kStandardCursorNSEWScroll:
       cursor = ::LoadImage(module, "scrollnsew_cursor", IMAGE_CURSOR, cx, cy, flags);
@@ -823,6 +835,16 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
     case GHOST_kStandardCursorStop:
       cursor = ::LoadImage(module, "forbidden_cursor", IMAGE_CURSOR, cx, cy, flags);
       break; /* Slashed circle */
+    case GHOST_kStandardCursorLeftHandle:
+      cursor = ::LoadImage(module, "handle_left_cursor", IMAGE_CURSOR, cx, cy, flags);
+      break;
+    case GHOST_kStandardCursorRightHandle:
+      cursor = ::LoadImage(module, "handle_right_cursor", IMAGE_CURSOR, cx, cy, flags);
+      break;
+    case GHOST_kStandardCursorBothHandles:
+      cursor = ::LoadImage(module, "handle_both_cursor", IMAGE_CURSOR, cx, cy, flags);
+      break;
+
     case GHOST_kStandardCursorDefault:
       cursor = nullptr;
       break;

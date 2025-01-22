@@ -43,13 +43,13 @@ static const char *try_get_supported_socket_type(const StringRef socket_type)
 {
   /* Make a copy of the string for `.c_str()` until the socket type map uses C++ types. */
   const std::string idname(socket_type);
-  const blender::bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(idname.c_str());
+  const blender::bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(idname.c_str());
   if (typeinfo == nullptr) {
     return nullptr;
   }
   /* For builtin socket types only the base type is supported. */
-  if (nodeIsStaticSocketType(typeinfo)) {
-    return bke::nodeStaticSocketType(typeinfo->type, PROP_NONE);
+  if (node_is_static_socket_type(typeinfo)) {
+    return bke::node_static_socket_type(typeinfo->type, PROP_NONE);
   }
   return typeinfo->idname;
 }
@@ -347,10 +347,14 @@ static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &soc
 
 template<typename T> void socket_data_read_data_impl(BlendDataReader *reader, T **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. Cannot use the BLO_read_struct
+   * currently (macro expansion would process `T` instead of the actual type). */
   BLO_read_data_address(reader, data);
 }
 template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketValueMenu **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. No type info available here currently.
+   */
   BLO_read_data_address(reader, data);
   /* Clear runtime data. */
   (*data)->enum_items = nullptr;
@@ -359,10 +363,16 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
 
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)
 {
+  bool data_read = false;
   socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
     using SocketDataType = typename decltype(type_tag)::type;
     socket_data_read_data_impl(reader, reinterpret_cast<SocketDataType **>(&socket.socket_data));
+    data_read = true;
   });
+  if (!data_read && socket.socket_data) {
+    /* Not sure how this can happen exactly, but it did happen in #127855. */
+    socket.socket_data = nullptr;
+  }
 }
 
 /** \} */
@@ -590,7 +600,8 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
       BLO_read_string(reader, &panel.name);
       BLO_read_string(reader, &panel.description);
-      BLO_read_pointer_array(reader, reinterpret_cast<void **>(&panel.items_array));
+      BLO_read_pointer_array(
+          reader, panel.items_num, reinterpret_cast<void **>(&panel.items_array));
       for (const int i : blender::IndexRange(panel.items_num)) {
         BLO_read_struct(reader, NodeEnumItem, &panel.items_array[i]);
         item_read_data(reader, *panel.items_array[i]);
@@ -647,7 +658,7 @@ using namespace blender::bke::node_interface;
 
 blender::bke::bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
 {
-  return blender::bke::nodeSocketTypeFind(socket_type);
+  return blender::bke::node_socket_type_find(socket_type);
 }
 
 blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const

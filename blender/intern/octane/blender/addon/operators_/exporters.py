@@ -75,7 +75,8 @@ class OCTANE_OT_base_export(Operator, ExportHelper):
             data = context.blend_data.as_pointer()
             prefs = bpy.context.preferences.as_pointer()
             self._session = _octane.create_export_scene(scene.as_pointer(), context.as_pointer(),
-                                                        prefs, data, self.filepath, self.export_type)
+                                                        prefs, data, self.filepath, self.export_type,
+                                                        self.frame_start, self.frame_end)
         OctaneProgressWidget.set_task_text(context, "Octane Exporter")
         OctaneProgressWidget.update_widget(context, True, 0)
 
@@ -89,9 +90,13 @@ class OCTANE_OT_base_export(Operator, ExportHelper):
             from octane.core.client import OctaneBlender
             self._session.render_update(depsgraph, scene, layer)
             self._session.set_resolution(width, height, True)
+            request_et = ElementTree.Element("StartExport")
+            request_et.set("exportFileName", str(self.filepath))
+            request_et.set("exportStartFrame", str(self.frame_start))
+            xml_data = ElementTree.tostring(request_et, encoding="unicode")
             if self._frame_current == self.frame_start:
-                OctaneBlender().utils_function(self.EXPORT_START, self.filepath)
-            OctaneBlender().utils_function(self.EXPORT_WRITE_FRAME, self.filepath)
+                OctaneBlender().utils_function(self.EXPORT_START, xml_data)
+            OctaneBlender().utils_function(self.EXPORT_WRITE_FRAME, xml_data)
         else:
             import _octane
             _octane.export_current_frame(self._session, context.blend_data.as_pointer(), depsgraph.as_pointer())

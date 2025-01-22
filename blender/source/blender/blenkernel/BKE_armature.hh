@@ -17,7 +17,6 @@
 
 #include "DNA_armature_types.h"
 
-struct AnimationEvalContext;
 struct BMEditMesh;
 struct Bone;
 struct Depsgraph;
@@ -28,7 +27,6 @@ struct Mesh;
 struct Object;
 struct PoseTree;
 struct Scene;
-struct bAction;
 struct bArmature;
 struct bConstraint;
 struct bGPDstroke;
@@ -281,25 +279,6 @@ void BKE_pose_where_is_bone(Depsgraph *depsgraph,
  */
 void BKE_pose_where_is_bone_tail(bPoseChannel *pchan);
 
-/**
- * Evaluate the action and apply it to the pose. If any pose bones are selected, only FCurves that
- * relate to those bones are evaluated.
- */
-void BKE_pose_apply_action_selected_bones(Object *ob,
-                                          bAction *action,
-                                          const AnimationEvalContext *anim_eval_context);
-/**
- * Evaluate the action and apply it to the pose. Ignore selection state of the bones.
- */
-void BKE_pose_apply_action_all_bones(Object *ob,
-                                     bAction *action,
-                                     const AnimationEvalContext *anim_eval_context);
-
-void BKE_pose_apply_action_blend(Object *ob,
-                                 bAction *action,
-                                 const AnimationEvalContext *anim_eval_context,
-                                 float blend_factor);
-
 void vec_roll_to_mat3(const float vec[3], float roll, float r_mat[3][3]);
 
 /**
@@ -502,7 +481,7 @@ void BKE_pchan_bbone_handles_get(bPoseChannel *pchan,
  */
 void BKE_pchan_bbone_spline_params_get(bPoseChannel *pchan,
                                        bool rest,
-                                       BBoneSplineParameters *r_param);
+                                       BBoneSplineParameters *param);
 
 /**
  * Fills the array with the desired amount of bone->segments elements.
@@ -663,6 +642,7 @@ void BKE_armature_deform_coords_with_gpencil_stroke(const Object *ob_arm,
 void BKE_armature_deform_coords_with_curves(
     const Object &ob_arm,
     const Object &ob_target,
+    const ListBase *defbase,
     blender::MutableSpan<blender::float3> vert_coords,
     std::optional<blender::MutableSpan<blender::float3>> vert_coords_prev,
     std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,

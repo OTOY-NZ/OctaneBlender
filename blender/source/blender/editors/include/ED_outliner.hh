@@ -12,6 +12,9 @@ struct Base;
 struct ListBase;
 struct SpaceOutliner;
 struct bContext;
+struct ID;
+struct Bone;
+struct PointerRNA;
 
 bool ED_outliner_collections_editor_poll(bContext *C);
 
@@ -26,6 +29,12 @@ void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects);
  * Get base of object under cursor. Used for eyedropper tool.
  */
 Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2]);
+
+/**
+ * Get the PointerRNA at the given coordinates. ONLY works for bone structs at the moment. Can be
+ * extended to work with other structs if the need arises.
+ */
+bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRNA *r_ptr);
 
 /**
  * Functions for tagging outliner selection syncing is dirty from operators.
@@ -47,3 +56,5 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
  * Copy sync select dirty flag from window manager to all outliners to be synced lazily on draw.
  */
 void ED_outliner_select_sync_flag_outliners(const bContext *C);
+
+int ED_outliner_icon_from_id(const ID &id);

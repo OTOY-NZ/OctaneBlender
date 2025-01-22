@@ -25,13 +25,20 @@
 
 namespace blender::gpu::render_graph {
 class VKResourceStateTracker;
-class VKRenderGraphLinks;
 
 /** Struct describing the access to an image. */
 struct VKImageAccess {
   VkImage vk_image;
   VkAccessFlags vk_access_flags;
   VkImageAspectFlags vk_image_aspect;
+  /* Used for sub-resource tracking within a rendering scope.
+   *
+   * By default all layers of images are tracked as a single resource. Only inside a render scope
+   * we can temporary change a subset of layers, when the image is used as an attachment and a
+   * image load/store.
+   */
+  uint32_t layer_base;
+  uint32_t layer_count;
 
   /** Determine the image layout for the vk_access_flags. */
   VkImageLayout to_vk_image_layout() const;

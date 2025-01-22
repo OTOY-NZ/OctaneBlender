@@ -17,7 +17,6 @@
 #include "node_util.hh"
 
 struct BVHTreeFromMesh;
-struct GeometrySet;
 namespace blender::nodes {
 class GatherAddNodeSearchParams;
 class GatherLinkSearchOpParams;
@@ -33,6 +32,7 @@ namespace blender::nodes {
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
 void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+void search_link_ops_for_import_node(GatherLinkSearchOpParams &params);
 
 void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -56,14 +56,6 @@ const EnumPropertyItem *attribute_type_type_with_socket_fn(bContext * /*C*/,
                                                            bool *r_free);
 
 bool generic_attribute_type_supported(const EnumPropertyItem &item);
-
-const EnumPropertyItem *domain_experimental_grease_pencil_version3_fn(bContext * /*C*/,
-                                                                      PointerRNA * /*ptr*/,
-                                                                      PropertyRNA * /*prop*/,
-                                                                      bool *r_free);
-
-const EnumPropertyItem *domain_without_corner_experimental_grease_pencil_version3_fn(
-    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free);
 
 }  // namespace enums
 

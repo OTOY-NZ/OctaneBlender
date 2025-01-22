@@ -62,7 +62,7 @@ class IDMaskOperation : public NodeOperation {
 
     /* If anti-aliasing is disabled, write to the output directly, otherwise, write to a temporary
      * result to later perform anti-aliasing. */
-    Result non_anti_aliased_mask = context().create_temporary_result(ResultType::Float);
+    Result non_anti_aliased_mask = context().create_result(ResultType::Float);
     Result &output_mask = use_anti_aliasing() ? non_anti_aliased_mask : get_result("Alpha");
 
     const Domain domain = compute_domain();
@@ -118,5 +118,5 @@ void register_node_type_cmp_idmask()
   ntype.draw_buttons = file_ns::node_composit_buts_id_mask;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

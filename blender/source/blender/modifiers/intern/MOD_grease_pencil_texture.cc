@@ -34,7 +34,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
@@ -330,7 +330,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
@@ -364,7 +364,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 
 ModifierTypeInfo modifierType_GreasePencilTexture = {
     /*idname*/ "GreasePencilTexture",
-    /*name*/ N_("TimeOffset"),
+    /*name*/ N_("TextureMapping"),
     /*struct_name*/ "GreasePencilTextureModifierData",
     /*struct_size*/ sizeof(GreasePencilTextureModifierData),
     /*srna*/ &RNA_GreasePencilTextureModifier,

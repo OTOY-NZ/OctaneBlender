@@ -10,8 +10,7 @@
 #include <pxr/usd/usdGeom/nurbsCurves.h>
 
 namespace blender::bke {
-class AttributeIDRef;
-struct AttributeMetaData;
+class AttributeIter;
 class CurvesGeometry;
 }  // namespace blender::bke
 
@@ -46,16 +45,13 @@ class USDCurvesWriter final : public USDAbstractWriter {
                                        const pxr::UsdTimeCode timecode);
 
   void write_generic_data(const bke::CurvesGeometry &curves,
-                          const bke::AttributeIDRef &attribute_id,
-                          const bke::AttributeMetaData &meta_data,
+                          const bke::AttributeIter &attr,
                           const pxr::UsdGeomCurves &usd_curves);
 
-  void write_uv_data(const bke::CurvesGeometry &curves,
-                     const bke::AttributeIDRef &attribute_id,
-                     const pxr::UsdGeomCurves &usd_curves);
+  void write_uv_data(const bke::AttributeIter &attr, const pxr::UsdGeomCurves &usd_curves);
 
   void write_custom_data(const blender::bke::CurvesGeometry &curves,
-                         pxr::UsdGeomCurves &usd_curves);
+                         const pxr::UsdGeomCurves &usd_curves);
 };
 
 }  // namespace blender::io::usd

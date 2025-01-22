@@ -90,5 +90,5 @@ void register_node_type_camera_oct_osl_camera(void)
   ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

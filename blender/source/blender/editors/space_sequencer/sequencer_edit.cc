@@ -10,7 +10,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
@@ -30,6 +30,7 @@
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
+#include "SEQ_connect.hh"
 #include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
@@ -38,16 +39,19 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
+
+#include "ANIM_action_legacy.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 /* For menu, popup, icons, etc. */
 #include "ED_fileselect.hh"
@@ -133,7 +137,7 @@ bool ED_space_sequencer_has_playback_animation(const SpaceSeq *sseq, const Scene
     return false;
   }
 
-  LISTBASE_FOREACH (FCurve *, fcurve, &scene->adt->action->curves) {
+  for (FCurve *fcurve : blender::animrig::legacy::fcurves_for_assigned_action(scene->adt)) {
     if (sequencer_fcurves_targets_color_strip(fcurve)) {
       return true;
     }
@@ -404,12 +408,6 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
               scene, seq, (snap_frame - SEQ_time_left_handle_frame_get(scene, seq)));
         }
       }
-      else if (seq->seq3 && (seq->seq3->flag & SELECT)) {
-        if (!either_handle_selected) {
-          SEQ_offset_animdata(
-              scene, seq, (snap_frame - SEQ_time_left_handle_frame_get(scene, seq)));
-        }
-      }
     }
   }
 
@@ -466,6 +464,8 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
 struct SlipData {
   float init_mouseloc[2];
   int previous_offset;
+  float previous_subframe_offset;
+  float subframe_restore;
   Sequence **seq_array;
   int num_seq;
   bool slow;
@@ -522,7 +522,6 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
   initNumInput(&data->num_input);
   data->num_input.idx_max = 0;
-  data->num_input.val_flag[0] |= NUM_NO_FRACTION;
   data->num_input.unit_sys = USER_UNIT_NONE;
   data->num_input.unit_type[0] = 0;
 
@@ -542,7 +541,7 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void sequencer_slip_strips(Scene *scene, SlipData *data, int delta)
+static void sequencer_slip_strips(Scene *scene, SlipData *data, int delta, float subframe_delta)
 {
   for (int i = data->num_seq - 1; i >= 0; i--) {
     Sequence *seq = data->seq_array[i];
@@ -552,7 +551,7 @@ static void sequencer_slip_strips(Scene *scene, SlipData *data, int delta)
       continue;
     }
 
-    SEQ_time_slip_strip(scene, seq, delta);
+    SEQ_time_slip_strip(scene, seq, delta, subframe_delta);
   }
 
   for (int i = data->num_seq - 1; i >= 0; i--) {
@@ -592,7 +591,6 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
-  int offset = RNA_int_get(op->ptr, "offset");
 
   /* Count the amount of elements to trim. */
   int num_seq = slip_count_sequences(ed->seqbasep);
@@ -608,8 +606,17 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
 
   slip_add_sequences(ed->seqbasep, data->seq_array);
 
+  float offset_fl = RNA_float_get(op->ptr, "offset");
+  int offset = round_fl_to_int(offset_fl);
+
+  float subframe_delta = 0.0f;
+  if (std::trunc(offset_fl) != offset_fl) {
+    /* Only apply subframe offsets if the input is not an integer. */
+    subframe_delta = offset_fl - offset;
+  }
+
   sequencer_slip_apply_limits(scene, data, &offset);
-  sequencer_slip_strips(scene, data, offset);
+  sequencer_slip_strips(scene, data, offset, subframe_delta);
 
   MEM_freeN(data->seq_array);
   MEM_freeN(data);
@@ -638,6 +645,37 @@ static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *
   ED_area_status_text(area, msg);
 }
 
+static void handle_number_input(
+    bContext *C, wmOperator *op, ScrArea *area, SlipData *data, Scene *scene)
+{
+  float offset_fl;
+  applyNumInput(&data->num_input, &offset_fl);
+  int offset = round_fl_to_int(offset_fl);
+
+  const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
+  sequencer_slip_update_header(scene, area, data, offset);
+
+  RNA_float_set(op->ptr, "offset", offset_fl);
+
+  float subframe_delta = 0.0f;
+  if (data->subframe_restore != 0.0f) {
+    /* Always remove the previous sub-frame adjustments we have potentially made with the mouse
+     * input when the user starts entering values by hand.
+     */
+    subframe_delta = -data->subframe_restore;
+    data->subframe_restore = 0.0f;
+  }
+  if (std::trunc(offset_fl) != offset_fl) {
+    /* Only apply sub-frame offsets if the input is not an integer. */
+    subframe_delta = offset_fl - data->previous_subframe_offset - delta_offset;
+    data->subframe_restore += subframe_delta;
+  }
+  data->previous_subframe_offset = offset_fl;
+  sequencer_slip_strips(scene, data, delta_offset, subframe_delta);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+}
+
 static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
@@ -648,19 +686,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Modal numinput active, try to handle numeric inputs. */
   if (event->val == KM_PRESS && has_numInput && handleNumInput(C, &data->num_input, event)) {
-    float offset_fl;
-    applyNumInput(&data->num_input, &offset_fl);
-    int offset = round_fl_to_int(offset_fl);
-
-    const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
-    sequencer_slip_update_header(scene, area, data, offset);
-
-    RNA_int_set(op->ptr, "offset", offset);
-
-    sequencer_slip_strips(scene, data, delta_offset);
-
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-
+    handle_number_input(C, op, area, data, scene);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -669,7 +695,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
       if (!has_numInput) {
         float mouseloc[2];
         int offset;
-        int mouse_x;
+        float mouse_x;
         View2D *v2d = UI_view2d_fromcontext(C);
 
         if (data->slow) {
@@ -683,14 +709,28 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
         /* Choose the side based on which side of the current frame the mouse is. */
         UI_view2d_region_to_view(v2d, mouse_x, 0, &mouseloc[0], &mouseloc[1]);
-        offset = mouseloc[0] - data->init_mouseloc[0];
+        float offset_fl = mouseloc[0] - data->init_mouseloc[0];
+        offset = offset_fl;
 
         const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
         sequencer_slip_update_header(scene, area, data, offset);
 
-        RNA_int_set(op->ptr, "offset", offset);
-
-        sequencer_slip_strips(scene, data, delta_offset);
+        if (!data->slow) {
+          RNA_float_set(op->ptr, "offset", offset);
+        }
+        float subframe_delta = 0.0f;
+        if (data->slow) {
+          RNA_float_set(op->ptr, "offset", offset_fl);
+          subframe_delta = offset_fl - data->previous_subframe_offset - delta_offset;
+          data->subframe_restore += subframe_delta;
+        }
+        else if (data->subframe_restore != 0.0f) {
+          /* If we exit slow mode, make sure we undo the fractional adjustments we have done. */
+          subframe_delta = -data->subframe_restore;
+          data->subframe_restore = 0.0f;
+        }
+        data->previous_subframe_offset = offset_fl;
+        sequencer_slip_strips(scene, data, delta_offset, subframe_delta);
 
         WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
       }
@@ -713,8 +753,9 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
     case EVT_ESCKEY:
     case RIGHTMOUSE: {
-      int offset = RNA_int_get(op->ptr, "offset");
-      sequencer_slip_strips(scene, data, -offset);
+      int offset = data->previous_offset;
+      float subframe_delta = data->subframe_restore;
+      sequencer_slip_strips(scene, data, -offset, -subframe_delta);
 
       MEM_freeN(data->seq_array);
       MEM_freeN(data);
@@ -749,18 +790,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Modal numinput inactive, try to handle numeric inputs. */
   if (!handled && event->val == KM_PRESS && handleNumInput(C, &data->num_input, event)) {
-    float offset_fl;
-    applyNumInput(&data->num_input, &offset_fl);
-    int offset = round_fl_to_int(offset_fl);
-
-    const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
-    sequencer_slip_update_header(scene, area, data, offset);
-
-    RNA_int_set(op->ptr, "offset", offset);
-
-    sequencer_slip_strips(scene, data, delta_offset);
-
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    handle_number_input(C, op, area, data, scene);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -782,15 +812,19 @@ void SEQUENCER_OT_slip(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_int(ot->srna,
-              "offset",
-              0,
-              INT32_MIN,
-              INT32_MAX,
-              "Offset",
-              "Offset to the data of the strip",
-              INT32_MIN,
-              INT32_MAX);
+  /* Properties. */
+  PropertyRNA *prop;
+
+  prop = RNA_def_float(ot->srna,
+                       "offset",
+                       0,
+                       -FLT_MAX,
+                       FLT_MAX,
+                       "Offset",
+                       "Offset to the data of the strip",
+                       -FLT_MAX,
+                       FLT_MAX);
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 0);
 }
 
 /** \} */
@@ -986,6 +1020,85 @@ void SEQUENCER_OT_unlock(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Connect Strips Operator
+ * \{ */
+
+static int sequencer_connect_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *active_seqbase = SEQ_active_seqbase_get(ed);
+
+  blender::VectorSet<Sequence *> selected = SEQ_query_selected_strips(active_seqbase);
+
+  if (selected.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  if (toggle && SEQ_are_strips_connected_together(selected)) {
+    SEQ_disconnect(selected);
+  }
+  else {
+    SEQ_connect(selected);
+  }
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_connect(wmOperatorType *ot)
+{
+  ot->name = "Connect Strips";
+  ot->idname = "SEQUENCER_OT_connect";
+  ot->description = "Link selected strips together for simplified group selection";
+
+  ot->exec = sequencer_connect_exec;
+  ot->poll = sequencer_edit_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna, "toggle", true, "Toggle", "Toggle strip connections");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Disconnect Strips Operator
+ * \{ */
+
+static int sequencer_disconnect_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *active_seqbase = SEQ_active_seqbase_get(ed);
+
+  blender::VectorSet<Sequence *> selected = SEQ_query_selected_strips(active_seqbase);
+
+  if (SEQ_disconnect(selected)) {
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    return OPERATOR_FINISHED;
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+}
+
+void SEQUENCER_OT_disconnect(wmOperatorType *ot)
+{
+  ot->name = "Disconnect Strips";
+  ot->idname = "SEQUENCER_OT_disconnect";
+  ot->description = "Unlink selected strips so that they can be selected individually";
+
+  ot->exec = sequencer_disconnect_exec;
+  ot->poll = sequencer_edit_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Reload Strips Operator
  * \{ */
 
@@ -999,6 +1112,7 @@ static int sequencer_reload_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
     if (seq->flag & SELECT) {
       SEQ_add_reload_new_file(bmain, scene, seq, !adjust_length);
+      blender::seq::thumbnail_cache_invalidate_strip(scene, seq);
 
       if (adjust_length) {
         if (SEQ_transform_test_overlap(scene, ed->seqbasep, seq)) {
@@ -1058,6 +1172,7 @@ static int sequencer_refresh_all_exec(bContext *C, wmOperator * /*op*/)
 
   SEQ_relations_free_imbuf(scene, &ed->seqbase, false);
   blender::seq::media_presence_free(scene);
+  blender::seq::thumbnail_cache_clear(scene);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -1087,11 +1202,10 @@ int seq_effect_find_selected(Scene *scene,
                              int type,
                              Sequence **r_selseq1,
                              Sequence **r_selseq2,
-                             Sequence **r_selseq3,
                              const char **r_error_str)
 {
   Editing *ed = SEQ_editing_get(scene);
-  Sequence *seq1 = nullptr, *seq2 = nullptr, *seq3 = nullptr;
+  Sequence *seq1 = nullptr, *seq2 = nullptr;
 
   *r_error_str = nullptr;
 
@@ -1100,7 +1214,7 @@ int seq_effect_find_selected(Scene *scene,
   }
 
   if (SEQ_effect_get_num_inputs(type) == 0) {
-    *r_selseq1 = *r_selseq2 = *r_selseq3 = nullptr;
+    *r_selseq1 = *r_selseq2 = nullptr;
     return 1;
   }
 
@@ -1117,23 +1231,12 @@ int seq_effect_find_selected(Scene *scene,
         else if (seq1 == nullptr) {
           seq1 = seq;
         }
-        else if (seq3 == nullptr) {
-          seq3 = seq;
-        }
         else {
-          *r_error_str = N_("Cannot apply effect to more than 3 sequence strips");
+          *r_error_str = N_("Cannot apply effect to more than 2 sequence strips");
           return 0;
         }
       }
     }
-  }
-
-  /* Make sequence selection a little bit more intuitive
-   * for 3 strips: the last-strip should be seq3. */
-  if (seq3 != nullptr && seq2 != nullptr) {
-    Sequence *tmp = seq2;
-    seq2 = seq3;
-    seq3 = tmp;
   }
 
   switch (SEQ_effect_get_num_inputs(type)) {
@@ -1145,34 +1248,24 @@ int seq_effect_find_selected(Scene *scene,
       if (seq1 == nullptr) {
         seq1 = seq2;
       }
-      if (seq3 == nullptr) {
-        seq3 = seq2;
-      }
       ATTR_FALLTHROUGH;
     case 2:
       if (seq1 == nullptr || seq2 == nullptr) {
         *r_error_str = N_("2 selected sequence strips are needed");
         return 0;
       }
-      if (seq3 == nullptr) {
-        seq3 = seq2;
-      }
       break;
   }
 
-  if (seq1 == nullptr && seq2 == nullptr && seq3 == nullptr) {
+  if (seq1 == nullptr && seq2 == nullptr) {
     *r_error_str = N_("TODO: in what cases does this happen?");
     return 0;
   }
 
   *r_selseq1 = seq1;
   *r_selseq2 = seq2;
-  *r_selseq3 = seq3;
 
   /* TODO(Richard): This function needs some refactoring, this is just quick hack for #73828. */
-  if (SEQ_effect_get_num_inputs(type) < 3) {
-    *r_selseq3 = nullptr;
-  }
   if (SEQ_effect_get_num_inputs(type) < 2) {
     *r_selseq2 = nullptr;
   }
@@ -1183,7 +1276,7 @@ int seq_effect_find_selected(Scene *scene,
 static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Sequence *seq1, *seq2, *seq3, *last_seq = SEQ_select_active_get(scene);
+  Sequence *seq1, *seq2, *last_seq = SEQ_select_active_get(scene);
   const char *error_msg;
 
   if (SEQ_effect_get_num_inputs(last_seq->type) == 0) {
@@ -1191,8 +1284,7 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!seq_effect_find_selected(
-          scene, last_seq, last_seq->type, &seq1, &seq2, &seq3, &error_msg) ||
+  if (!seq_effect_find_selected(scene, last_seq, last_seq->type, &seq1, &seq2, &error_msg) ||
       SEQ_effect_get_num_inputs(last_seq->type) == 0)
   {
     BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -1200,8 +1292,7 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   }
   /* Check if reassigning would create recursivity. */
   if (SEQ_relations_render_loop_check(seq1, last_seq) ||
-      SEQ_relations_render_loop_check(seq2, last_seq) ||
-      SEQ_relations_render_loop_check(seq3, last_seq))
+      SEQ_relations_render_loop_check(seq2, last_seq))
   {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: recursion detected");
     return OPERATOR_CANCELLED;
@@ -1209,14 +1300,13 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
 
   last_seq->seq1 = seq1;
   last_seq->seq2 = seq2;
-  last_seq->seq3 = seq3;
 
   int old_start = last_seq->start;
 
   /* Force time position update for reassigned effects.
    * TODO(Richard): This is because internally startdisp is still used, due to poor performance of
    * mapping effect range to inputs. This mapping could be cached though. */
-  SEQ_sequence_lookup_tag(scene, SEQ_LOOKUP_TAG_INVALID);
+  SEQ_sequence_lookup_invalidate(scene);
   SEQ_time_left_handle_frame_set(scene, seq1, SEQ_time_left_handle_frame_get(scene, seq1));
 
   SEQ_relations_invalidate_cache_preprocessed(scene, last_seq);
@@ -1288,7 +1378,7 @@ void SEQUENCER_OT_swap_inputs(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Swap Inputs";
   ot->idname = "SEQUENCER_OT_swap_inputs";
-  ot->description = "Swap the first two inputs for the effect strip";
+  ot->description = "Swap the two inputs of the effect strip";
 
   /* Api callbacks. */
   ot->exec = sequencer_swap_inputs_exec;
@@ -1965,20 +2055,37 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 
   SEQ_prefetch_stop(scene);
 
-  int channel_max = 1, meta_start_frame = MAXFRAME, meta_end_frame = MINFRAME;
+  int channel_max = 1, channel_min = INT_MAX, meta_start_frame = MAXFRAME,
+      meta_end_frame = MINFRAME;
   Sequence *seqm = SEQ_sequence_alloc(active_seqbase, 1, 1, SEQ_TYPE_META);
 
   /* Remove all selected from main list, and put in meta.
    * Sequence is moved within the same edit, no need to re-generate the UID. */
-  LISTBASE_FOREACH_MUTABLE (Sequence *, seq, active_seqbase) {
+  blender::VectorSet<Sequence *> strips_to_move;
+  LISTBASE_FOREACH (Sequence *, seq, active_seqbase) {
     if (seq != seqm && seq->flag & SELECT) {
-      BLI_remlink(active_seqbase, seq);
-      BLI_addtail(&seqm->seqbase, seq);
-      SEQ_relations_invalidate_cache_preprocessed(scene, seq);
-      channel_max = max_ii(seq->machine, channel_max);
-      meta_start_frame = min_ii(SEQ_time_left_handle_frame_get(scene, seq), meta_start_frame);
-      meta_end_frame = max_ii(SEQ_time_right_handle_frame_get(scene, seq), meta_end_frame);
+      strips_to_move.add(seq);
+      strips_to_move.add_multiple(SEQ_get_connected_strips(seq));
     }
+  }
+
+  for (Sequence *seq : strips_to_move) {
+    SEQ_relations_invalidate_cache_preprocessed(scene, seq);
+    BLI_remlink(active_seqbase, seq);
+    BLI_addtail(&seqm->seqbase, seq);
+    channel_max = max_ii(seq->machine, channel_max);
+    channel_min = min_ii(seq->machine, channel_min);
+    meta_start_frame = min_ii(SEQ_time_left_handle_frame_get(scene, seq), meta_start_frame);
+    meta_end_frame = max_ii(SEQ_time_right_handle_frame_get(scene, seq), meta_end_frame);
+  }
+
+  ListBase *channels_cur = SEQ_channels_displayed_get(ed);
+  ListBase *channels_meta = &seqm->channels;
+  for (int i = channel_min; i <= channel_max; i++) {
+    SeqTimelineChannel *channel_cur = SEQ_channel_get_by_index(channels_cur, i);
+    SeqTimelineChannel *channel_meta = SEQ_channel_get_by_index(channels_meta, i);
+    STRNCPY(channel_meta->name, channel_cur->name);
+    channel_meta->flag = channel_cur->flag;
   }
 
   seqm->machine = active_seq ? active_seq->machine : channel_max;
@@ -1991,6 +2098,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
     SEQ_transform_seqbase_shuffle(active_seqbase, seqm, scene);
   }
 
+  SEQ_sequence_lookup_invalidate(scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -2229,7 +2337,7 @@ static Sequence *find_next_prev_sequence(Scene *scene, Sequence *test, int lr, i
 
 static bool seq_is_parent(const Sequence *par, const Sequence *seq)
 {
-  return ((par->seq1 == seq) || (par->seq2 == seq) || (par->seq3 == seq));
+  return ((par->seq1 == seq) || (par->seq2 == seq));
 }
 
 static int sequencer_swap_exec(bContext *C, wmOperator *op)
@@ -2250,13 +2358,11 @@ static int sequencer_swap_exec(bContext *C, wmOperator *op)
   if (seq) {
 
     /* Disallow effect strips. */
-    if (SEQ_effect_get_num_inputs(seq->type) >= 1 &&
-        (seq->effectdata || seq->seq1 || seq->seq2 || seq->seq3))
-    {
+    if (SEQ_effect_get_num_inputs(seq->type) >= 1 && (seq->effectdata || seq->seq1 || seq->seq2)) {
       return OPERATOR_CANCELLED;
     }
     if ((SEQ_effect_get_num_inputs(active_seq->type) >= 1) &&
-        (active_seq->effectdata || active_seq->seq1 || active_seq->seq2 || active_seq->seq3))
+        (active_seq->effectdata || active_seq->seq1 || active_seq->seq2))
     {
       return OPERATOR_CANCELLED;
     }
@@ -2516,34 +2622,12 @@ void SEQUENCER_OT_swap_data(wmOperatorType *ot)
 /** \name Change Effect Input Operator
  * \{ */
 
-static const EnumPropertyItem prop_change_effect_input_types[] = {
-    {0, "A_B", 0, "A " BLI_STR_UTF8_RIGHTWARDS_ARROW " B", ""},
-    {1, "B_C", 0, "B " BLI_STR_UTF8_RIGHTWARDS_ARROW " C", ""},
-    {2, "A_C", 0, "A " BLI_STR_UTF8_RIGHTWARDS_ARROW " C", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static int sequencer_change_effect_input_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Sequence *seq = SEQ_select_active_get(scene);
 
-  Sequence **seq_1, **seq_2;
-
-  switch (RNA_enum_get(op->ptr, "swap")) {
-    case 0:
-      seq_1 = &seq->seq1;
-      seq_2 = &seq->seq2;
-      break;
-    case 1:
-      seq_1 = &seq->seq2;
-      seq_2 = &seq->seq3;
-      break;
-    default: /* 2 */
-      seq_1 = &seq->seq1;
-      seq_2 = &seq->seq3;
-      break;
-  }
+  Sequence **seq_1 = &seq->seq1, **seq_2 = &seq->seq2;
 
   if (*seq_1 == nullptr || *seq_2 == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "One of the effect inputs is unset, cannot swap");
@@ -2570,9 +2654,6 @@ void SEQUENCER_OT_change_effect_input(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  ot->prop = RNA_def_enum(
-      ot->srna, "swap", prop_change_effect_input_types, 0, "Swap", "The effect inputs to swap");
 }
 
 /** \} */

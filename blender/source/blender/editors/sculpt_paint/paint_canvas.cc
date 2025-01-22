@@ -4,10 +4,12 @@
 
 #include "BLI_compiler_compat.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BKE_context.hh"
 #include "BKE_material.h"
 #include "BKE_paint.hh"
 
@@ -37,19 +39,30 @@ static TexPaintSlot *get_active_slot(Object &ob)
 
 using namespace blender::ed::sculpt_paint::canvas;
 
-/* Does the paint tool with the given idname uses a canvas. */
-static bool paint_tool_uses_canvas(blender::StringRef idname)
+/* Does the paint tool with the given idname use a canvas. */
+static bool image_paint_tool_uses_canvas(blender::StringRef idname)
 {
-  return ELEM(idname, "builtin_brush.Paint", "builtin_brush.Smear", "builtin.color_filter");
+  return ELEM(idname, "builtin.color_filter");
 }
 
-static bool paint_tool_shading_color_follows_last_used(blender::StringRef idname)
+static bool image_paint_brush_uses_canvas(bContext *C)
+{
+  const Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush *brush = BKE_paint_brush_for_read(paint);
+  if (brush == nullptr) {
+    return false;
+  }
+
+  return ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+}
+
+static bool image_paint_brush_type_shading_color_follows_last_used(blender::StringRef idname)
 {
   /* TODO(jbakker): complete this list. */
   return ELEM(idname, "builtin_brush.Mask");
 }
 
-void ED_paint_tool_update_sticky_shading_color(bContext *C, Object *ob)
+void ED_image_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
 {
   if (ob == nullptr || ob->sculpt == nullptr) {
     return;
@@ -60,14 +73,15 @@ void ED_paint_tool_update_sticky_shading_color(bContext *C, Object *ob)
     return;
   }
   /* Do not modify when tool follows lat used tool. */
-  if (paint_tool_shading_color_follows_last_used(tref->idname)) {
+  if (image_paint_brush_type_shading_color_follows_last_used(tref->idname)) {
     return;
   }
 
-  ob->sculpt->sticky_shading_color = paint_tool_uses_canvas(tref->idname);
+  ob->sculpt->sticky_shading_color = image_paint_tool_uses_canvas(tref->idname) ||
+                                     image_paint_brush_uses_canvas(C);
 }
 
-static bool paint_tool_shading_color_follows_last_used_tool(bContext *C, Object *ob)
+static bool image_paint_brush_type_shading_color_follows_last_used_tool(bContext *C, Object *ob)
 {
   if (ob == nullptr || ob->sculpt == nullptr) {
     return false;
@@ -78,10 +92,10 @@ static bool paint_tool_shading_color_follows_last_used_tool(bContext *C, Object 
     return false;
   }
 
-  return paint_tool_shading_color_follows_last_used(tref->idname);
+  return image_paint_brush_type_shading_color_follows_last_used(tref->idname);
 }
 
-bool ED_paint_tool_use_canvas(bContext *C, bToolRef *tref)
+bool ED_image_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
 {
   if (tref == nullptr) {
     tref = WM_toolsystem_ref_from_context(C);
@@ -90,7 +104,7 @@ bool ED_paint_tool_use_canvas(bContext *C, bToolRef *tref)
     return false;
   }
 
-  return paint_tool_uses_canvas(tref->idname);
+  return image_paint_tool_uses_canvas(tref->idname) || image_paint_brush_uses_canvas(C);
 }
 
 eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
@@ -105,8 +119,8 @@ eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
    * For better integration with the vertex paint in sculpt mode we sticky
    * with the last stoke when using tools like masking.
    */
-  if (!ED_paint_tool_use_canvas(C, nullptr) &&
-      !(paint_tool_shading_color_follows_last_used_tool(C, &ob) &&
+  if (!ED_image_paint_brush_type_use_canvas(C, nullptr) &&
+      !(image_paint_brush_type_shading_color_follows_last_used_tool(C, &ob) &&
         ob.sculpt->sticky_shading_color))
   {
     return orig_color_type;

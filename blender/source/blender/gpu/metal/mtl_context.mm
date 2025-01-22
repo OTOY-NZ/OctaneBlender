@@ -268,7 +268,12 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
   /* Initialize samplers. */
   this->sampler_state_cache_init();
 
-  compiler = new ShaderCompilerGeneric();
+  if (GPU_use_parallel_compilation()) {
+    compiler = new MTLShaderCompiler();
+  }
+  else {
+    compiler = new ShaderCompilerGeneric();
+  }
 }
 
 MTLContext::~MTLContext()
@@ -678,9 +683,9 @@ gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
           GPU_vertformat_attr_add(
               &dummy_vertformat_[sampler_format], "dummy", comp_type, 4, fetch_mode);
           dummy_verts_[sampler_format] = GPU_vertbuf_create_with_format_ex(
-              &dummy_vertformat_[sampler_format],
+              dummy_vertformat_[sampler_format],
               GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-          GPU_vertbuf_data_alloc(dummy_verts_[sampler_format], 64);
+          GPU_vertbuf_data_alloc(*dummy_verts_[sampler_format], 64);
         }
         tex = GPU_texture_create_from_vertbuf("Dummy TextureBuffer", dummy_verts_[sampler_format]);
         break;
@@ -2217,8 +2222,15 @@ const MTLComputePipelineStateInstance *MTLContext::ensure_compute_pipeline_state
     return nullptr;
   }
 
+  MTLShader *active_shader = this->pipeline_state.active_shader;
+
+  /* Set descriptor to default shader constants . */
+  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(active_shader->constants.values);
+
   const MTLComputePipelineStateInstance *compute_pso_inst =
-      this->pipeline_state.active_shader->bake_compute_pipeline_state(this);
+      this->pipeline_state.active_shader->bake_compute_pipeline_state(this,
+                                                                      compute_pipeline_descriptor);
+
   if (compute_pso_inst == nullptr || compute_pso_inst->pso == nil) {
     MTL_LOG_WARNING("No valid compute PSO for compute dispatch!", );
     return nullptr;
@@ -2712,9 +2724,6 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
       MTLContext::get_global_memory_manager()->get_current_safe_list();
   BLI_assert(cmd_free_buffer_list);
 
-  id<MTLCommandBuffer> cmd_buffer_ref = cmdbuf;
-  [cmd_buffer_ref retain];
-
   /* Increment drawables in flight limiter. */
   MTLContext::max_drawables_in_flight++;
   std::chrono::time_point submission_time = std::chrono::high_resolution_clock::now();
@@ -2724,7 +2733,6 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
   [cmdbuf addCompletedHandler:^(id<MTLCommandBuffer> /*cb*/) {
     /* Flag freed buffers associated with this CMD buffer as ready to be freed. */
     cmd_free_buffer_list->decrement_reference();
-    [cmd_buffer_ref release];
 
     /* Decrement count */
     MTLCommandBufferManager::num_active_cmd_bufs--;

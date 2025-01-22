@@ -1029,8 +1029,8 @@ static void knifetool_draw(const bContext * /*C*/, ARegion * /*region*/, void *a
   if (total_hits > 0) {
     GPU_blend(GPU_BLEND_ALPHA);
 
-    blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(format);
-    GPU_vertbuf_data_alloc(vert, total_hits);
+    blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+    GPU_vertbuf_data_alloc(*vert, total_hits);
 
     int other_verts_count = 0;
     int snapped_verts_count = 0;
@@ -2185,14 +2185,7 @@ static void knife_make_face_cuts(KnifeTool_OpData *kcd, BMesh *bm, BMFace *f, Li
 #endif
 
     {
-      BMFace **face_arr = nullptr;
-      int face_arr_len;
-
-      BM_face_split_edgenet(bm, f, edge_array, edge_array_len, &face_arr, &face_arr_len);
-
-      if (face_arr) {
-        MEM_freeN(face_arr);
-      }
+      BM_face_split_edgenet(bm, f, edge_array, edge_array_len, nullptr);
     }
 
     /* Remove dangling edges, not essential - but nice for users. */
@@ -3097,8 +3090,8 @@ static void knife_pos_data_clear(KnifePosData *kpd)
  * \{ */
 
 static bool knife_find_closest_face(KnifeTool_OpData *kcd,
-                                    const float3 ray_origin,
-                                    const float3 ray_normal,
+                                    const float3 &ray_origin,
+                                    const float3 &ray_normal,
                                     const float2 &mval,
                                     KnifePosData *r_kpd)
 {
@@ -3223,11 +3216,14 @@ static float knife_snap_size(KnifeTool_OpData *kcd, float maxsize)
   return density ? min_ff(maxsize / (float(density) * 0.5f), maxsize) : maxsize;
 }
 
-/* Find a point on an edge that is closest to the axis of a contrained mode.
- * Returns true if the point is between the edge limits. */
+/**
+ * Find a point on an edge that is closest to the axis of a constrained mode.
+ *
+ * \return true if the point is between the edge limits.
+ */
 static bool knife_closest_constrain_to_edge(KnifeTool_OpData *kcd,
-                                            const float3 kfv1_cageco,
-                                            const float3 kfv2_cageco,
+                                            const float3 &kfv1_cageco,
+                                            const float3 &kfv2_cageco,
                                             float r_close[3])
 {
   /* If snapping, check we're in bounds. */
@@ -3250,8 +3246,8 @@ static bool knife_closest_constrain_to_edge(KnifeTool_OpData *kcd,
 static bool knife_find_closest_edge_of_face(KnifeTool_OpData *kcd,
                                             int ob_index,
                                             BMFace *f,
-                                            const float3 ray_origin,
-                                            const float3 ray_normal,
+                                            const float3 &ray_origin,
+                                            const float3 &ray_normal,
                                             const float2 &curr_cage_ss,
                                             KnifePosData *r_kpd)
 {

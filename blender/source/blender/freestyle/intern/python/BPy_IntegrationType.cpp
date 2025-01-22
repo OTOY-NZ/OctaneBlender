@@ -51,7 +51,7 @@ PyDoc_STRVAR(
     "      value type is float if func is of the :class:`UnaryFunction0DDouble`\n"
     "      or :class:`UnaryFunction0DFloat` type, and int if func is of the\n"
     "      :class:`UnaryFunction0DUnsigned` type.\n"
-    "   :rtype: int or float");
+    "   :rtype: int | float");
 
 static PyObject *Integrator_integrate(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
@@ -208,8 +208,7 @@ int IntegrationType_Init(PyObject *module)
   if (PyType_Ready(&IntegrationType_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&IntegrationType_Type);
-  PyModule_AddObject(module, "IntegrationType", (PyObject *)&IntegrationType_Type);
+  PyModule_AddObjectRef(module, "IntegrationType", (PyObject *)&IntegrationType_Type);
 
 #define ADD_TYPE_CONST(id) \
   PyLong_subtype_add_to_dict( \
@@ -227,15 +226,13 @@ int IntegrationType_Init(PyObject *module)
   if (m == nullptr) {
     return -1;
   }
-  Py_INCREF(m);
-  PyModule_AddObject(module, "Integrator", m);
+  PyModule_AddObjectRef(module, "Integrator", m);
 
   // from Integrator import *
   d = PyModule_GetDict(m);
   for (PyMethodDef *p = module_functions; p->ml_name; p++) {
     f = PyDict_GetItemString(d, p->ml_name);
-    Py_INCREF(f);
-    PyModule_AddObject(module, p->ml_name, f);
+    PyModule_AddObjectRef(module, p->ml_name, f);
   }
 
   return 0;

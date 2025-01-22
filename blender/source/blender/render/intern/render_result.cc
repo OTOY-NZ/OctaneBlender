@@ -15,7 +15,7 @@
 
 #include "BLI_hash_md5.hh"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -24,9 +24,9 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_image_save.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -768,7 +768,7 @@ void render_result_views_new(RenderResult *rr, const RenderData *rd)
   }
 
   /* we always need at least one view */
-  if (BLI_listbase_count_at_most(&rr->views, 1) == 0) {
+  if (BLI_listbase_is_empty(&rr->views)) {
     render_result_view_new(rr, "");
   }
 }
@@ -1097,6 +1097,9 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
     IMB_assign_float_buffer(ibuf, rv->ibuf->float_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
     ibuf->channels = rv->ibuf->channels;
   }
+
+  IMB_colormanagement_assign_float_colorspace(
+      ibuf, IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
 
   /* float factor for random dither, imbuf takes care of it */
   ibuf->dither = dither;

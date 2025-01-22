@@ -89,7 +89,7 @@ struct GPUVertFormat {
 };
 
 void GPU_vertformat_clear(GPUVertFormat *);
-void GPU_vertformat_copy(GPUVertFormat *dest, const GPUVertFormat *src);
+void GPU_vertformat_copy(GPUVertFormat *dest, const GPUVertFormat &src);
 void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader);
 
 uint GPU_vertformat_attr_add(
@@ -158,7 +158,7 @@ struct GPUPackedNormal {
 struct GPUNormal {
   union {
     GPUPackedNormal low;
-    short high[3];
+    short high[4];
   };
 };
 

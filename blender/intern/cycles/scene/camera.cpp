@@ -90,6 +90,7 @@ NODE_DEFINE(Camera)
   panorama_type_enum.insert("fisheye_equidistant", PANORAMA_FISHEYE_EQUIDISTANT);
   panorama_type_enum.insert("fisheye_equisolid", PANORAMA_FISHEYE_EQUISOLID);
   panorama_type_enum.insert("fisheye_lens_polynomial", PANORAMA_FISHEYE_LENS_POLYNOMIAL);
+  panorama_type_enum.insert("panorama_central_cylindrical", PANORAMA_CENTRAL_CYLINDRICAL);
   SOCKET_ENUM(panorama_type, "Panorama Type", panorama_type_enum, PANORAMA_EQUIRECTANGULAR);
 
   SOCKET_FLOAT(fisheye_fov, "Fisheye FOV", M_PI_F);
@@ -107,6 +108,11 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(fisheye_polynomial_k2, "Fisheye Polynomial K2", 0.0f);
   SOCKET_FLOAT(fisheye_polynomial_k3, "Fisheye Polynomial K3", 0.0f);
   SOCKET_FLOAT(fisheye_polynomial_k4, "Fisheye Polynomial K4", 0.0f);
+
+  SOCKET_FLOAT(central_cylindrical_range_u_min, "Central Cylindrical Range U Min", -M_PI_F);
+  SOCKET_FLOAT(central_cylindrical_range_u_max, "Central Cylindrical Range U Max", M_PI_F);
+  SOCKET_FLOAT(central_cylindrical_range_v_min, "Central Cylindrical Range V Min", -1.0f);
+  SOCKET_FLOAT(central_cylindrical_range_v_max, "Central Cylindrical Range V Max", 1.0f);
 
   static NodeEnum stereo_eye_enum;
   stereo_eye_enum.insert("none", STEREO_NONE);
@@ -269,7 +275,6 @@ void Camera::update(Scene *scene)
 
   rastertocamera = screentocamera * rastertoscreen;
   full_rastertocamera = screentocamera * full_rastertoscreen;
-  cameratoraster = screentoraster * cameratoscreen;
 
   cameratoworld = matrix;
   screentoworld = cameratoworld * screentocamera;
@@ -348,7 +353,6 @@ void Camera::update(Scene *scene)
   }
 
   if (need_motion == Scene::MOTION_PASS) {
-    /* TODO(sergey): Support perspective (zoom, fov) motion. */
     if (camera_type == CAMERA_PANORAMA) {
       if (have_motion) {
         kcam->motion_pass_pre = transform_inverse(motion[0]);
@@ -360,9 +364,19 @@ void Camera::update(Scene *scene)
       }
     }
     else {
-      if (have_motion) {
-        kcam->perspective_pre = cameratoraster * transform_inverse(motion[0]);
-        kcam->perspective_post = cameratoraster * transform_inverse(motion[motion.size() - 1]);
+      if (have_motion || fov != fov_pre || fov != fov_post) {
+        /* Note the values for perspective_pre/perspective_post calculated for MOTION_PASS are
+         * different to those calculated for MOTION_BLUR below, so the code has not been combined.
+         */
+        ProjectionTransform cameratoscreen_pre = projection_perspective(
+            fov_pre, nearclip, farclip);
+        ProjectionTransform cameratoscreen_post = projection_perspective(
+            fov_post, nearclip, farclip);
+        ProjectionTransform cameratoraster_pre = screentoraster * cameratoscreen_pre;
+        ProjectionTransform cameratoraster_post = screentoraster * cameratoscreen_post;
+        kcam->perspective_pre = cameratoraster_pre * transform_inverse(motion[0]);
+        kcam->perspective_post = cameratoraster_post *
+                                 transform_inverse(motion[motion.size() - 1]);
       }
       else {
         kcam->perspective_pre = worldtoraster;
@@ -379,9 +393,6 @@ void Camera::update(Scene *scene)
 
     /* TODO(sergey): Support other types of camera. */
     if (use_perspective_motion && camera_type == CAMERA_PERSPECTIVE) {
-      /* TODO(sergey): Move to an utility function and de-duplicate with
-       * calculation above.
-       */
       ProjectionTransform screentocamera_pre = projection_inverse(
           projection_perspective(fov_pre, nearclip, farclip));
       ProjectionTransform screentocamera_post = projection_inverse(
@@ -420,6 +431,10 @@ void Camera::update(Scene *scene)
   kcam->fisheye_lens_polynomial_bias = fisheye_polynomial_k0;
   kcam->fisheye_lens_polynomial_coefficients = make_float4(
       fisheye_polynomial_k1, fisheye_polynomial_k2, fisheye_polynomial_k3, fisheye_polynomial_k4);
+  kcam->central_cylindrical_range = make_float4(-central_cylindrical_range_u_min,
+                                                -central_cylindrical_range_u_max,
+                                                central_cylindrical_range_v_min,
+                                                central_cylindrical_range_v_max);
 
   switch (stereo_eye) {
     case STEREO_LEFT:
@@ -474,7 +489,7 @@ void Camera::update(Scene *scene)
   previous_need_motion = need_motion;
 }
 
-void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *scene)
+void Camera::device_update(Device * /*device*/, DeviceScene *dscene, Scene *scene)
 {
   update(scene);
 

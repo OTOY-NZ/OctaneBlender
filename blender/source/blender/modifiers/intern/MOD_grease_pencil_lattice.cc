@@ -25,7 +25,7 @@
 
 #include "WM_types.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
@@ -101,6 +101,7 @@ static void modify_curves(ModifierData *md,
                           Drawing &drawing)
 {
   const auto *lmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
   IndexMaskMemory mask_memory;
@@ -163,7 +164,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

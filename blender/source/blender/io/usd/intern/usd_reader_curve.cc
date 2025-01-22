@@ -110,8 +110,7 @@ static CurveType get_curve_type(pxr::TfToken type, pxr::TfToken basis)
   return CURVE_TYPE_POLY;
 }
 
-static const std::optional<bke::AttrDomain> convert_usd_interp_to_blender(
-    const pxr::TfToken usd_domain)
+static std::optional<bke::AttrDomain> convert_usd_interp_to_blender(const pxr::TfToken usd_domain)
 {
   static const blender::Map<pxr::TfToken, bke::AttrDomain> domain_map = []() {
     blender::Map<pxr::TfToken, bke::AttrDomain> map;
@@ -245,7 +244,7 @@ void USDCurvesReader::read_curve_sample(Curves *curves_id, const double motionSa
 
   if (!usdWidths.empty()) {
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
+    bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
         "radius", bke::AttrDomain::Point);
 
     pxr::TfToken widths_interp = curve_prim_.GetWidthsInterpolation();
@@ -306,7 +305,7 @@ void USDCurvesReader::read_custom_data(bke::CurvesGeometry &curves,
     const std::optional<eCustomDataType> type = convert_usd_type_to_blender(pv_type);
 
     if (!domain.has_value() || !type.has_value()) {
-      const pxr::TfToken pv_name = pv.StripPrimvarsName(pv.GetPrimvarName());
+      const pxr::TfToken pv_name = pxr::UsdGeomPrimvar::StripPrimvarsName(pv.GetPrimvarName());
       BKE_reportf(reports(),
                   RPT_WARNING,
                   "Primvar '%s' (interpolation %s, type %s) cannot be converted to Blender",
@@ -323,7 +322,7 @@ void USDCurvesReader::read_custom_data(bke::CurvesGeometry &curves,
 
 void USDCurvesReader::read_geometry(bke::GeometrySet &geometry_set,
                                     const USDMeshReadParams params,
-                                    const char ** /*err_str*/)
+                                    const char ** /*r_err_str*/)
 {
   if (!curve_prim_) {
     return;

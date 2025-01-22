@@ -59,7 +59,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -265,13 +265,14 @@ struct ProjPaintState {
   float paint_color_linear[3];
   float dither;
 
+  const Paint *paint;
   Brush *brush;
 
   /**
-   * Based on #Brush::imagepaint_tool but may be overridden by mode (#BrushStrokeMode).
-   * So check this value instead of `brush->imagepaint_tool`.
+   * Based on #Brush::image_brush_type but may be overridden by mode (#BrushStrokeMode).
+   * So check this value instead of `brush->image_brush_type`.
    */
-  short tool;
+  short brush_type;
   short blend;
   BrushStrokeMode mode;
 
@@ -1033,9 +1034,9 @@ static bool cmp_uv(const float vec2a[2], const float vec2b[2])
  * return zero if there is no area in the returned rectangle */
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 static bool pixel_bounds_uv(const float uv_quad[4][2],
-                            rcti *bounds_px,
                             const int ibuf_x,
-                            const int ibuf_y)
+                            const int ibuf_y,
+                            rcti *r_bounds_px)
 {
   /* UV bounds */
   float min_uv[2], max_uv[2];
@@ -1047,21 +1048,23 @@ static bool pixel_bounds_uv(const float uv_quad[4][2],
   minmax_v2v2_v2(min_uv, max_uv, uv_quad[2]);
   minmax_v2v2_v2(min_uv, max_uv, uv_quad[3]);
 
-  bounds_px->xmin = int(ibuf_x * min_uv[0]);
-  bounds_px->ymin = int(ibuf_y * min_uv[1]);
+  r_bounds_px->xmin = int(ibuf_x * min_uv[0]);
+  r_bounds_px->ymin = int(ibuf_y * min_uv[1]);
 
-  bounds_px->xmax = int(ibuf_x * max_uv[0]) + 1;
-  bounds_px->ymax = int(ibuf_y * max_uv[1]) + 1;
+  r_bounds_px->xmax = int(ibuf_x * max_uv[0]) + 1;
+  r_bounds_px->ymax = int(ibuf_y * max_uv[1]) + 1;
 
   // printf("%d %d %d %d\n", min_px[0], min_px[1], max_px[0], max_px[1]);
 
   /* face uses no UV area when quantized to pixels? */
-  return (bounds_px->xmin == bounds_px->xmax || bounds_px->ymin == bounds_px->ymax) ? false : true;
+  return (r_bounds_px->xmin == r_bounds_px->xmax || r_bounds_px->ymin == r_bounds_px->ymax) ?
+             false :
+             true;
 }
 #endif
 
 static bool pixel_bounds_array(
-    float (*uv)[2], rcti *bounds_px, const int ibuf_x, const int ibuf_y, int tot)
+    float (*uv)[2], const int ibuf_x, const int ibuf_y, int tot, rcti *r_bounds_px)
 {
   /* UV bounds */
   float min_uv[2], max_uv[2];
@@ -1077,16 +1080,18 @@ static bool pixel_bounds_array(
     uv++;
   }
 
-  bounds_px->xmin = int(ibuf_x * min_uv[0]);
-  bounds_px->ymin = int(ibuf_y * min_uv[1]);
+  r_bounds_px->xmin = int(ibuf_x * min_uv[0]);
+  r_bounds_px->ymin = int(ibuf_y * min_uv[1]);
 
-  bounds_px->xmax = int(ibuf_x * max_uv[0]) + 1;
-  bounds_px->ymax = int(ibuf_y * max_uv[1]) + 1;
+  r_bounds_px->xmax = int(ibuf_x * max_uv[0]) + 1;
+  r_bounds_px->ymax = int(ibuf_y * max_uv[1]) + 1;
 
   // printf("%d %d %d %d\n", min_px[0], min_px[1], max_px[0], max_px[1]);
 
   /* face uses no UV area when quantized to pixels? */
-  return (bounds_px->xmin == bounds_px->xmax || bounds_px->ymin == bounds_px->ymax) ? false : true;
+  return (r_bounds_px->xmin == r_bounds_px->xmax || r_bounds_px->ymin == r_bounds_px->ymax) ?
+             false :
+             true;
 }
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
@@ -1776,9 +1781,9 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
   return mask;
 }
 
-static int project_paint_pixel_sizeof(const short tool)
+static int project_paint_pixel_sizeof(const short brush_type)
 {
-  if (ELEM(tool, PAINT_TOOL_CLONE, PAINT_TOOL_SMEAR)) {
+  if (ELEM(brush_type, IMAGE_PAINT_BRUSH_TYPE_CLONE, IMAGE_PAINT_BRUSH_TYPE_SMEAR)) {
     return sizeof(ProjPixelClone);
   }
   return sizeof(ProjPixel);
@@ -1875,7 +1880,7 @@ static ProjPixel *project_paint_uvpixel_init(const ProjPaintState *ps,
   x_px = mod_i(x_px, ibuf->x);
   y_px = mod_i(y_px, ibuf->y);
 
-  BLI_assert(ps->pixel_sizeof == project_paint_pixel_sizeof(ps->tool));
+  BLI_assert(ps->pixel_sizeof == project_paint_pixel_sizeof(ps->brush_type));
   projPixel = static_cast<ProjPixel *>(BLI_memarena_alloc(arena, ps->pixel_sizeof));
 
   /* calculate the undo tile offset of the pixel, used to store the original
@@ -1936,7 +1941,7 @@ static ProjPixel *project_paint_uvpixel_init(const ProjPaintState *ps,
                                  PROJ_BOUNDBOX_DIV;
 
   /* done with view3d_project_float inline */
-  if (ps->tool == PAINT_TOOL_CLONE) {
+  if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
     if (ps->poly_to_loop_uv_clone) {
       ImBuf *ibuf_other;
       Image *other_tpage = project_paint_face_clone_image(ps, tri_index);
@@ -3085,7 +3090,7 @@ static void project_paint_face_init(const ProjPaintState *ps,
     }
 #endif
 
-    if (pixel_bounds_array(uv_clip, &bounds_px, ibuf->x, ibuf->y, uv_clip_tot)) {
+    if (pixel_bounds_array(uv_clip, ibuf->x, ibuf->y, uv_clip_tot, &bounds_px)) {
 #if 0
       project_paint_undo_tiles_init(
           &bounds_px, ps->projImages + image_index, tmpibuf, tile_width, threaded, ps->do_masking);
@@ -3306,7 +3311,7 @@ static void project_paint_face_init(const ProjPaintState *ps,
             interp_v3_v3v3(edge_verts_inset_clip[0], insetCos[fidx1], insetCos[fidx2], fac1);
             interp_v3_v3v3(edge_verts_inset_clip[1], insetCos[fidx1], insetCos[fidx2], fac2);
 
-            if (pixel_bounds_uv(seam_subsection, &bounds_px, ibuf->x, ibuf->y)) {
+            if (pixel_bounds_uv(seam_subsection, ibuf->x, ibuf->y, &bounds_px)) {
               /* bounds between the seam rect and the uvspace bucket pixels */
 
               has_isect = 0;
@@ -3469,18 +3474,19 @@ static void project_paint_bucket_bounds(const ProjPaintState *ps,
 static void project_bucket_bounds(const ProjPaintState *ps,
                                   const int bucket_x,
                                   const int bucket_y,
-                                  rctf *bucket_bounds)
+                                  rctf *r_bucket_bounds)
 {
   /* left */
-  bucket_bounds->xmin = (ps->screenMin[0] + ((bucket_x) * (ps->screen_width / ps->buckets_x)));
+  r_bucket_bounds->xmin = (ps->screenMin[0] + ((bucket_x) * (ps->screen_width / ps->buckets_x)));
   /* right */
-  bucket_bounds->xmax = (ps->screenMin[0] + ((bucket_x + 1) * (ps->screen_width / ps->buckets_x)));
+  r_bucket_bounds->xmax = (ps->screenMin[0] +
+                           ((bucket_x + 1) * (ps->screen_width / ps->buckets_x)));
 
   /* bottom */
-  bucket_bounds->ymin = (ps->screenMin[1] + ((bucket_y) * (ps->screen_height / ps->buckets_y)));
+  r_bucket_bounds->ymin = (ps->screenMin[1] + ((bucket_y) * (ps->screen_height / ps->buckets_y)));
   /* top */
-  bucket_bounds->ymax = (ps->screenMin[1] +
-                         ((bucket_y + 1) * (ps->screen_height / ps->buckets_y)));
+  r_bucket_bounds->ymax = (ps->screenMin[1] +
+                           ((bucket_y + 1) * (ps->screen_height / ps->buckets_y)));
 }
 
 /* Fill this bucket with pixels from the faces that intersect it.
@@ -4587,7 +4593,7 @@ static void project_paint_begin(const bContext *C,
 static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
 {
   /* setup clone offset */
-  if (ps->tool == PAINT_TOOL_CLONE) {
+  if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
     float projCo[4];
     copy_v3_v3(projCo, ps->scene->cursor.location);
     mul_m4_v3(ps->obmat_imat, projCo);
@@ -4667,7 +4673,7 @@ static void project_paint_end(ProjPaintState *ps)
 
   if (ps->blurkernel) {
     paint_delete_blur_kernel(ps->blurkernel);
-    MEM_freeN(ps->blurkernel);
+    MEM_delete(ps->blurkernel);
   }
 
   if (ps->vertFlags) {
@@ -5195,7 +5201,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
   float falloff;
   int bucket_index;
   bool is_floatbuf = false;
-  const short tool = ps->tool;
+  const short brush_type = ps->brush_type;
   rctf bucket_bounds;
 
   /* for smear only */
@@ -5221,13 +5227,13 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
   /* mem arena for this brush projection only */
   MemArena *softenArena = nullptr;
 
-  if (tool == PAINT_TOOL_SMEAR) {
+  if (brush_type == IMAGE_PAINT_BRUSH_TYPE_SMEAR) {
     pos_ofs[0] = pos[0] - lastpos[0];
     pos_ofs[1] = pos[1] - lastpos[1];
 
     smearArena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "paint smear arena");
   }
-  else if (tool == PAINT_TOOL_SOFTEN) {
+  else if (brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
     softenArena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "paint soften arena");
   }
 
@@ -5264,7 +5270,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
         }
         /* end copy */
 
-        /* fill tools */
+        /* fill brushes */
         if (ps->source == PROJ_SRC_VIEW_FILL) {
           if (brush->flag & BRUSH_USE_GRADIENT) {
             /* these could probably be cached instead of being done per pixel */
@@ -5495,8 +5501,8 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
               image_paint_partial_redraw_expand(last_partial_redraw_cell, projPixel);
 
               /* texrgb is not used for clone, smear or soften */
-              switch (tool) {
-                case PAINT_TOOL_CLONE:
+              switch (brush_type) {
+                case IMAGE_PAINT_BRUSH_TYPE_CLONE:
                   if (is_floatbuf) {
                     do_projectpaint_clone_f(ps, projPixel, mask);
                   }
@@ -5504,7 +5510,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
                     do_projectpaint_clone(ps, projPixel, mask);
                   }
                   break;
-                case PAINT_TOOL_SMEAR:
+                case IMAGE_PAINT_BRUSH_TYPE_SMEAR:
                   sub_v2_v2v2(co, projPixel->projCoSS, pos_ofs);
 
                   if (is_floatbuf) {
@@ -5514,7 +5520,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
                     do_projectpaint_smear(ps, projPixel, mask, smearArena, &smearPixels, co);
                   }
                   break;
-                case PAINT_TOOL_SOFTEN:
+                case IMAGE_PAINT_BRUSH_TYPE_SOFTEN:
                   if (is_floatbuf) {
                     do_projectpaint_soften_f(ps, projPixel, mask, softenArena, &softenPixels_f);
                   }
@@ -5522,7 +5528,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
                     do_projectpaint_soften(ps, projPixel, mask, softenArena, &softenPixels);
                   }
                   break;
-                case PAINT_TOOL_MASK:
+                case IMAGE_PAINT_BRUSH_TYPE_MASK:
                   if (is_floatbuf) {
                     do_projectpaint_mask_f(ps, projPixel, mask);
                   }
@@ -5553,7 +5559,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
     }
   }
 
-  if (tool == PAINT_TOOL_SMEAR) {
+  if (brush_type == IMAGE_PAINT_BRUSH_TYPE_SMEAR) {
 
     for (node = smearPixels; node; node = node->next) { /* this won't run for a float image */
       projPixel = static_cast<ProjPixel *>(node->link);
@@ -5573,7 +5579,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
 
     BLI_memarena_free(smearArena);
   }
-  else if (tool == PAINT_TOOL_SOFTEN) {
+  else if (brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
 
     for (node = softenPixels; node; node = node->next) { /* this won't run for a float image */
       projPixel = static_cast<ProjPixel *>(node->link);
@@ -5744,6 +5750,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
                                  ProjPaintState *ps)
 {
   ProjStrokeHandle *ps_handle = static_cast<ProjStrokeHandle *>(ps_handle_p);
+  const Paint *paint = ps->paint;
   Brush *brush = ps->brush;
   Scene *scene = ps->scene;
 
@@ -5754,18 +5761,19 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
   }
 
   /* handle gradient and inverted stroke color here */
-  if (ELEM(ps->tool, PAINT_TOOL_DRAW, PAINT_TOOL_FILL)) {
+  if (ELEM(ps->brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL)) {
     paint_brush_color_get(scene,
+                          paint,
                           brush,
                           false,
                           ps->mode == BRUSH_STROKE_INVERT,
                           distance,
                           pressure,
-                          ps->paint_color,
-                          nullptr);
+                          nullptr,
+                          ps->paint_color);
     srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
   }
-  else if (ps->tool == PAINT_TOOL_MASK) {
+  else if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_MASK) {
     ps->stencil_value = brush->weight;
 
     if ((ps->mode == BRUSH_STROKE_INVERT) ^
@@ -5805,7 +5813,8 @@ void paint_proj_stroke(const bContext *C,
     view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+    ED_view3d_depth_override(
+        depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, nullptr);
 
     if (!ED_view3d_autodist(region, v3d, mval_i, cursor, nullptr)) {
       return;
@@ -5831,17 +5840,18 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
   /* brush */
   ps->mode = BrushStrokeMode(mode);
+  ps->paint = BKE_paint_get_active_from_context(C);
   ps->brush = BKE_paint_brush(&settings->imapaint.paint);
   if (ps->brush) {
     Brush *brush = ps->brush;
-    ps->tool = brush->imagepaint_tool;
+    ps->brush_type = brush->image_brush_type;
     ps->blend = brush->blend;
     if (mode == BRUSH_STROKE_SMOOTH) {
-      ps->tool = PAINT_TOOL_SOFTEN;
+      ps->brush_type = IMAGE_PAINT_BRUSH_TYPE_SOFTEN;
     }
-    /* only check for inversion for the soften tool, elsewhere,
+    /* only check for inversion for the soften brush, elsewhere,
      * a resident brush inversion flag can cause issues */
-    if (ps->tool == PAINT_TOOL_SOFTEN) {
+    if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
       ps->mode = (((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0)) ?
                       BRUSH_STROKE_INVERT :
                       BRUSH_STROKE_NORMAL);
@@ -5851,7 +5861,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
     /* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
     ps->do_masking = paint_use_opacity_masking(brush);
-    ps->is_texbrush = (brush->mtex.tex && ps->tool == PAINT_TOOL_DRAW) ? true : false;
+    ps->is_texbrush = (brush->mtex.tex && ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ? true :
+                                                                                           false;
     ps->is_maskbrush = (brush->mask_mtex.tex) ? true : false;
   }
   else {
@@ -5862,7 +5873,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
   }
 
   /* sizeof(ProjPixel), since we alloc this a _lot_ */
-  ps->pixel_sizeof = project_paint_pixel_sizeof(ps->tool);
+  ps->pixel_sizeof = project_paint_pixel_sizeof(ps->brush_type);
   BLI_assert(ps->pixel_sizeof >= sizeof(ProjPixel));
 
   /* these can be nullptr */
@@ -5884,7 +5895,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
   ps->cavity_curve = settings->imapaint.paint.cavity_curve;
 
   /* setup projection painting data */
-  if (ps->tool != PAINT_TOOL_FILL) {
+  if (ps->brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL) {
     ps->do_backfacecull = !(settings->imapaint.flag & IMAGEPAINT_PROJECT_BACKFACE);
     ps->do_occlude = !(settings->imapaint.flag & IMAGEPAINT_PROJECT_XRAY);
     ps->do_mask_normal = !(settings->imapaint.flag & IMAGEPAINT_PROJECT_FLAT);
@@ -5893,11 +5904,11 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
     ps->do_backfacecull = ps->do_occlude = ps->do_mask_normal = false;
   }
 
-  if (ps->tool == PAINT_TOOL_CLONE) {
+  if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
     ps->do_layer_clone = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE);
   }
 
-  ps->do_stencil_brush = (ps->tool == PAINT_TOOL_MASK);
+  ps->do_stencil_brush = (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_MASK);
   /* deactivate stenciling for the stencil brush :) */
   ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) &&
                           !(ps->do_stencil_brush) && ps->stencil_ima);
@@ -5940,13 +5951,13 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
   ToolSettings *settings = scene->toolsettings;
   char symmetry_flag_views[BOUNDED_ARRAY_TYPE_SIZE<decltype(ps_handle->ps_views)>()] = {0};
 
-  ps_handle = MEM_new<ProjStrokeHandle>("ProjStrokeHandle");
+  ps_handle = MEM_cnew<ProjStrokeHandle>("ProjStrokeHandle");
   ps_handle->scene = scene;
   ps_handle->brush = BKE_paint_brush(&settings->imapaint.paint);
 
   if (mode == BRUSH_STROKE_INVERT) {
     /* Bypass regular stroke logic. */
-    if (ps_handle->brush->imagepaint_tool == PAINT_TOOL_CLONE) {
+    if (ps_handle->brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
       view3d_operator_needs_opengl(C);
       ps_handle->is_clone_cursor_pick = true;
       return ps_handle;
@@ -6004,7 +6015,8 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
   for (int i = 0; i < ps_handle->ps_views_tot; i++) {
     ProjPaintState *ps = ps_handle->ps_views[i];
 
-    ps->source = (ps->tool == PAINT_TOOL_FILL) ? PROJ_SRC_VIEW_FILL : PROJ_SRC_VIEW;
+    ps->source = (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ? PROJ_SRC_VIEW_FILL :
+                                                                   PROJ_SRC_VIEW;
     project_image_refresh_tagged(ps);
 
     /* re-use! */
@@ -6075,10 +6087,10 @@ void paint_proj_stroke_done(void *ps_handle_p)
     ProjPaintState *ps;
     ps = ps_handle->ps_views[i];
     project_paint_end(ps);
-    MEM_freeN(ps);
+    MEM_delete(ps);
   }
 
-  MEM_freeN(ps_handle);
+  MEM_delete(ps_handle);
 }
 /* use project paint to re-apply an image */
 static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
@@ -6160,7 +6172,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
   BKE_brush_size_set(&scene, ps.brush, 32 * U.pixelsize);
 
   /* so pixels are initialized with minimal info */
-  ps.tool = PAINT_TOOL_DRAW;
+  ps.brush_type = IMAGE_PAINT_BRUSH_TYPE_DRAW;
 
   scene.toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
@@ -6436,7 +6448,7 @@ bool ED_paint_proj_mesh_data_check(Scene &scene,
   }
 
   /* Make sure we have a stencil to paint on! */
-  if (br && br->imagepaint_tool == PAINT_TOOL_MASK) {
+  if (br && br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_MASK) {
     imapaint.flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
 
     if (imapaint.stencil == nullptr) {
@@ -6562,7 +6574,8 @@ static const char *proj_paint_color_attribute_create(wmOperator *op, Object &ob)
   }
 
   Mesh *mesh = static_cast<Mesh *>(ob.data);
-  const CustomDataLayer *layer = BKE_id_attribute_new(&mesh->id, name, type, domain, op->reports);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  const CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
   if (!layer) {
     return nullptr;
   }
@@ -6602,11 +6615,11 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       if (!in_node) {
         /* An existing material or Principled BSDF node could not be found.
          * Copy default color values from a default Principled BSDF instead. */
-        ntree = blender::bke::ntreeAddTree(
+        ntree = blender::bke::node_tree_add_tree(
             nullptr, "Temporary Shader Nodetree", ntreeType_Shader->idname);
-        in_node = blender::bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
+        in_node = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
       }
-      bNodeSocket *in_sock = blender::bke::nodeFindSocket(
+      bNodeSocket *in_sock = blender::bke::node_find_socket(
           in_node, SOCK_IN, layer_type_items[layer_type].name);
       switch (in_sock->type) {
         case SOCK_FLOAT: {
@@ -6631,7 +6644,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       }
       /* Cleanup */
       if (ntree) {
-        blender::bke::ntreeFreeTree(ntree);
+        blender::bke::node_tree_free_tree(ntree);
         MEM_freeN(ntree);
       }
       return;
@@ -6685,13 +6698,13 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     /* Create a new node. */
     switch (slot_type) {
       case PAINT_CANVAS_SOURCE_IMAGE: {
-        new_node = blender::bke::nodeAddStaticNode(C, ntree, SH_NODE_TEX_IMAGE);
+        new_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_TEX_IMAGE);
         ima = proj_paint_image_create(op, bmain, is_data);
         new_node->id = &ima->id;
         break;
       }
       case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE: {
-        new_node = blender::bke::nodeAddStaticNode(C, ntree, SH_NODE_ATTRIBUTE);
+        new_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_ATTRIBUTE);
         if (const char *name = proj_paint_color_attribute_create(op, *ob)) {
           STRNCPY_UTF8(((NodeShaderAttribute *)new_node->storage)->name, name);
         }
@@ -6701,7 +6714,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         BLI_assert_unreachable();
         return false;
     }
-    blender::bke::nodeSetActive(ntree, new_node);
+    blender::bke::node_set_active(ntree, new_node);
 
     /* Connect to first available principled BSDF node. */
     ntree->ensure_topology_cache();
@@ -6710,33 +6723,33 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNode *out_node = new_node;
 
     if (in_node != nullptr) {
-      bNodeSocket *out_sock = blender::bke::nodeFindSocket(out_node, SOCK_OUT, "Color");
+      bNodeSocket *out_sock = blender::bke::node_find_socket(out_node, SOCK_OUT, "Color");
       bNodeSocket *in_sock = nullptr;
 
       if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
-        in_sock = blender::bke::nodeFindSocket(in_node, SOCK_IN, layer_type_items[type].name);
+        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, layer_type_items[type].name);
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
-        nor_node = blender::bke::nodeAddStaticNode(C, ntree, SH_NODE_NORMAL_MAP);
+        nor_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_NORMAL_MAP);
 
-        in_sock = blender::bke::nodeFindSocket(nor_node, SOCK_IN, "Color");
-        blender::bke::nodeAddLink(ntree, out_node, out_sock, nor_node, in_sock);
+        in_sock = blender::bke::node_find_socket(nor_node, SOCK_IN, "Color");
+        blender::bke::node_add_link(ntree, out_node, out_sock, nor_node, in_sock);
 
-        in_sock = blender::bke::nodeFindSocket(in_node, SOCK_IN, "Normal");
-        out_sock = blender::bke::nodeFindSocket(nor_node, SOCK_OUT, "Normal");
+        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
+        out_sock = blender::bke::node_find_socket(nor_node, SOCK_OUT, "Normal");
 
         out_node = nor_node;
       }
       else if (type == LAYER_BUMP) {
         bNode *bump_node;
-        bump_node = blender::bke::nodeAddStaticNode(C, ntree, SH_NODE_BUMP);
+        bump_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_BUMP);
 
-        in_sock = blender::bke::nodeFindSocket(bump_node, SOCK_IN, "Height");
-        blender::bke::nodeAddLink(ntree, out_node, out_sock, bump_node, in_sock);
+        in_sock = blender::bke::node_find_socket(bump_node, SOCK_IN, "Height");
+        blender::bke::node_add_link(ntree, out_node, out_sock, bump_node, in_sock);
 
-        in_sock = blender::bke::nodeFindSocket(in_node, SOCK_IN, "Normal");
-        out_sock = blender::bke::nodeFindSocket(bump_node, SOCK_OUT, "Normal");
+        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
+        out_sock = blender::bke::node_find_socket(bump_node, SOCK_OUT, "Normal");
 
         out_node = bump_node;
       }
@@ -6747,7 +6760,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {
-          in_sock = blender::bke::nodeFindSocket(in_node, SOCK_IN, layer_type_items[type].name);
+          in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, layer_type_items[type].name);
         }
         else {
           in_sock = nullptr;
@@ -6757,15 +6770,15 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       /* Check if the socket in already connected to something */
       bNodeLink *link = in_sock ? in_sock->link : nullptr;
       if (in_sock != nullptr && link == nullptr) {
-        blender::bke::nodeAddLink(ntree, out_node, out_sock, in_node, in_sock);
+        blender::bke::node_add_link(ntree, out_node, out_sock, in_node, in_sock);
 
-        blender::bke::nodePositionRelative(out_node, in_node, out_sock, in_sock);
+        blender::bke::node_position_relative(out_node, in_node, out_sock, in_sock);
       }
     }
 
     ED_node_tree_propagate_change(C, bmain, ntree);
     /* In case we added more than one node, position them too. */
-    blender::bke::nodePositionPropagate(out_node);
+    blender::bke::node_position_propagate(out_node);
 
     if (ima) {
       BKE_texpaint_slot_refresh_cache(scene, ma, ob);

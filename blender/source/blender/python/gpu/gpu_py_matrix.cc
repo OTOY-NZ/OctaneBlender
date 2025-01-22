@@ -18,9 +18,9 @@
 
 #include "BLI_utildefines.h"
 
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
 #define USE_GPU_PY_MATRIX_API
 #include "GPU_matrix.hh"
@@ -370,8 +370,8 @@ PyDoc_STRVAR(
     "\n"
     "   Scale the current stack matrix.\n"
     "\n"
-    "   :arg scale: Scale the current stack matrix.\n"
-    "   :type scale: sequence of 2 or 3 floats\n");
+    "   :arg scale: Scale the current stack matrix with 2 or 3 floats.\n"
+    "   :type scale: Sequence[float]\n");
 static PyObject *pygpu_matrix_scale(PyObject * /*self*/, PyObject *value)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -419,8 +419,8 @@ PyDoc_STRVAR(
     "\n"
     "   Scale the current stack matrix.\n"
     "\n"
-    "   :arg offset: Translate the current stack matrix.\n"
-    "   :type offset: sequence of 2 or 3 floats\n");
+    "   :arg offset: Translate the current stack matrix with 2 or 3 floats.\n"
+    "   :type offset: Sequence[float]\n");
 static PyObject *pygpu_matrix_translate(PyObject * /*self*/, PyObject *value)
 {
   float offset[3];

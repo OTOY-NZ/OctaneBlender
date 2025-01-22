@@ -39,8 +39,8 @@ static void vertex_buffer_fetch_mode(ColorType color)
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_vertformat_attr_add(&format, "color", comp_type, 4, fetch_mode);
 
-  VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
 
   struct Vert {
     float2 pos;
@@ -102,18 +102,12 @@ GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U16__GPU_FETCH_INT_TO_FLOAT);
 
 static void test_vertex_buffer_fetch_mode__GPU_COMP_I32__GPU_FETCH_INT_TO_FLOAT()
 {
-  if (GPU_backend_type_selection_get() == GPU_BACKEND_VULKAN) {
-    GTEST_SKIP() << "interleaved format not supported yet";
-  }
   vertex_buffer_fetch_mode<GPU_COMP_I32, GPU_FETCH_INT_TO_FLOAT, int4>(int4(4, 5, 6, 1));
 }
 GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I32__GPU_FETCH_INT_TO_FLOAT);
 
 static void test_vertex_buffer_fetch_mode__GPU_COMP_U32__GPU_FETCH_INT_TO_FLOAT()
 {
-  if (GPU_backend_type_selection_get() == GPU_BACKEND_VULKAN) {
-    GTEST_SKIP() << "interleaved format not supported yet";
-  }
   vertex_buffer_fetch_mode<GPU_COMP_U32, GPU_FETCH_INT_TO_FLOAT, uint4>(uint4(4, 5, 6, 1));
 }
 GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U32__GPU_FETCH_INT_TO_FLOAT);

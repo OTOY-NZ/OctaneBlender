@@ -6,14 +6,14 @@
  * \ingroup obj
  */
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "DNA_material_types.h"
@@ -50,7 +50,8 @@ static void copy_property_from_node(const eNodeSocketDatatype property_type,
   if (!node) {
     return;
   }
-  const bNodeSocket *socket = bke::nodeFindSocket(const_cast<bNode *>(node), SOCK_IN, identifier);
+  const bNodeSocket *socket = bke::node_find_socket(
+      const_cast<bNode *>(node), SOCK_IN, identifier);
   BLI_assert(socket && socket->type == property_type);
   if (!socket) {
     return;

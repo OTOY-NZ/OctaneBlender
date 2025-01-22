@@ -20,7 +20,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
 #include "BKE_lib_id.hh"
@@ -271,8 +271,8 @@ static int render_border_exec(bContext *C, wmOperator *op)
   /* calculate range */
 
   if (rv3d->persp == RV3D_CAMOB) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &vb, false);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &vb);
   }
   else {
     vb.xmin = 0;
@@ -854,7 +854,7 @@ void ED_view3d_cursor3d_position(bContext *C,
     view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_ALL, false, nullptr);
 
     if (ED_view3d_autodist(region, v3d, mval, r_cursor_co, nullptr)) {
       depth_used = true;
@@ -915,7 +915,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     SnapObjectParams params{};
     params.snap_target_select = SCE_SNAP_TARGET_ALL;
     params.edit_mode_type = SNAP_GEOM_FINAL;
-    params.use_occlusion_test = true;
+    params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
     if (ED_transform_snap_object_project_view3d_ex(snap_context,
                                                    CTX_data_ensure_evaluated_depsgraph(C),
                                                    region,
@@ -1002,23 +1002,23 @@ void ED_view3d_cursor3d_update(bContext *C,
   View3DCursor cursor_prev = *cursor_curr;
 
   {
-    float quat[4], quat_prev[4];
-    BKE_scene_cursor_rot_to_quat(cursor_curr, quat);
-    copy_qt_qt(quat_prev, quat);
+    blender::math::Quaternion quat, quat_prev;
+    quat = cursor_curr->rotation();
+    copy_qt_qt(&quat_prev.w, &quat.w);
     ED_view3d_cursor3d_position_rotation(
-        C, mval, use_depth, orientation, cursor_curr->location, quat);
+        C, mval, use_depth, orientation, cursor_curr->location, &quat.w);
 
-    if (!equals_v4v4(quat_prev, quat)) {
+    if (!equals_v4v4(&quat_prev.w, &quat.w)) {
       if ((cursor_curr->rotation_mode == ROT_MODE_AXISANGLE) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
         float tmat[3][3], cmat[3][3];
-        quat_to_mat3(tmat, quat);
+        quat_to_mat3(tmat, &quat.w);
         negate_v3_v3(cursor_curr->rotation_axis, tmat[2]);
         axis_angle_to_mat3(cmat, cursor_curr->rotation_axis, 0.0f);
         cursor_curr->rotation_angle = angle_signed_on_axis_v3v3_v3(
             cmat[0], tmat[0], cursor_curr->rotation_axis);
       }
       else {
-        BKE_scene_cursor_quat_to_rot(cursor_curr, quat, true);
+        cursor_curr->set_rotation(quat, true);
       }
     }
   }

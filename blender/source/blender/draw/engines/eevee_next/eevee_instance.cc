@@ -13,6 +13,7 @@
 #include "BKE_global.hh"
 #include "BKE_object.hh"
 #include "BLI_rect.h"
+#include "BLT_translation.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
@@ -64,7 +65,7 @@ void Instance::init(const int2 &output_res,
   manager = DRW_manager_get();
   update_eval_members();
 
-  info = "";
+  info_ = "";
 
   shaders_are_ready_ = shaders.is_ready(is_image_render());
   if (!shaders_are_ready_) {
@@ -133,7 +134,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
 
   is_light_bake = true;
   debug_mode = (eDebugMode)G.debug_value;
-  info = "";
+  info_ = "";
 
   shaders.is_ready(true);
 
@@ -239,7 +240,7 @@ void Instance::object_sync(Object *ob)
 
   const bool is_renderable_type = ELEM(ob->type,
                                        OB_CURVES,
-                                       OB_GPENCIL_LEGACY,
+                                       OB_GREASE_PENCIL,
                                        OB_MESH,
                                        OB_POINTCLOUD,
                                        OB_VOLUME,
@@ -293,9 +294,6 @@ void Instance::object_sync(Object *ob)
       case OB_CURVES:
         sync.sync_curves(ob, ob_handle, res_handle, ob_ref);
         break;
-      case OB_GPENCIL_LEGACY:
-        sync.sync_gpencil(ob, ob_handle, res_handle);
-        break;
       case OB_LIGHTPROBE:
         light_probes.sync_probe(ob, ob_handle);
         break;
@@ -305,7 +303,6 @@ void Instance::object_sync(Object *ob)
   }
 }
 
-/* Wrapper to use with DRW_render_object_iter. */
 void Instance::object_sync_render(void *instance_,
                                   Object *ob,
                                   RenderEngine *engine,
@@ -313,11 +310,6 @@ void Instance::object_sync_render(void *instance_,
 {
   UNUSED_VARS(engine, depsgraph);
   Instance &inst = *reinterpret_cast<Instance *>(instance_);
-
-  if (inst.is_baking() && ob->visibility_flag & OB_HIDE_PROBE_VOLUME) {
-    return;
-  }
-
   inst.object_sync(ob);
 }
 
@@ -402,10 +394,6 @@ bool Instance::do_planar_probe_sync() const
 /** \name Rendering
  * \{ */
 
-/**
- * Conceptually renders one sample per pixel.
- * Everything based on random sampling should be done here (i.e: DRWViews jitter)
- */
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
@@ -417,10 +405,6 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
-    if (!info.empty()) {
-      printf("%s", info.c_str());
-      info = "";
-    }
   }
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
@@ -516,12 +500,20 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 {
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
+    if (materials.queued_shaders_count > 0) {
+      /* Leave some time for shaders to compile. */
+      BLI_time_sleep_ms(50);
+      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+      this->render_sync();
+      continue;
+    }
+
     this->render_sample();
 
     if ((sampling.sample_index() == 1) || ((sampling.sample_index() % 25) == 0) ||
         sampling.finished())
     {
-      /* TODO: Use fmt. */
+      /* TODO: Use `fmt`. */
       std::string re_info = "Rendering " + std::to_string(sampling.sample_index()) + " / " +
                             std::to_string(sampling.sample_count()) + " samples";
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
@@ -554,6 +546,13 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   this->film.cryptomatte_sort();
 
   this->render_read_result(render_layer, view_name);
+
+  if (!info_.empty()) {
+    RE_engine_set_error_message(
+        engine, RPT_("Errors during render. See the System Console for more info."));
+    printf("%s", info_.c_str());
+    info_ = "";
+  }
 }
 
 void Instance::draw_viewport()
@@ -561,13 +560,17 @@ void Instance::draw_viewport()
   if (!shaders_are_ready_) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
-    info += "Compiling EEVEE Engine Shaders\n";
+    info_append_i18n("Compiling EEVEE engine shaders");
     DRW_viewport_request_redraw();
     return;
   }
 
   render_sample();
   velocity.step_swap();
+
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
+  }
 
   /* Do not request redraw during viewport animation to lock the frame-rate to the animation
    * playback rate. This is in order to preserve motion blur aspect and also to avoid TAA reset
@@ -577,22 +580,19 @@ void Instance::draw_viewport()
   }
 
   if (materials.queued_shaders_count > 0) {
-    std::stringstream ss;
-    ss << "Compiling Shaders (" << materials.queued_shaders_count << " remaining)";
+    info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
+
     if (!GPU_use_parallel_compilation() &&
         GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
     {
-      ss << "\n"
-         << "Increasing Preferences > System > Max Shader Compilation Subprocesses "
-         << "may improve compilation time.";
+      info_append_i18n(
+          "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
+          "compilation time.");
     }
-    info = ss.str();
     DRW_viewport_request_redraw();
   }
   else if (materials.queued_optimize_shaders_count > 0) {
-    std::stringstream ss;
-    ss << "Optimizing Shaders (" << materials.queued_optimize_shaders_count << " remaining)";
-    info = ss.str();
+    info_append_i18n("Optimizing shaders ({} remaining)", materials.queued_optimize_shaders_count);
   }
 }
 
@@ -602,6 +602,10 @@ void Instance::draw_viewport_image_render()
     this->render_sample();
   }
   velocity.step_swap();
+
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
+  }
 }
 
 void Instance::store_metadata(RenderResult *render_result)
@@ -706,6 +710,10 @@ void Instance::light_bake_irradiance(
     manager->begin_sync();
     render_sync();
     manager->end_sync();
+
+    /* Sampling module needs to be initialized to computing lighting. */
+    sampling.init(probe);
+    sampling.step();
 
     DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 

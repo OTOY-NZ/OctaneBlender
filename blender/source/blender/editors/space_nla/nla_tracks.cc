@@ -21,8 +21,10 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_report.hh"
+
+#include "ANIM_action.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
@@ -262,7 +264,8 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
       break;
     }
     case ANIMTYPE_FILLACT_LAYERED:
-      /* The NLA doesn't support Animation data-blocks. */
+    case ANIMTYPE_ACTION_SLOT:
+      /* The NLA doesn't support layered Actions. */
       break;
     default:
       if (G.debug & G_DEBUG) {
@@ -429,20 +432,22 @@ static int nlatracks_pushdown_exec(bContext *C, wmOperator *op)
                "Cannot push down actions while tweaking a strip's action, exit tweak mode first");
     return OPERATOR_CANCELLED;
   }
-  if (adt->action == nullptr) {
+
+  bAction *action_to_push_down = adt->action;
+  if (!action_to_push_down) {
     BKE_report(op->reports, RPT_WARNING, "No active action to push down");
     return OPERATOR_CANCELLED;
   }
 
   /* 'push-down' action - only usable when not in Tweak-mode. */
-  BKE_nla_action_pushdown(adt, ID_IS_OVERRIDE_LIBRARY(id));
+  BKE_nla_action_pushdown({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
 
   Main *bmain = CTX_data_main(C);
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_ANIMATION);
 
   /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
    * beyond the NLA strip after pushing down to the NLA. */
-  DEG_id_tag_update_ex(bmain, &adt->action->id, ID_RECALC_ANIMATION);
+  DEG_id_tag_update_ex(bmain, &action_to_push_down->id, ID_RECALC_ANIMATION);
 
   /* set notifier that things have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);

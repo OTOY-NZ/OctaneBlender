@@ -24,8 +24,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -33,7 +33,7 @@
 #include "BLT_translation.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 

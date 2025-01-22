@@ -28,6 +28,11 @@
 
 #pragma once
 
+#include <string>
+
+#include "BLI_math_vector.hh"
+#include "BLI_set.hh"
+
 #include "DRW_render.hh"
 
 #include "eevee_shader_shared.hh"
@@ -81,6 +86,9 @@ class Film {
   int2 display_extent;
 
   eViewLayerEEVEEPassType enabled_passes_ = eViewLayerEEVEEPassType(0);
+  /* Store the pass types needed by the viewport compositor separately, because some passes might
+   * be enabled but not used by the viewport compositor, so they needn't be written. */
+  eViewLayerEEVEEPassType viewport_compositor_enabled_passes_ = eViewLayerEEVEEPassType(0);
   PassCategory enabled_categories_ = PassCategory(0);
   bool use_reprojection_ = false;
 
@@ -110,16 +118,45 @@ class Film {
   float *read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset);
   float *read_aov(ViewLayerAOV *aov);
 
-  /** Returns shading views internal resolution. */
+  GPUTexture *get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset);
+  GPUTexture *get_aov_texture(ViewLayerAOV *aov);
+
+  void write_viewport_compositor_passes();
+
+  bool is_viewport_compositor_enabled() const;
+
+  /** Returns shading views internal resolution. Includes overscan pixels. */
   int2 render_extent_get() const
   {
     return data_.render_extent;
   }
 
-  /** Returns final output resolution. */
+  /** Size and offset of the film (taking into account render region). */
+  int2 film_extent_get() const
+  {
+    return data_.extent;
+  }
+  int2 film_offset_get() const
+  {
+    return data_.offset;
+  }
+
+  /** Size of the whole viewport or the render, disregarding the render region. */
   int2 display_extent_get() const
   {
     return display_extent;
+  }
+
+  /** Number of padding pixels around the render target. Included inside `render_extent_get`. */
+  int render_overscan_get() const
+  {
+    return data_.overscan;
+  }
+
+  /** Returns number of overscan pixels for the given parameters. */
+  static int overscan_pixels_get(float overscan, int2 extent)
+  {
+    return math::ceil(max_ff(0.0f, overscan) * math::reduce_max(extent));
   }
 
   int scaling_factor_get() const
@@ -293,7 +330,7 @@ class Film {
   }
 
  private:
-  void init_aovs();
+  void init_aovs(const Set<std::string> &passes_used_by_viewport_compositor);
   void sync_mist();
 
   /**

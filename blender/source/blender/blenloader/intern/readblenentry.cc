@@ -17,7 +17,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h" /* Only for assertions. */
+#include "BLI_path_utils.hh" /* Only for assertions. */
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -39,9 +39,6 @@
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
-
-/* local prototypes --------------------- */
-void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
 /* Access routines used by file-selector. */
 
@@ -80,41 +77,6 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
   bh = (BlendHandle *)blo_filedata_from_memory(mem, memsize, reports);
 
   return bh;
-}
-
-void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
-{
-  FileData *fd = (FileData *)bh;
-  BHead *bhead;
-
-  fprintf(static_cast<FILE *>(fp), "[\n");
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == BLO_CODE_ENDB) {
-      break;
-    }
-
-    const SDNA_Struct *struct_info = fd->filesdna->structs[bhead->SDNAnr];
-    const char *name = fd->filesdna->types[struct_info->type];
-    char buf[4];
-
-    buf[0] = (bhead->code >> 24) & 0xFF;
-    buf[1] = (bhead->code >> 16) & 0xFF;
-    buf[2] = (bhead->code >> 8) & 0xFF;
-    buf[3] = (bhead->code >> 0) & 0xFF;
-
-    buf[0] = buf[0] ? buf[0] : ' ';
-    buf[1] = buf[1] ? buf[1] : ' ';
-    buf[2] = buf[2] ? buf[2] : ' ';
-    buf[3] = buf[3] ? buf[3] : ' ';
-
-    fprintf(static_cast<FILE *>(fp),
-            "['%.4s', '%s', %d, %ld ],\n",
-            buf,
-            name,
-            bhead->nr,
-            (long int)(bhead->len + sizeof(BHead)));
-  }
-  fprintf(static_cast<FILE *>(fp), "]\n");
 }
 
 LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
@@ -442,7 +404,9 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
   MEM_freeN(bfd);
 }
 
-void BLO_read_do_version_after_setup(Main *new_bmain, BlendFileReadReport *reports)
+void BLO_read_do_version_after_setup(Main *new_bmain,
+                                     BlendfileLinkAppendContext *lapp_context,
+                                     BlendFileReadReport *reports)
 {
-  do_versions_after_setup(new_bmain, reports);
+  do_versions_after_setup(new_bmain, lapp_context, reports);
 }

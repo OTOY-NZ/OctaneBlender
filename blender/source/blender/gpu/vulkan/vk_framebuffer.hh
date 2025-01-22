@@ -24,12 +24,6 @@ class VKContext;
 
 class VKFrameBuffer : public FrameBuffer {
  private:
-  /* Vulkan object handle. */
-  VkFramebuffer vk_framebuffer_ = VK_NULL_HANDLE;
-  /* Vulkan device who created the handle. */
-  VkDevice vk_device_ = VK_NULL_HANDLE;
-  /* Base render pass used for frame-buffer creation. */
-  VkRenderPass vk_render_pass_ = VK_NULL_HANDLE;
   /* Number of layers if the attachments are layered textures. */
   int depth_ = 1;
 
@@ -38,13 +32,19 @@ class VKFrameBuffer : public FrameBuffer {
   bool enabled_srgb_;
   bool is_rendering_ = false;
 
+  VkFormat depth_attachment_format_ = VK_FORMAT_UNDEFINED;
+  VkFormat stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
+  Vector<VkFormat> color_attachment_formats_;
+
+  Array<GPULoadStore, GPU_FB_MAX_ATTACHMENT> load_stores;
+  Array<GPUAttachmentState, GPU_FB_MAX_ATTACHMENT> attachment_states_;
+
  public:
   /**
    * Create a conventional frame-buffer to attach texture to.
    */
   VKFrameBuffer(const char *name);
-
-  ~VKFrameBuffer();
+  virtual ~VKFrameBuffer();
 
   void bind(bool enabled_srgb) override;
   bool check(char err_out[256]) override;
@@ -58,9 +58,6 @@ class VKFrameBuffer : public FrameBuffer {
                         const void *clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore /*ls*/) override;
-
-  void begin_rendering(VKContext &context);
-  void end_rendering(VKContext &context);
 
  protected:
   void subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
@@ -81,32 +78,12 @@ class VKFrameBuffer : public FrameBuffer {
                int dst_offset_x,
                int dst_offset_y) override;
 
-  bool is_valid() const
-  {
-    return vk_framebuffer_ != VK_NULL_HANDLE;
-  }
-
-  VkFramebuffer vk_framebuffer_get() const
-  {
-    BLI_assert(vk_framebuffer_ != VK_NULL_HANDLE);
-    return vk_framebuffer_;
-  }
-
-  void vk_render_pass_ensure();
-  VkRenderPass vk_render_pass_get() const
-  {
-    BLI_assert(vk_render_pass_ != VK_NULL_HANDLE);
-    BLI_assert(!dirty_attachments_);
-    return vk_render_pass_;
-  }
-
   Array<VkViewport, 16> vk_viewports_get() const;
   Array<VkRect2D, 16> vk_render_areas_get() const;
+  VkFormat depth_attachment_format_get() const;
+  VkFormat stencil_attachment_format_get() const;
+  Span<VkFormat> color_attachment_formats_get() const;
 
-  void depth_attachment_layout_ensure(VKContext &context, VkImageLayout requested_layout);
-  void color_attachment_layout_ensure(VKContext &context,
-                                      int color_attachment,
-                                      VkImageLayout requested_layout);
   /**
    * Ensure that the size of the frame-buffer matches the first attachment resolution.
    *
@@ -140,6 +117,11 @@ class VKFrameBuffer : public FrameBuffer {
    * Is being triggered when framebuffer is deactivated or when
    */
   void rendering_end(VKContext &context);
+
+  bool is_rendering() const
+  {
+    return is_rendering_;
+  }
 
   /**
    * Return the number of color attachments of this frame buffer, including unused color

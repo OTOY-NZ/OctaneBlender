@@ -29,7 +29,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BLT_translation.hh"
 
@@ -37,7 +37,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
@@ -205,15 +205,19 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
        *   If this is set, then it's a driver. If we don't check for this, we'd end
        *   up adding the keyframes on a new F-Curve in the action data instead.
        */
+      const std::optional<blender::StringRefNull> channel_group = fcu->grp ? std::optional(
+                                                                                 fcu->grp->name) :
+                                                                             std::nullopt;
       if (ale->id && !ale->owner && !fcu->driver) {
-        CombinedKeyingResult result = insert_keyframe(ac->bmain,
-                                                      *ale->id,
-                                                      ((fcu->grp) ? (fcu->grp->name) : (nullptr)),
-                                                      fcu->rna_path,
-                                                      fcu->array_index,
-                                                      &anim_eval_context,
-                                                      eBezTriple_KeyframeType(ts->keyframe_type),
-                                                      flag);
+        PointerRNA id_rna_pointer = RNA_id_pointer_create(ale->id);
+        CombinedKeyingResult result = insert_keyframes(ac->bmain,
+                                                       &id_rna_pointer,
+                                                       channel_group,
+                                                       {{fcu->rna_path, {}, fcu->array_index}},
+                                                       std::nullopt,
+                                                       anim_eval_context,
+                                                       eBezTriple_KeyframeType(ts->keyframe_type),
+                                                       flag);
         if (result.get_count(SingleKeyingResult::SUCCESS) == 0) {
           result.generate_reports(reports);
         }
@@ -253,6 +257,8 @@ static int graphkeys_insertkey_exec(bContext *C, wmOperator *op)
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
+
+  ANIM_deselect_keys_in_animation_editors(C);
 
   /* Which channels to affect? */
   mode = eGraphKeys_InsertKey_Types(RNA_enum_get(op->ptr, "type"));

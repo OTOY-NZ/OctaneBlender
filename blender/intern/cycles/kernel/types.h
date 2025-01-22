@@ -216,20 +216,6 @@ CCL_NAMESPACE_BEGIN
 #  undef __MNEE__
 #endif
 
-#if defined(__KERNEL_METAL_AMD__)
-/* Disabled due to internal compiler perf issue and enable light tree on Metal/AMD. */
-#  undef __LIGHT_TREE__
-/* Disabled due to compiler crash on Metal/AMD. */
-#  undef __MNEE__
-/* Disable due to performance regression on Metal/AMD. */
-#  ifndef WITH_PRINCIPLED_HAIR
-#    undef __PRINCIPLED_HAIR__
-#  endif
-#  ifndef WITH_PATCH_EVAL
-#    undef __PATCH_EVAL__
-#  endif
-#endif
-
 /* Scene-based selective features compilation. */
 /* Scene-based selective features compilation. */
 #ifdef __KERNEL_FEATURES__
@@ -315,7 +301,7 @@ enum PathTraceDimension {
 
   /* Volume */
   PRNG_VOLUME_PHASE = 3,
-  PRNG_VOLUME_PHASE_CHANNEL = 4,
+  PRNG_VOLUME_COLOR_CHANNEL = 4,
   PRNG_VOLUME_SCATTER_DISTANCE = 5,
   PRNG_VOLUME_OFFSET = 6,
   PRNG_VOLUME_SHADE_OFFSET = 7,
@@ -324,7 +310,7 @@ enum PathTraceDimension {
 
   /* Subsurface random walk bounces */
   PRNG_SUBSURFACE_BSDF = 0,
-  PRNG_SUBSURFACE_PHASE_CHANNEL = 1,
+  PRNG_SUBSURFACE_COLOR_CHANNEL = 1,
   PRNG_SUBSURFACE_SCATTER_DISTANCE = 2,
   PRNG_SUBSURFACE_GUIDE_STRATEGY = 3,
   PRNG_SUBSURFACE_GUIDE_DIRECTION = 4,
@@ -578,6 +564,7 @@ typedef enum PassType {
   PASS_CATEGORY_DATA_END = 63,
 
   PASS_BAKE_PRIMITIVE,
+  PASS_BAKE_SEED,
   PASS_BAKE_DIFFERENTIAL,
   PASS_CATEGORY_BAKE_END = 95,
 
@@ -686,7 +673,7 @@ enum PanoramaType {
   PANORAMA_MIRRORBALL = 3,
   PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
   PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
-
+  PANORAMA_CENTRAL_CYLINDRICAL = 6,
   PANORAMA_NUM_TYPES,
 };
 
@@ -990,6 +977,15 @@ typedef struct AttributeMap {
   float sample_weight; \
   float3 N
 
+/* To save some space, volume closures (phase functions) don't store a normal.
+ * They are still allocated as ShaderClosures first, but get assigned to
+ * slots of type ShaderVolumeClosure later, so make sure to keep the layout
+ * in sync. */
+#define SHADER_CLOSURE_VOLUME_BASE \
+  Spectrum weight; \
+  ClosureType type; \
+  float sample_weight
+
 typedef struct ccl_align(16) ShaderClosure
 {
   SHADER_CLOSURE_BASE;
@@ -1234,12 +1230,18 @@ ShaderDataCausticsStorage;
 
 /* Compact volume closures storage.
  *
- * Used for decoupled direct/indirect light closure storage. */
-
+ * Used for decoupled direct/indirect light closure storage.
+ *
+ * This shares its basic layout with SHADER_CLOSURE_VOLUME_BASE and ShaderClosure,
+ * just without the normal and with less space for closure-specific parameters.
+ * That way, we can just cast ShaderClosure* to ShaderVolumeClosure* and assign it.
+ */
 typedef struct ShaderVolumeClosure {
   Spectrum weight;
+  ClosureType type;
   float sample_weight;
-  float g;
+  /* Space for closure-specific parameters. */
+  float param[3];
 } ShaderVolumeClosure;
 
 typedef struct ShaderVolumePhases {
@@ -1295,6 +1297,7 @@ typedef struct KernelCamera {
   float fisheye_lens_polynomial_bias;
   float4 equirectangular_range;
   float4 fisheye_lens_polynomial_coefficients;
+  float4 central_cylindrical_range;
 
   /* stereo */
   float interocular_offset;

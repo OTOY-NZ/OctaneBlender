@@ -1794,14 +1794,14 @@ static void rna_def_xr_actionmap(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0, FLT_MAX);
   RNA_def_property_ui_text(prop,
                            "Haptic Duration",
-                           "Haptic duration in seconds. 0.0 is the minimum supported duration");
+                           "Haptic duration in seconds. 0.0 is the minimum supported duration.");
 
   prop = RNA_def_property(srna, "haptic_frequency", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, FLT_MAX);
   RNA_def_property_ui_text(prop,
                            "Haptic Frequency",
                            "Frequency of the haptic vibration in hertz. 0.0 specifies the OpenXR "
-                           "runtime's default frequency");
+                           "runtime's default frequency.");
 
   prop = RNA_def_property(srna, "haptic_amplitude", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, 1.0);
@@ -1996,6 +1996,11 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_floor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "draw_flags", V3D_OFSDRAW_SHOW_GRIDFLOOR);
   RNA_def_property_ui_text(prop, "Display Grid Floor", "Show the ground plane grid");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "show_passthrough", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "draw_flags", V3D_OFSDRAW_XR_SHOW_PASSTHROUGH);
+  RNA_def_property_ui_text(prop, "Show Passthrough", "Show the passthrough view");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "show_annotation", PROP_BOOLEAN, PROP_NONE);
@@ -2198,7 +2203,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       -FLT_MAX,
       FLT_MAX,
       "Action State",
-      "Current state of the VR action. Second float value is only set for 2D vector type actions",
+      "Current state of the VR action. Second float value is only set for 2D vector type actions.",
       -FLT_MAX,
       FLT_MAX);
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_OUTPUT);
@@ -2219,7 +2224,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       nullptr,
       XR_MAX_USER_PATH_LENGTH,
       "User Path",
-      "Optional OpenXR user path. If not set, the action will be applied to all paths");
+      "Optional OpenXR user path. If not set, the action will be applied to all paths.");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_float(func,
                        "duration",
@@ -2227,7 +2232,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
                        0.0f,
                        FLT_MAX,
                        "Duration",
-                       "Haptic duration in seconds. 0.0 is the minimum supported duration",
+                       "Haptic duration in seconds. 0.0 is the minimum supported duration.",
                        0.0f,
                        FLT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2238,7 +2243,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
                        FLT_MAX,
                        "Frequency",
                        "Frequency of the haptic vibration in hertz. 0.0 specifies the OpenXR "
-                       "runtime's default frequency",
+                       "runtime's default frequency.",
                        0.0f,
                        FLT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2271,7 +2276,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       nullptr,
       XR_MAX_USER_PATH_LENGTH,
       "User Path",
-      "Optional OpenXR user path. If not set, the action will be stopped for all paths");
+      "Optional OpenXR user path. If not set, the action will be stopped for all paths.");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(

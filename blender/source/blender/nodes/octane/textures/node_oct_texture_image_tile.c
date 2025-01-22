@@ -28,7 +28,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
@@ -157,5 +157,5 @@ void register_node_type_tex_oct_image_tile(void)
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = (node_octane_image_tile_conversion_update);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_image_tile() */

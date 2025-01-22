@@ -347,16 +347,18 @@ static void find_nearest_faces(const Span<int> src_tri_faces,
   };
   threading::EnumerableThreadSpecific<TLS> all_tls;
   threading::parallel_for(dst_faces.index_range(), 512, [&](const IndexRange range) {
-    TLS &tls = all_tls.local();
-    Vector<float3> &face_centers = tls.face_centers;
-    face_centers.reinitialize(range.size());
-    calc_face_centers(dst_positions, dst_faces.slice(range), dst_corner_verts, face_centers);
+    threading::isolate_task([&] {
+      TLS &tls = all_tls.local();
+      Vector<float3> &face_centers = tls.face_centers;
+      face_centers.reinitialize(range.size());
+      calc_face_centers(dst_positions, dst_faces.slice(range), dst_corner_verts, face_centers);
 
-    Vector<int> &tri_indices = tls.tri_indices;
-    tri_indices.reinitialize(range.size());
-    find_nearest_tris(face_centers, bvhtree, tri_indices);
+      Vector<int> &tri_indices = tls.tri_indices;
+      tri_indices.reinitialize(range.size());
+      find_nearest_tris(face_centers, bvhtree, tri_indices);
 
-    array_utils::gather(src_tri_faces, tri_indices.as_span(), nearest_faces.slice(range));
+      array_utils::gather(src_tri_faces, tri_indices.as_span(), nearest_faces.slice(range));
+    });
   });
 }
 
@@ -410,51 +412,53 @@ static void find_nearest_edges(const Span<float3> src_positions,
   };
   threading::EnumerableThreadSpecific<TLS> all_tls;
   threading::parallel_for(nearest_edges.index_range(), 512, [&](const IndexRange range) {
-    TLS &tls = all_tls.local();
-    Vector<float3> &edge_centers = tls.edge_centers;
-    edge_centers.reinitialize(range.size());
-    calc_edge_centers(dst_positions, dst_edges.slice(range), edge_centers);
+    threading::isolate_task([&] {
+      TLS &tls = all_tls.local();
+      Vector<float3> &edge_centers = tls.edge_centers;
+      edge_centers.reinitialize(range.size());
+      calc_edge_centers(dst_positions, dst_edges.slice(range), edge_centers);
 
-    Vector<int> &tri_indices = tls.tri_indices;
-    tri_indices.reinitialize(range.size());
-    find_nearest_tris_parallel(edge_centers, bvhtree, tri_indices);
+      Vector<int> &tri_indices = tls.tri_indices;
+      tri_indices.reinitialize(range.size());
+      find_nearest_tris_parallel(edge_centers, bvhtree, tri_indices);
 
-    Vector<int> &face_indices = tls.face_indices;
-    face_indices.reinitialize(range.size());
-    array_utils::gather(src_tri_faces, tri_indices.as_span(), face_indices.as_mutable_span());
+      Vector<int> &face_indices = tls.face_indices;
+      face_indices.reinitialize(range.size());
+      array_utils::gather(src_tri_faces, tri_indices.as_span(), face_indices.as_mutable_span());
 
-    /* Find the source edge that's closest to the destination edge in the nearest face. Search
-     * through the whole face instead of just the triangle because the triangle has edges that
-     * might not be actual mesh edges. */
-    Vector<float, 64> distances;
-    for (const int i : range.index_range()) {
-      const int dst_edge = range[i];
-      const float3 &dst_position = edge_centers[i];
+      /* Find the source edge that's closest to the destination edge in the nearest face. Search
+       * through the whole face instead of just the triangle because the triangle has edges that
+       * might not be actual mesh edges. */
+      Vector<float, 64> distances;
+      for (const int i : range.index_range()) {
+        const int dst_edge = range[i];
+        const float3 &dst_position = edge_centers[i];
 
-      const int src_face = face_indices[i];
-      const Span<int> src_face_edges = src_corner_edges.slice(src_faces[src_face]);
+        const int src_face = face_indices[i];
+        const Span<int> src_face_edges = src_corner_edges.slice(src_faces[src_face]);
 
-      distances.reinitialize(src_face_edges.size());
-      for (const int i : src_face_edges.index_range()) {
-        const int2 src_edge = src_edges[src_face_edges[i]];
-        const float3 src_center = math::midpoint(src_positions[src_edge[0]],
-                                                 src_positions[src_edge[1]]);
-        distances[i] = math::distance_squared(src_center, dst_position);
+        distances.reinitialize(src_face_edges.size());
+        for (const int i : src_face_edges.index_range()) {
+          const int2 src_edge = src_edges[src_face_edges[i]];
+          const float3 src_center = math::midpoint(src_positions[src_edge[0]],
+                                                   src_positions[src_edge[1]]);
+          distances[i] = math::distance_squared(src_center, dst_position);
+        }
+
+        const int min = std::min_element(distances.begin(), distances.end()) - distances.begin();
+        nearest_edges[dst_edge] = src_face_edges[min];
       }
-
-      const int min = std::min_element(distances.begin(), distances.end()) - distances.begin();
-      nearest_edges[dst_edge] = src_face_edges[min];
-    }
+    });
   });
 }
 
-static void gather_attributes(const Span<AttributeIDRef> ids,
+static void gather_attributes(const Span<StringRef> ids,
                               const AttributeAccessor src_attributes,
                               const AttrDomain domain,
                               const Span<int> index_map,
                               MutableAttributeAccessor dst_attributes)
 {
-  for (const AttributeIDRef &id : ids) {
+  for (const StringRef id : ids) {
     const GVArraySpan src = *src_attributes.lookup(id, domain);
     const eCustomDataType type = cpp_type_to_custom_data_type(src.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, domain, type);
@@ -468,32 +472,31 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   /* Gather attributes to transfer for each domain. This makes it possible to skip
    * building index maps and even the main BVH tree if there are no attributes. */
   const AttributeAccessor src_attributes = src.attributes();
-  Vector<AttributeIDRef> point_ids;
-  Vector<AttributeIDRef> edge_ids;
-  Vector<AttributeIDRef> face_ids;
-  Vector<AttributeIDRef> corner_ids;
-  src_attributes.for_all([&](const AttributeIDRef &id, const AttributeMetaData &meta_data) {
-    if (ELEM(id.name(), "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
-      return true;
+  Vector<StringRef> point_ids;
+  Vector<StringRef> edge_ids;
+  Vector<StringRef> face_ids;
+  Vector<StringRef> corner_ids;
+  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+      return;
     }
-    switch (meta_data.domain) {
+    switch (iter.domain) {
       case AttrDomain::Point:
-        point_ids.append(id);
+        point_ids.append(iter.name);
         break;
       case AttrDomain::Edge:
-        edge_ids.append(id);
+        edge_ids.append(iter.name);
         break;
       case AttrDomain::Face:
-        face_ids.append(id);
+        face_ids.append(iter.name);
         break;
       case AttrDomain::Corner:
-        corner_ids.append(id);
+        corner_ids.append(iter.name);
         break;
       default:
         BLI_assert_unreachable();
         break;
     }
-    return true;
   });
 
   if (point_ids.is_empty() && edge_ids.is_empty() && face_ids.is_empty() && corner_ids.is_empty())
@@ -509,8 +512,8 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   /* The main idea in the following code is to trade some complexity in sampling for the benefit of
    * only using and building a single BVH tree. Since sculpt mode doesn't generally deal with loose
    * vertices and edges, we use the standard "triangles" BVH which won't contain them. Also, only
-   * relying on a single BVH should reduce memory usage, and work better if the BVH and PBVH are
-   * ever merged.
+   * relying on a single BVH should reduce memory usage, and work better if the BVH and #pbvh::Tree
+   * are ever merged.
    *
    * One key decision is separating building transfer index maps from actually transferring any
    * attribute data. This is important to keep attribute storage independent from the specifics of

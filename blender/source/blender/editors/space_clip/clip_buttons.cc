@@ -17,7 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -113,16 +113,7 @@ void uiTemplateMovieClip(
   uiLayoutSetContextPointer(layout, "edit_movieclip", &clipptr);
 
   if (!compact) {
-    uiTemplateID(layout,
-                 C,
-                 ptr,
-                 propname,
-                 nullptr,
-                 "CLIP_OT_open",
-                 nullptr,
-                 UI_TEMPLATE_ID_FILTER_ALL,
-                 false,
-                 nullptr);
+    uiTemplateID(layout, C, ptr, propname, nullptr, "CLIP_OT_open", nullptr);
   }
 
   if (clip) {

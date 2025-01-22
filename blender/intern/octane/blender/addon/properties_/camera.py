@@ -291,7 +291,16 @@ class BlenderCamera(object):
             if lens > 0:
                 self.lens = lens
 
-    def setup_camera_border(self, cur_scene, is_viewport=False, v3d=None, rv3d=None):
+    @staticmethod
+    def setup_camera_border_subset(view_camera, object_camera):
+        view_camera_box = BoundBox2D.scale(view_camera.viewplane, 1.0 / view_camera.aspect_ratio)
+        object_camera_box = BoundBox2D.scale(object_camera.viewplane, 1.0 / object_camera.aspect_ratio)
+        object_camera_box = BoundBox2D.make_relative_to(object_camera_box, view_camera_box)
+        border_box = BoundBox2D.subset(object_camera_box, view_camera.border)
+        border_box.clamp(0.0, 1.0)
+        return border_box
+
+    def setup_camera_border(self, cur_scene, is_viewport=False, region=None, v3d=None, rv3d=None):
         is_camera_view = rv3d.view_perspective == "CAMERA" if is_viewport else True
         if is_camera_view:
             # Object camera
@@ -313,6 +322,23 @@ class BlenderCamera(object):
         self.border.bottom = border_min_y
         self.border.top = border_max_y
         self.use_border = use_border
+        if self.use_border:
+            return
+        camera_object = v3d.camera if (v3d and v3d.use_local_camera) else cur_scene.camera
+        if not camera_object or not is_viewport:
+            return
+        # View camera
+        view_camera = BlenderCamera()
+        view_camera.init(cur_scene)
+        view_camera.setup_from_view(cur_scene, v3d, rv3d, False)
+        view_camera.setup_camera_viewplane(cur_scene, region.width, region.height, False)
+        # Object camera
+        object_camera = BlenderCamera()
+        object_camera.init(cur_scene)
+        object_camera.setup_from_camera_object(camera_object, True)
+        object_camera.setup_camera_viewplane(cur_scene, object_camera.full_width, object_camera.full_height, False)
+        border_box = BlenderCamera.setup_camera_border_subset(view_camera, object_camera)
+        self.viewport_camera_border = border_box
 
     def setup_camera_viewplane(self, _scene, width, height, use_camera_dimension_as_preview_resolution):
         if self.camera_from_object and not self.use_border:
@@ -1475,7 +1501,7 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
         camera_node.set_pin_id(consts.PinID.P_BAKE_BACKFACE_CULLING, False, "", baking_bkface_culling)
         self.sync_octane_camera_position(blender_camera, octane_node, camera_node)
 
-    def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, border, is_viewport):
+    def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, is_viewport):
         camera_node = self.setup_octane_node_type(blender_camera, octane_node, is_viewport)
         camera_node_type = camera_node.node_type
         if camera_node_type in (consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING,):
@@ -1509,11 +1535,13 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
         else:
             camera_node.set_pin_id(consts.PinID.P_FSTOP, True, "", fstop)
         # Border & Use Camera Dimension As Preview Resolution
-        octane_node.border = border
+        octane_node.border = blender_camera.border
+        octane_node.viewport_camera_border = blender_camera.viewport_camera_border
         octane_node.use_camera_dimension_as_preview_resolution = \
-            getattr(self, "use_camera_dimension_as_preview_resolution", False)
+            blender_camera.use_camera_dimension_as_preview_resolution
         if octane_node.use_camera_dimension_as_preview_resolution:
             blender_camera.zoom = 1.0
+            blender_camera.offset = (0.0, 0.0)
         # Viewing angle
         self.sync_octane_camera_viewing_angle(blender_camera, octane_node, camera_node, width, height, is_viewport)
         # Clipping
@@ -1560,27 +1588,22 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
         view_camera = BlenderCamera()
         view_camera.init(cur_scene)
         view_camera.setup_from_view(cur_scene, v3d, rv3d, False)
-        view_camera.setup_camera_border(cur_scene, True, v3d, rv3d)
+        view_camera.setup_camera_border(cur_scene, True, region, v3d, rv3d)
         view_camera.setup_camera_viewplane(cur_scene, region.width, region.height,
                                            getattr(self, "use_camera_dimension_as_preview_resolution", False))
         if view_camera.use_border:
             if rv3d.view_perspective == "CAMERA":
-                view_camera_box = BoundBox2D.scale(view_camera.viewplane, 1.0 / view_camera.aspect_ratio)
                 camera_object = cur_scene.camera
                 object_camera = BlenderCamera()
                 object_camera.init(cur_scene)
                 object_camera.setup_from_camera_object(camera_object, True)
                 object_camera.setup_camera_viewplane(cur_scene, object_camera.full_width, object_camera.full_height,
                                                      getattr(self, "use_camera_dimension_as_preview_resolution", False))
-                object_camera_box = BoundBox2D.scale(object_camera.viewplane, 1.0 / object_camera.aspect_ratio)
-                object_camera_box = BoundBox2D.make_relative_to(object_camera_box, view_camera_box)
-                border_box = BoundBox2D.subset(object_camera_box, view_camera.border)
-                border_box.clamp(0.0, 1.0)
-            else:
-                border_box = view_camera.border
+                border_box = BlenderCamera.setup_camera_border_subset(view_camera, object_camera)
+                view_camera.border = border_box
         else:
-            border_box = None
-        self.sync_octane_camera_parameters(view_camera, octane_node, region.width, region.height, border_box, True)
+            view_camera.border = None
+        self.sync_octane_camera_parameters(view_camera, octane_node, region.width, region.height, True)
 
     def sync_camera(self, octane_node, cur_scene, width, height):
         object_camera = BlenderCamera()
@@ -1593,11 +1616,9 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
         object_camera.setup_camera_viewplane(cur_scene, width, height,
                                              getattr(self, "use_camera_dimension_as_preview_resolution", False))
         object_camera.matrix = camera_object.matrix_world
-        if object_camera.use_border:
-            border_box = object_camera.border
-        else:
-            border_box = None
-        self.sync_octane_camera_parameters(object_camera, octane_node, width, height, border_box, False)
+        if not object_camera.use_border:
+            object_camera.border = None
+        self.sync_octane_camera_parameters(object_camera, octane_node, width, height, False)
 
     def sync_camera_motion_blur(self, camera_node, motion_time_offset, camera_eval):
         position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(
@@ -1637,7 +1658,7 @@ class OctaneCameraPropertyGroup(OctaneBaseCameraPropertyGroup):
     )
     use_camera_dimension_as_preview_resolution: BoolProperty(
         name="Adapt to Camera View Resolution",
-        description="Used the camera view resolution in preview",
+        description="Used the camera view resolution in preview. Only works in camera view mode with border disabled",
         default=False,
     )
     used_as_universal_camera: BoolProperty(

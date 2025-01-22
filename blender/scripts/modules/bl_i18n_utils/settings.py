@@ -14,10 +14,10 @@ import os
 import sys
 import types
 
+# Only do soft-dependency on `bpy` module, not real strong need for it currently.
 try:
     import bpy
 except ModuleNotFoundError:
-    print("Could not import bpy, some features are not available when not run from Blender.")
     bpy = None
 
 ###############################################################################
@@ -91,9 +91,12 @@ LANGUAGES = (
     (52, "Belarusian (беларуску)", "be"),
     (53, "Danish (Dansk)", "da"),
     (54, "Slovenian (Slovenščina)", "sl"),
+    # Using the utf8 flipped form of Urdu (اُردُو).
+    (55, "Urdu (وُدرُا)", "ur"),
+    (56, "Lithuanian (Lietuviškai)", "lt"),
 )
 
-# Default context, in py (keep in sync with `BLT_translation.h`)!
+# Default context, in py (keep in sync with `BLT_translation.hh`)!
 if bpy is not None:
     assert bpy.app.translations.contexts.default == "*"
 DEFAULT_CONTEXT = "*"
@@ -107,12 +110,12 @@ IMPORT_MIN_LEVEL = 0.0
 
 # Languages in the working repository that should not be imported in the Blender one currently...
 IMPORT_LANGUAGES_SKIP = {
-    'am_ET', 'et_EE', 'ro_RO', 'uz_UZ@latin', 'uz_UZ@cyrillic', 'kk_KZ',
+    'am_ET', 'et_EE', 'uz_UZ@latin', 'uz_UZ@cyrillic', 'kk_KZ',
 }
 
 # Languages that need RTL pre-processing.
 IMPORT_LANGUAGES_RTL = {
-    'ar_EG', 'fa_IR', 'he_IL',
+    'ar_EG', 'fa_IR', 'he_IL', 'ur',
 }
 
 # The comment prefix used in generated `messages.txt` file.
@@ -266,9 +269,10 @@ PYGETTEXT_KEYWORDS = (() +
     tuple(("{}\\((?:[^\"',]+,){{2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
           for it in ("BKE_modifier_set_error",)) +
 
-    # Compositor error messages
-    tuple((r"\.{}\(\s*" + _msg_re + r"\s*\)").format(it)
-          for it in ("set_info_message",)) +
+    # Compositor and EEVEE messages.
+    # Ends either with `)` (function call close), or `,` when there are extra formatting parameters.
+    tuple((r"{}\(\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
+          for it in ("set_info_message", "info_append_i18n")) +
 
     # This one is a tad more risky, but in practice would not expect a name/uid string parameter
     # (the second one in those functions) to ever have a comma in it, so think this is fine.

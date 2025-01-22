@@ -11,6 +11,11 @@
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+
+#include <optional>
+
 struct AnimData;
 struct Depsgraph;
 struct ID;
@@ -54,6 +59,32 @@ struct PropertyRNA;
 /** \name Context
  * \{ */
 
+/** Main Data container types. */
+enum eAnimCont_Types {
+  /** Invalid or no data. */
+  ANIMCONT_NONE = 0,
+  /** Action (#bAction). */
+  ANIMCONT_ACTION = 1,
+  /** Shape-key (#Key). */
+  ANIMCONT_SHAPEKEY = 2,
+  /** Grease pencil (screen). */
+  ANIMCONT_GPENCIL = 3,
+  /** Dope-sheet (#bDopesheet). */
+  ANIMCONT_DOPESHEET = 4,
+  /** Animation F-Curves (#bDopesheet). */
+  ANIMCONT_FCURVES = 5,
+  /** Drivers (#bDopesheet). */
+  ANIMCONT_DRIVERS = 6,
+  /** NLA (#bDopesheet). */
+  ANIMCONT_NLA = 7,
+  /** Animation channel (#bAnimListElem). */
+  ANIMCONT_CHANNEL = 8,
+  /** Mask dope-sheet. */
+  ANIMCONT_MASK = 9,
+  /** "timeline" editor (#bDopeSheet). */
+  ANIMCONT_TIMELINE = 10,
+};
+
 /**
  * This struct defines a structure used for animation-specific
  * 'context' information.
@@ -61,15 +92,17 @@ struct PropertyRNA;
 struct bAnimContext {
   /** data to be filtered for use in animation editor */
   void *data;
-  /** type of data eAnimCont_Types */
-  short datatype;
+  /** Type of `data`. */
+  eAnimCont_Types datatype;
 
-  /** editor->mode */
-  short mode;
+  /** Editor mode, which depends on `spacetype` (below). */
+  eAnimEdit_Context dopesheet_mode;
+  eGraphEdit_Mode grapheditor_mode;
+
   /** area->spacetype */
-  short spacetype;
+  eSpace_Type spacetype;
   /** active region -> type (channels or main) */
-  short regiontype;
+  eRegion_Type regiontype;
 
   /** editor host */
   ScrArea *area;
@@ -98,32 +131,6 @@ struct bAnimContext {
   ReportList *reports;
 };
 
-/** Main Data container types. */
-enum eAnimCont_Types {
-  /** Invalid or no data. */
-  ANIMCONT_NONE = 0,
-  /** Action (#bAction). */
-  ANIMCONT_ACTION = 1,
-  /** Shape-key (#Key). */
-  ANIMCONT_SHAPEKEY = 2,
-  /** Grease pencil (screen). */
-  ANIMCONT_GPENCIL = 3,
-  /** Dope-sheet (#bDopesheet). */
-  ANIMCONT_DOPESHEET = 4,
-  /** Animation F-Curves (#bDopesheet). */
-  ANIMCONT_FCURVES = 5,
-  /** Drivers (#bDopesheet). */
-  ANIMCONT_DRIVERS = 6,
-  /** NLA (#bDopesheet). */
-  ANIMCONT_NLA = 7,
-  /** Animation channel (#bAnimListElem). */
-  ANIMCONT_CHANNEL = 8,
-  /** Mask dope-sheet. */
-  ANIMCONT_MASK = 9,
-  /** "timeline" editor (#bDopeSheet). */
-  ANIMCONT_TIMELINE = 10,
-};
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -131,71 +138,11 @@ enum eAnimCont_Types {
  * \{ */
 
 /**
- * This struct defines a structure used for quick and uniform access for
- * channels of animation data.
- */
-struct bAnimListElem {
-  bAnimListElem *next, *prev;
-
-  /** source data this elem represents */
-  void *data;
-  /** (eAnim_ChannelType) one of the ANIMTYPE_* values */
-  int type;
-  /** copy of elem's flags for quick access */
-  int flag;
-  /** for un-named data, the index of the data in its collection */
-  int index;
-
-  /** (eAnim_Update_Flags)  tag the element for updating */
-  char update;
-  /** tag the included data. Temporary always */
-  char tag;
-
-  /** (eAnim_KeyType) type of motion data to expect */
-  short datatype;
-  /** motion data - mostly F-Curves, but can be other types too */
-  void *key_data;
-
-  /**
-   * \note
-   * id here is the "IdAdtTemplate"-style datablock (e.g. Object, Material, Texture, NodeTree)
-   * from which evaluation of the RNA-paths takes place. It's used to figure out how deep
-   * channels should be nested (e.g. for Textures/NodeTrees) in the tree, and allows property
-   * lookups (e.g. for sliders and for inserting keyframes) to work. If we had instead used
-   * bAction or something similar, none of this would be possible: although it's trivial
-   * to use an IdAdtTemplate type to find the source action a channel (e.g. F-Curve) comes from
-   * (i.e. in the AnimEditors, it *must* be the active action, as only that can be edited),
-   * it's impossible to go the other way (i.e. one action may be used in multiple places).
-   */
-  /** ID block that channel is attached to */
-  ID *id;
-  /** source of the animation data attached to ID block */
-  AnimData *adt;
-
-  /**
-   * For list element which corresponds to a f-curve, this is an ID which
-   * owns the f-curve.
-   *
-   * For example, if the f-curve is coming from Action, this id will be set to
-   * action's ID. But if this is a f-curve which is a driver, then the owner
-   * is set to, for example, object.
-   *
-   * NOTE: this is different from id above. The id above will be set to
-   * an object if the f-curve is coming from action associated with that object.
-   */
-  ID *fcurve_owner_id;
-
-  /**
-   * for per-element F-Curves
-   * (e.g. NLA Control Curves), the element that this represents (e.g. NlaStrip) */
-  void *owner;
-};
-
-/**
  * Some types for easier type-testing
  *
- * \note need to keep the order of these synchronized with the channels define code
- * which is used for drawing and handling channel lists for.
+ * \note need to keep the order of these synchronized with the channels define code (ACF_XXX must
+ * have the same value as ANIMTYPE_XXX below) which is used for drawing and handling channel lists
+ * for.
  */
 enum eAnim_ChannelType {
   ANIMTYPE_NONE = 0,
@@ -213,7 +160,8 @@ enum eAnim_ChannelType {
   ANIMTYPE_NLACURVE,
 
   ANIMTYPE_FILLACT_LAYERED, /* Layered Actions. */
-  ANIMTYPE_FILLACTD,        /* Legacy Actions. */
+  ANIMTYPE_ACTION_SLOT,
+  ANIMTYPE_FILLACTD, /* Legacy Actions. */
   ANIMTYPE_FILLDRIVERS,
 
   ANIMTYPE_DSMAT,
@@ -273,6 +221,7 @@ enum eAnim_KeyType {
   ALE_ACT,            /* Action summary (legacy). */
   ALE_GROUP,          /* Action Group summary (legacy). */
   ALE_ACTION_LAYERED, /* Action summary (layered). */
+  ALE_ACTION_SLOT,    /* Action slot summary. */
 
   ALE_GREASE_PENCIL_CEL,   /* Grease Pencil Cels. */
   ALE_GREASE_PENCIL_DATA,  /* Grease Pencil Cels summary. */
@@ -292,10 +241,92 @@ enum eAnim_Update_Flags {
   /** Recalculate handles. */
   ANIM_UPDATE_HANDLES = (1 << 2),
 };
+ENUM_OPERATORS(eAnim_Update_Flags, ANIM_UPDATE_HANDLES);
 
 /* used for most tools which change keyframes (flushed by ANIM_animdata_update) */
 #define ANIM_UPDATE_DEFAULT (ANIM_UPDATE_DEPS | ANIM_UPDATE_ORDER | ANIM_UPDATE_HANDLES)
 #define ANIM_UPDATE_DEFAULT_NOHANDLES (ANIM_UPDATE_DEFAULT & ~ANIM_UPDATE_HANDLES)
+
+/**
+ * This struct defines a structure used for quick and uniform access for
+ * channels of animation data.
+ */
+struct bAnimListElem {
+  bAnimListElem *next, *prev;
+
+  /** source data this elem represents */
+  void *data;
+  /** One of the ANIMTYPE_* values. */
+  eAnim_ChannelType type;
+  /** copy of elem's flags for quick access */
+  int flag;
+  /** for un-named data, the index of the data in its collection */
+  int index;
+  /**
+   * For data that is owned by a specific slot, its handle.
+   *
+   * This is not declared as #blender::animrig::slot_handle_t to avoid all the users of this
+   * header file to get the `animrig` module as extra dependency (which would spread to the undo
+   * system, line-art, etc). It's probably best to split off this struct definition from the rest
+   * of this header, as most code that uses this header doesn't need to know the definition of this
+   * struct.
+   *
+   * TODO: split off into separate header file.
+   */
+  int32_t slot_handle;
+
+  /** Tag the element for updating. */
+  eAnim_Update_Flags update;
+  /** tag the included data. Temporary always */
+  char tag;
+
+  /** Type of motion data to expect. */
+  eAnim_KeyType datatype;
+  /** motion data - mostly F-Curves, but can be other types too */
+  void *key_data;
+
+  /**
+   * \note
+   * id here is the "IdAdtTemplate"-style datablock (e.g. Object, Material, Texture, NodeTree)
+   * from which evaluation of the RNA-paths takes place. It's used to figure out how deep
+   * channels should be nested (e.g. for Textures/NodeTrees) in the tree, and allows property
+   * lookups (e.g. for sliders and for inserting keyframes) to work. If we had instead used
+   * bAction or something similar, none of this would be possible: although it's trivial
+   * to use an IdAdtTemplate type to find the source action a channel (e.g. F-Curve) comes from
+   * (i.e. in the AnimEditors, it *must* be the active action, as only that can be edited),
+   * it's impossible to go the other way (i.e. one action may be used in multiple places).
+   */
+  /** ID block that channel is attached to */
+  ID *id;
+  /** source of the animation data attached to ID block */
+  AnimData *adt;
+  /** Main containing the ID. */
+  Main *bmain;
+
+  /**
+   * For list elements that correspond to an f-curve, a channel group, or an
+   * action slot, this is the ID which owns that data.
+   *
+   * For channel groups and action slots, that will always be an Action. For
+   * f-curves it's more complicated, because f-curves are sometimes owned by
+   * other ID types (e.g. driver f-curves are owned by objects, materials,
+   * etc.), so you have to be careful.
+   *
+   * NOTE: this is different from id above. The id above will be set to
+   * an object if the f-curve is coming from action associated with that object.
+   *
+   * TODO: the responsibilities for this are getting overloaded, which makes it
+   * difficult to use confidently, and also makes its name misleading. Split off
+   * a separate `bAction` pointer that is simply null when the data isn't owned
+   * by an action.
+   */
+  ID *fcurve_owner_id;
+
+  /**
+   * for per-element F-Curves
+   * (e.g. NLA Control Curves), the element that this represents (e.g. NlaStrip) */
+  void *owner;
+};
 
 /** \} */
 
@@ -347,7 +378,12 @@ enum eAnimFilter_Flags {
   /** duplicate entries for animation data attached to multi-user blocks must not occur */
   ANIMFILTER_NODUPLIS = (1 << 11),
 
-  /** avoid channel that does not have any F-curve data */
+  /**
+   * Avoid channels that don't have any F-curve data under them.
+   *
+   * Note that this isn't just direct fcurve channels, but also includes e.g.
+   * channel groups with fcurve channels as members.
+   */
   ANIMFILTER_FCURVESONLY = (1 << 12),
 
   /** for checking if we should keep some collapsed channel around (internal use only!) */
@@ -416,8 +452,8 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
    (((ac) && ((ac)->spacetype == SPACE_GRAPH)) && ((agrp)->flag & AGRP_EXPANDED_G)))
 #define SEL_AGRP(agrp) (((agrp)->flag & AGRP_SELECTED) || ((agrp)->flag & AGRP_ACTIVE))
 /** F-Curve Channels. */
-#define EDITABLE_FCU(fcu) ((fcu->flag & FCURVE_PROTECTED) == 0)
-#define SEL_FCU(fcu) (fcu->flag & FCURVE_SELECTED)
+#define EDITABLE_FCU(fcu) (((fcu)->flag & FCURVE_PROTECTED) == 0)
+#define SEL_FCU(fcu) ((fcu)->flag & FCURVE_SELECTED)
 
 /* ShapeKey mode only */
 #define EDITABLE_SHAPEKEY(kb) ((kb->flag & KEYBLOCK_LOCKED) == 0)
@@ -667,7 +703,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
                                uiBlock *block,
-                               rctf *rect,
+                               const rctf *rect,
                                size_t channel_index);
 
 /** \} */
@@ -734,6 +770,12 @@ void ANIM_set_active_channel(bAnimContext *ac,
  * Return whether channel is active.
  */
 bool ANIM_is_active_channel(bAnimListElem *ale);
+
+/**
+ * Deselects the keys displayed within the open animation editors. Depending on the display
+ * settings of those editors, the keys may not be from an action of the selected objects.
+ */
+void ANIM_deselect_keys_in_animation_editors(bContext *C);
 
 /* ************************************************ */
 /* DRAWING API */
@@ -877,8 +919,20 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
  *
  * \warning name buffer we're writing to cannot exceed 256 chars
  * (check anim_channels_defines.cc for details).
+ *
+ * \return the icon of whatever struct the F-Curve's RNA path resolves to.
+ * Returns #std::nullopt if the path could not be resolved.
  */
-int getname_anim_fcurve(char *name, ID *id, FCurve *fcu);
+std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu);
+
+/**
+ * Get the name of an F-Curve that's animating a specific slot.
+ *
+ * This function iterates the Slot's users to find an ID that allows it to resolve its RNA path.
+ */
+std::string getname_anim_fcurve_for_slot(Main &bmain,
+                                         const blender::animrig::Slot &slot,
+                                         FCurve &fcurve);
 
 /**
  * Automatically determine a color for the nth F-Curve.

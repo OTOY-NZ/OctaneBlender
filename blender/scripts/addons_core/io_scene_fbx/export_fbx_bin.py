@@ -588,11 +588,12 @@ def fbx_data_light_elements(root, lamp, scene_data):
     light_key = scene_data.data_lights[lamp]
     do_light = True
     do_shadow = False
+    # NOTE: this was removed from lamps, always write black.
     shadow_color = Vector((0.0, 0.0, 0.0))
     if lamp.type not in {'HEMI'}:
         do_light = True
         do_shadow = lamp.use_shadow
-        shadow_color = lamp.shadow_color
+        # `shadow_color = lamp.shadow_color`: now removed.
 
     light = elem_data_single_int64(root, b"NodeAttribute", get_fbx_uuid_from_key(light_key))
     light.add_string(fbx_name_class(lamp.name.encode(), b"NodeAttribute"))
@@ -1188,13 +1189,19 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # FBX SDK documentation says that normals should use IndexToDirect.
         elem_data_single_string(lay_nor, b"ReferenceInformationType", b"IndexToDirect")
 
-        # Tuple of unique sorted normals and then the index in the unique sorted normals of each normal in t_normal.
-        # Since we don't care about how the normals are sorted, only that they're unique, we can use the fast unique
-        # helper function.
-        t_normal, t_normal_idx = fast_first_axis_unique(t_normal.reshape(-1, 3), return_inverse=True)
+        # Workaround for Unity FBX import issue where the normals are considered invalid if any normals are
+        # deduplicated. See #123088.
+        if normal_mapping == b"ByVertice":
+            # Write every normal without any deduplication, so the indices array will be [0, 1, 2, ..., n].
+            t_normal_idx = np.arange(len(t_normal.reshape(-1, 3)), dtype=normal_idx_fbx_dtype)
+        else:
+            # Tuple of unique sorted normals and then the index in the unique sorted normals of each normal in t_normal.
+            # Since we don't care about how the normals are sorted, only that they're unique, we can use the fast unique
+            # helper function.
+            t_normal, t_normal_idx = fast_first_axis_unique(t_normal.reshape(-1, 3), return_inverse=True)
 
-        # Convert to the type for fbx
-        t_normal_idx = astype_view_signedness(t_normal_idx, normal_idx_fbx_dtype)
+            # Convert to the type for fbx
+            t_normal_idx = astype_view_signedness(t_normal_idx, normal_idx_fbx_dtype)
 
         elem_data_single_float64_array(lay_nor, b"Normals", t_normal)
         # Normal weights, no idea what it is.
@@ -1743,7 +1750,7 @@ def fbx_data_video_elements(root, vid, scene_data):
                     with open(filepath, 'br') as f:
                         elem_data_single_bytes(fbx_vid, b"Content", f.read())
                 except Exception as e:
-                    print("WARNING: embedding file {} failed ({})".format(filepath, e))
+                    print("WARNING: embedding file {:s} failed ({:s})".format(filepath, str(e)))
                     elem_data_single_bytes(fbx_vid, b"Content", b"")
                 msetts.embedded_set.add(filepath)
     # Looks like we'd rather not write any 'Content' element in this case (see T44442).
@@ -2683,7 +2690,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             eval_mats = tuple(slot.material.original if slot.material else None
                               for slot in ob_to_convert.material_slots)
             if orig_mats != eval_mats:
-                # Override the default behaviour of getting materials from ob_obj.bdata.material_slots.
+                # Override the default behavior of getting materials from `ob_obj.bdata.material_slots`.
                 ob_obj.override_materials = eval_mats
         elif do_convert:
             tmp_me = bpy.data.meshes.new_from_object(ob, preserve_all_data_layers=True, depsgraph=depsgraph)
@@ -3038,7 +3045,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             idx = _objs_indices[ob_obj] = _objs_indices.get(ob_obj, -1) + 1
             # XXX If a mesh has multiple material slots with the same material, they are combined into one slot.
             # Even if duplicate materials were exported without combining them into one slot, keeping duplicate
-            # materials separated does not appear to be common behaviour of external software when importing FBX.
+            # materials separated does not appear to be common behavior of external software when importing FBX.
             mesh_material_indices.setdefault(me, {})[ma] = idx
     del _objs_indices
 
@@ -3494,7 +3501,7 @@ def save_single(operator, scene, depsgraph, filepath="",
     import bpy_extras.io_utils
 
     print('\nFBX export starting... %r' % filepath)
-    start_time = time.process_time()
+    start_time = time.time()
 
     # Generate some data about exported scene...
     scene_data = fbx_data_from_scene(scene, depsgraph, settings)
@@ -3537,7 +3544,7 @@ def save_single(operator, scene, depsgraph, filepath="",
     if not media_settings.embed_textures:
         bpy_extras.io_utils.path_reference_copy(media_settings.copy_set)
 
-    print('export finished in %.4f sec.' % (time.process_time() - start_time))
+    print('export finished in %.4f sec.' % (time.time() - start_time))
     return {'FINISHED'}
 
 
@@ -3634,9 +3641,12 @@ def save(operator, context,
         if use_visible:
             ctx_objects = tuple(obj for obj in ctx_objects if obj.visible_get())
 
+        # Sort exported objects by their names.
+        ctx_objects = sorted(ctx_objects, key=lambda ob: ob.name)
+
         # Ensure no Objects are in Edit mode.
         # Copy to a tuple for safety, to avoid the risk of modifying ctx_objects while iterating.
-        for obj in tuple(ctx_objects):
+        for obj in ctx_objects:
             if not ensure_object_not_in_edit_mode(context, obj):
                 operator.report({'ERROR'}, "%s could not be set out of Edit Mode, so cannot be exported" % obj.name)
                 return {'CANCELLED'}

@@ -19,16 +19,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Instances").propagate_all();
 }
 
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    if (STREQ(socket->identifier, "Grease Pencil")) {
-      bke::nodeSetSocketAvailability(ntree, socket, U.experimental.use_grease_pencil_version3);
-      break;
-    }
-  }
-}
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
@@ -40,13 +30,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet volumes;
   GeometrySet instances;
 
+  const std::string &name = geometry_set.name;
+  meshes.name = name;
+  curves.name = name;
+  grease_pencil.name = name;
+  point_clouds.name = name;
+  volumes.name = name;
+  instances.name = name;
+
   if (geometry_set.has<MeshComponent>()) {
     meshes.add(*geometry_set.get_component<MeshComponent>());
   }
   if (geometry_set.has<CurveComponent>()) {
     curves.add(*geometry_set.get_component<CurveComponent>());
   }
-  if (geometry_set.has<GreasePencilComponent>() && U.experimental.use_grease_pencil_version3) {
+  if (geometry_set.has<GreasePencilComponent>()) {
     grease_pencil.add(*geometry_set.get_component<GreasePencilComponent>());
   }
   if (geometry_set.has<PointCloudComponent>()) {
@@ -61,9 +59,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Mesh", meshes);
   params.set_output("Curve", curves);
-  if (U.experimental.use_grease_pencil_version3) {
-    params.set_output("Grease Pencil", grease_pencil);
-  }
+  params.set_output("Grease Pencil", grease_pencil);
   params.set_output("Point Cloud", point_clouds);
   params.set_output("Volume", volumes);
   params.set_output("Instances", instances);
@@ -77,8 +73,7 @@ static void node_register()
       &ntype, GEO_NODE_SEPARATE_COMPONENTS, "Separate Components", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.updatefunc = node_update;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

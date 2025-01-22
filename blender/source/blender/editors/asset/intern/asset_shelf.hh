@@ -20,7 +20,6 @@ struct bContext;
 struct BlendDataReader;
 struct BlendWriter;
 struct RegionAssetShelf;
-struct SpaceType;
 struct uiLayout;
 
 namespace blender::asset_system {
@@ -29,8 +28,6 @@ class AssetCatalogPath;
 
 namespace blender::ed::asset::shelf {
 
-constexpr short DEFAULT_TILE_SIZE = 64;
-
 void build_asset_view(uiLayout &layout,
                       const AssetLibraryReference &library_ref,
                       const AssetShelf &shelf,
@@ -38,6 +35,7 @@ void build_asset_view(uiLayout &layout,
                       const ARegion &region);
 
 void catalog_selector_panel_register(ARegionType *region_type);
+void popover_panel_register(ARegionType *region_type);
 
 AssetShelf *active_shelf_from_context(const bContext *C);
 

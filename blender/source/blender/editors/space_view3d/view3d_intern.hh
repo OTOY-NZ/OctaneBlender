@@ -18,8 +18,6 @@ struct BoundBox;
 struct Depsgraph;
 struct Object;
 struct Scene;
-struct ViewContext;
-struct ViewLayer;
 struct bContext;
 struct bContextDataResult;
 struct View3DCameraControl;
@@ -173,7 +171,7 @@ Object *ED_view3d_cameracontrol_object_get(View3DCameraControl *vctrl);
  * Calculates the bounding box corners (min and max) for \a obedit.
  * The returned values are in global space.
  */
-bool ED_view3d_minmax_verts(Object *obedit, float min[3], float max[3]);
+bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float min[3], float max[3]);
 
 void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot);
 void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot);
@@ -207,6 +205,7 @@ void VIEW3D_GGT_mesh_preselect_elem(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_mesh_preselect_edgering(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_tool_generic_handle_normal(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_tool_generic_handle_free(wmGizmoGroupType *gzgt);
+void VIEW3D_GGT_geometry_nodes(struct wmGizmoGroupType *gzgt);
 
 void VIEW3D_GGT_ruler(wmGizmoGroupType *gzgt);
 void VIEW3D_GT_ruler_item(wmGizmoType *gzt);

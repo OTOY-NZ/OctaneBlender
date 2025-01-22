@@ -24,11 +24,11 @@ void eyedropper_draw_cursor_text_region(const int xy[2], const char *name);
  * \return A button under the mouse which relates to some RNA Property, or NULL
  */
 uiBut *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *event);
-void datadropper_win_area_find(const bContext *C,
-                               const int event_xy[2],
-                               int r_event_xy[2],
-                               wmWindow **r_win,
-                               ScrArea **r_area);
+void eyedropper_win_area_find(const bContext *C,
+                              const int event_xy[2],
+                              int r_event_xy[2],
+                              wmWindow **r_win,
+                              ScrArea **r_area);
 
 /* interface_eyedropper_color.c (expose for color-band picker) */
 
@@ -37,9 +37,15 @@ void datadropper_win_area_find(const bContext *C,
  *
  * Special check for image or nodes where we MAY have HDR pixels which don't display.
  *
+ * \param eye: Internal state of the color eyedropper, may be nullptr for other users.
+ *
  * \note Exposed by 'eyedropper_intern.hh' for use with color band picking.
  */
-void eyedropper_color_sample_fl(bContext *C, const int m_xy[2], float r_col[3]);
+struct Eyedropper;
+void eyedropper_color_sample_fl(bContext *C,
+                                struct Eyedropper *eye,
+                                const int event_xy[2],
+                                float r_col[3]);
 
 /* Used for most eye-dropper operators. */
 enum {

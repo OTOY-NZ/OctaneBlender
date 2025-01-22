@@ -15,7 +15,7 @@
 #include "GPU_primitive.hh"
 #include "GPU_texture.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
 #include "gpu_py.hh" /* own include */
 
@@ -53,7 +53,7 @@ PyC_StringEnumItems bpygpu_dataformat_items[] = {
 /** \name Utilities
  * \{ */
 
-bool bpygpu_is_init_or_error(void)
+bool bpygpu_is_init_or_error()
 {
   if (!GPU_is_init()) {
     PyErr_SetString(PyExc_SystemError,

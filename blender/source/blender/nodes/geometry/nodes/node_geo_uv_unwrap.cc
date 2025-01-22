@@ -104,6 +104,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                        mp_vkeys.data(),
                                        mp_co.data(),
                                        mp_uv.data(),
+                                       nullptr,
                                        mp_pin.data(),
                                        mp_select.data());
   });
@@ -218,7 +219,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

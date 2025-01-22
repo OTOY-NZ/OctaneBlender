@@ -42,7 +42,7 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_scene.hh"
 
 #include "BLO_read_write.hh"
@@ -191,27 +191,6 @@ void BKE_fmodifier_name_set(FModifier *fcm, const char *name)
                  sizeof(fcm->name));
 }
 
-void BKE_fmodifiers_foreach_id(ListBase *fmodifiers, LibraryForeachIDData *data)
-{
-  LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
-    /* library data for specific F-Modifier types */
-    switch (fcm->type) {
-      case FMODIFIER_TYPE_PYTHON: {
-        FMod_Python *fcm_py = (FMod_Python *)fcm->data;
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fcm_py->script, IDWALK_CB_NOP);
-
-        BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-            data, IDP_foreach_property(fcm_py->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
-              BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
-            }));
-        break;
-      }
-      default:
-        break;
-    }
-  }
-}
-
 void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data)
 {
   ChannelDriver *driver = fcu->driver;
@@ -225,8 +204,6 @@ void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data)
       DRIVER_TARGETS_LOOPER_END;
     }
   }
-
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fmodifiers_foreach_id(&fcu->modifiers, data));
 }
 
 /* ----------------- Finding F-Curves -------------------------- */
@@ -320,77 +297,6 @@ FCurve *BKE_fcurve_iter_step(FCurve *fcu_iter, const char rna_path[])
   return nullptr;
 }
 
-int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, const char *dataName)
-{
-  int matches = 0;
-
-  /* Sanity checks. */
-  if (ELEM(nullptr, dst, src, dataPrefix, dataName)) {
-    return 0;
-  }
-  if ((dataPrefix[0] == 0) || (dataName[0] == 0)) {
-    return 0;
-  }
-
-  const size_t quotedName_size = strlen(dataName) + 1;
-  char *quotedName = static_cast<char *>(alloca(quotedName_size));
-
-  /* Search each F-Curve one by one. */
-  LISTBASE_FOREACH (FCurve *, fcu, src) {
-    /* Check if quoted string matches the path. */
-    if (fcu->rna_path == nullptr) {
-      continue;
-    }
-    /* Skipping names longer than `quotedName_size` is OK since we're after an exact match. */
-    if (!BLI_str_quoted_substr(fcu->rna_path, dataPrefix, quotedName, quotedName_size)) {
-      continue;
-    }
-    if (!STREQ(quotedName, dataName)) {
-      continue;
-    }
-
-    /* Check if the quoted name matches the required name. */
-    LinkData *ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), __func__));
-
-    ld->data = fcu;
-    BLI_addtail(dst, ld);
-
-    matches++;
-  }
-  /* Return the number of matches. */
-  return matches;
-}
-
-static std::optional<std::pair<FCurve *, bAction *>> animdata_fcurve_find_by_rna_path(
-    AnimData &adt, const char *rna_path, const int rna_index)
-{
-  if (!adt.action) {
-    return std::nullopt;
-  }
-
-  blender::animrig::Action &action = adt.action->wrap();
-  if (action.is_empty()) {
-    return std::nullopt;
-  }
-
-  FCurve *fcu = nullptr;
-  if (action.is_action_layered()) {
-    const FCurve *const_fcurve = blender::animrig::fcurve_find_by_rna_path(
-        adt, rna_path, rna_index);
-    /* The new layered Action code is stricter with const-ness than older code, hence the
-     * const_cast. */
-    fcu = const_cast<FCurve *>(const_fcurve);
-  }
-  else {
-    fcu = BKE_fcurve_find(&action.curves, rna_path, rna_index);
-  }
-
-  if (!fcu) {
-    return std::nullopt;
-  }
-  return std::make_pair(fcu, &action);
-}
-
 FCurve *BKE_animadata_fcurve_find_by_rna_path(
     AnimData *animdata, const char *rna_path, int rna_index, bAction **r_action, bool *r_driven)
 {
@@ -401,14 +307,14 @@ FCurve *BKE_animadata_fcurve_find_by_rna_path(
     *r_action = nullptr;
   }
 
-  std::optional<std::pair<FCurve *, bAction *>> found = animdata_fcurve_find_by_rna_path(
-      *animdata, rna_path, rna_index);
-  if (found) {
+  FCurve *fcurve = blender::animrig::fcurve_find_in_action_slot(
+      animdata->action, animdata->slot_handle, {rna_path, rna_index});
+  if (fcurve) {
     /* Action takes priority over drivers. */
     if (r_action) {
-      *r_action = found->second;
+      *r_action = animdata->action;
     }
-    return found->first;
+    return fcurve;
   }
 
   /* If not animated, check if driven. */
@@ -822,8 +728,8 @@ bool BKE_fcurve_calc_bounds(const FCurve *fcu,
 }
 
 bool BKE_fcurve_calc_range(const FCurve *fcu,
-                           float *r_start,
-                           float *r_end,
+                           float *r_min,
+                           float *r_max,
                            const bool selected_keys_only)
 {
   float min = 0.0f;
@@ -851,8 +757,8 @@ bool BKE_fcurve_calc_range(const FCurve *fcu,
     foundvert = true;
   }
 
-  *r_start = min;
-  *r_end = max;
+  *r_min = min;
+  *r_max = max;
 
   return foundvert;
 }
@@ -1039,6 +945,16 @@ bool BKE_fcurve_has_selected_control_points(const FCurve *fcu)
     }
   }
   return false;
+}
+
+void BKE_fcurve_deselect_all_keys(FCurve &fcu)
+{
+  if (!fcu.bezt) {
+    return;
+  }
+  for (int i = 0; i < fcu.totvert; i++) {
+    BEZT_DESEL_ALL(&fcu.bezt[i]);
+  }
 }
 
 bool BKE_fcurve_is_keyframable(const FCurve *fcu)
@@ -2581,15 +2497,6 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
 
           break;
         }
-        case FMODIFIER_TYPE_PYTHON: {
-          FMod_Python *data = static_cast<FMod_Python *>(fcm->data);
-
-          /* Write ID Properties -- and copy this comment EXACTLY for easy finding
-           * of library blocks that implement this. */
-          IDP_BlendWrite(writer, data->prop);
-
-          break;
-        }
       }
     }
   }
@@ -2598,8 +2505,16 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
 void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifiers, FCurve *curve)
 {
   LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
+
     /* relink general data */
-    BLO_read_data_address(reader, &fcm->data);
+    if (fmi) {
+      fcm->data = BLO_read_struct_by_name_array(reader, fmi->struct_name, 1, fcm->data);
+    }
+    else {
+      BLI_assert_unreachable();
+      fcm->data = nullptr;
+    }
     fcm->curve = curve;
 
     /* do relinking of data for specific types */
@@ -2613,14 +2528,6 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
         FMod_Envelope *data = (FMod_Envelope *)fcm->data;
 
         BLO_read_struct_array(reader, FCM_EnvelopeData, data->totvert, &data->data);
-
-        break;
-      }
-      case FMODIFIER_TYPE_PYTHON: {
-        FMod_Python *data = (FMod_Python *)fcm->data;
-
-        BLO_read_struct(reader, IDProperty, &data->prop);
-        IDP_BlendDataRead(reader, &data->prop);
 
         break;
       }

@@ -13,13 +13,9 @@
 
 #include "BKE_modifier.hh"
 
-struct ARegionType;
 struct bContext;
 struct GreasePencil;
 struct GreasePencilModifierInfluenceData;
-struct GreasePencilModifierLayerFilter;
-struct GreasePencilModifierMaterialFilter;
-struct PanelType;
 struct PointerRNA;
 struct uiLayout;
 namespace blender::bke {
@@ -85,5 +81,7 @@ struct FrameDrawingInfo {
 Vector<FrameDrawingInfo> get_drawing_infos_by_frame(GreasePencil &grease_pencil,
                                                     const IndexMask &layer_mask,
                                                     int frame);
+
+void ensure_no_bezier_curves(bke::greasepencil::Drawing &drawing);
 
 }  // namespace blender::modifier::greasepencil

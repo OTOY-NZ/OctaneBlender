@@ -69,7 +69,7 @@
 #  include "DNA_world_types.h"
 #endif
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -888,14 +888,6 @@ ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
       update_edit_mode_pointers(depsgraph, id_orig, id_cow);
       return id_cow;
     }
-    /* In case we don't need to do a copy-on-evaluation, we can use the update cache of the grease
-     * pencil data to do an update-on-write. */
-    if (id_type == ID_GD_LEGACY && BKE_gpencil_can_avoid_full_copy_on_write(
-                                       (const ::Depsgraph *)depsgraph, (bGPdata *)id_orig))
-    {
-      BKE_gpencil_update_on_write((bGPdata *)id_orig, (bGPdata *)id_cow);
-      return id_cow;
-    }
   }
 
   RuntimeBackup backup(depsgraph);
@@ -906,11 +898,10 @@ ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   return id_cow;
 }
 
-/**
- * \note Depsgraph is supposed to have ID node already.
- */
 ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, ID *id_orig)
 {
+  /* NOTE: Depsgraph is supposed to have ID node already. */
+
   IDNode *id_node = depsgraph->find_id_node(id_orig);
   BLI_assert(id_node != nullptr);
   return deg_update_eval_copy_datablock(depsgraph, id_node);
@@ -1053,10 +1044,10 @@ bool deg_validate_eval_copy_datablock(ID *id_cow)
 void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_orig)
 {
   BLI_assert(id_cow != id_orig);
-  BLI_assert((id_orig->tag & LIB_TAG_COPIED_ON_EVAL) == 0);
-  id_cow->tag |= LIB_TAG_COPIED_ON_EVAL;
+  BLI_assert((id_orig->tag & ID_TAG_COPIED_ON_EVAL) == 0);
+  id_cow->tag |= ID_TAG_COPIED_ON_EVAL;
   /* This ID is no longer localized, is a self-sustaining copy now. */
-  id_cow->tag &= ~LIB_TAG_LOCALIZED;
+  id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
   id_cow->runtime.depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }

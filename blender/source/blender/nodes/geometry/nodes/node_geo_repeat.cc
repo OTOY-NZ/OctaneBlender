@@ -14,7 +14,7 @@
 #include "BLI_string_utils.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_screen.hh"
 
@@ -125,6 +125,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  b.add_output<decl::Int>("Iteration")
+      .description("Index of the current iteration. Starts counting at zero");
   b.add_input<decl::Int>("Iterations").min(0).default_value(1);
 
   const bNode *node = b.node_or_null();
@@ -194,7 +196,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -255,7 +257,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometryRepeatOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_cnew<NodeGeometryRepeatOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
@@ -305,7 +307,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryRepeatOutput", node_free_storage, node_copy_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

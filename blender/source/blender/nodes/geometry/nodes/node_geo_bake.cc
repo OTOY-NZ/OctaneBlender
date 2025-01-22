@@ -13,11 +13,15 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_bake_items_socket.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 #include "BKE_screen.hh"
 
 #include "ED_node.hh"
@@ -25,7 +29,7 @@
 #include "DNA_modifier_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_nodes.hh"
 
@@ -101,7 +105,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryBake &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometryBake>(__func__, src_storage);
+  auto *dst_storage = MEM_cnew<NodeGeometryBake>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
@@ -115,8 +119,8 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static const CPPType &get_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const char *socket_idname = bke::nodeStaticSocketType(socket_type, 0);
-  const bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket_idname);
+  const char *socket_idname = bke::node_static_socket_type(socket_type, 0);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
   return *typeinfo->geometry_nodes_cpp_type;
@@ -249,6 +253,29 @@ static bake::BakeSocketConfig make_bake_socket_config(const Span<NodeGeometryBak
   return config;
 }
 
+/**
+ * This is used when the bake node should just pass-through the data and the caller of geometry
+ * nodes should not have to care about this.
+ */
+struct DummyDataBlockMap : public bake::BakeDataBlockMap {
+ private:
+  std::mutex mutex_;
+  Map<bake::BakeDataBlockID, ID *> map_;
+
+ public:
+  ID *lookup_or_remember_missing(const bake::BakeDataBlockID &key) override
+  {
+    std::lock_guard lock{mutex_};
+    return map_.lookup_default(key, nullptr);
+  }
+
+  void try_add(ID &id) override
+  {
+    std::lock_guard lock{mutex_};
+    map_.add(bake::BakeDataBlockID(id), &id);
+  }
+};
+
 class LazyFunctionForBakeNode final : public LazyFunction {
   const bNode &node_;
   Span<NodeGeometryBakeItem> bake_items_;
@@ -298,7 +325,8 @@ class LazyFunctionForBakeNode final : public LazyFunction {
       return;
     }
     if (found_id->is_in_loop) {
-      this->set_default_outputs(params);
+      DummyDataBlockMap data_block_map;
+      this->pass_through(params, user_data, &data_block_map);
       return;
     }
     BakeNodeBehavior *behavior = user_data.call_data->bake_params->get(found_id->id);
@@ -511,59 +539,19 @@ class LazyFunctionForBakeNode final : public LazyFunction {
         r_output_values);
   }
 
-  std::shared_ptr<AnonymousAttributeFieldInput> make_attribute_field(
-      const Object &self_object,
-      const ComputeContext &compute_context,
-      const NodeGeometryBakeItem &item,
-      const CPPType &type) const
+  std::shared_ptr<AttributeFieldInput> make_attribute_field(const Object &self_object,
+                                                            const ComputeContext &compute_context,
+                                                            const NodeGeometryBakeItem &item,
+                                                            const CPPType &type) const
   {
-    AnonymousAttributeIDPtr attribute_id = AnonymousAttributeIDPtr(
-        MEM_new<NodeAnonymousAttributeID>(__func__,
-                                          self_object,
-                                          compute_context,
-                                          node_,
-                                          std::to_string(item.identifier),
-                                          item.name));
-    return std::make_shared<AnonymousAttributeFieldInput>(
-        attribute_id, type, node_.label_or_name());
+    std::string attribute_name = bke::hash_to_anonymous_attribute_name(
+        compute_context.hash(), self_object.id.name, node_.identifier, item.identifier);
+    std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
+        node_.label_or_name(), item.name);
+    return std::make_shared<AttributeFieldInput>(
+        std::move(attribute_name), type, std::move(socket_inspection_name));
   }
 };
-
-static void draw_bake_button(uiLayout *layout, const BakeDrawContext &ctx)
-{
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayout *row = uiLayoutRow(col, true);
-  {
-    PointerRNA ptr;
-    uiItemFullO(row,
-                "OBJECT_OT_geometry_node_bake_single",
-                IFACE_("Bake"),
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
-    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
-  }
-  {
-    uiLayout *subrow = uiLayoutRow(row, true);
-    uiLayoutSetActive(subrow, ctx.is_baked);
-    PointerRNA ptr;
-    uiItemFullO(subrow,
-                "OBJECT_OT_geometry_node_bake_delete_single",
-                "",
-                ICON_TRASH,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
-    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
-  }
-}
 
 static void node_extra_info(NodeExtraInfoParams &params)
 {
@@ -593,7 +581,7 @@ static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
     uiLayoutSetEnabled(row, !ctx.is_baked);
     uiItemR(row, &ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
   }
-  draw_bake_button(col, ctx);
+  draw_bake_button_row(ctx, col);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -616,42 +604,14 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
       uiItemR(row, &ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
     }
 
-    draw_bake_button(col, ctx);
-    if (ctx.is_baked) {
-      const std::string label = get_baked_string(ctx);
-      uiItemL(col, label.c_str(), ICON_NONE);
+    draw_bake_button_row(ctx, col, true);
+    if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
+      uiLayout *row = uiLayoutRow(col, true);
+      uiItemL(row, bake_state_str->c_str(), ICON_NONE);
     }
   }
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  {
-    uiLayout *settings_col = uiLayoutColumn(layout, false);
-    uiLayoutSetEnabled(settings_col, !ctx.is_baked);
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(
-          col, &ctx.bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH);
-      uiItemR(subcol, &ctx.bake_rna, "directory", UI_ITEM_NONE, IFACE_("Path"), ICON_NONE);
-    }
-    if (!ctx.bake_still) {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(col,
-              &ctx.bake_rna,
-              "use_custom_simulation_frame_range",
-              UI_ITEM_NONE,
-              IFACE_("Custom Range"),
-              ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol,
-                        ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
-      uiItemR(subcol, &ctx.bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-      uiItemR(subcol, &ctx.bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
-    }
-  }
-
+  draw_common_bake_settings(C, ctx, layout);
   draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
@@ -692,7 +652,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -759,9 +719,13 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       }
     }
   }
-
-  r_ctx.bake_still = r_ctx.bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL;
+  const Scene *scene = CTX_data_scene(C);
+  r_ctx.frame_range = bke::bake::get_node_bake_frame_range(
+      *scene, *r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
+  r_ctx.bake_still = node.type == GEO_NODE_BAKE &&
+                     r_ctx.bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL;
   r_ctx.is_baked = r_ctx.baked_range.has_value();
+  r_ctx.bake_target = bke::bake::get_node_bake_target(*r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
 
   return true;
 }
@@ -772,6 +736,176 @@ std::string get_baked_string(const BakeDrawContext &ctx)
     return fmt::format(RPT_("Baked Frame {}"), ctx.baked_range->first());
   }
   return fmt::format(RPT_("Baked {} - {}"), ctx.baked_range->first(), ctx.baked_range->last());
+}
+
+std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx)
+{
+  if (G.is_rendering) {
+    /* Avoid accessing data that is generated while baking. */
+    return std::nullopt;
+  }
+  if (ctx.is_baked) {
+    const std::string baked_str = get_baked_string(ctx);
+    char size_str[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
+    BLI_str_format_byte_unit(size_str, ctx.bake->bake_size, true);
+    if (ctx.bake->packed) {
+      return fmt::format(RPT_("{} ({} packed)"), baked_str, size_str);
+    }
+    return fmt::format(RPT_("{} ({} on disk)"), baked_str, size_str);
+  }
+  if (ctx.frame_range.has_value()) {
+    if (!ctx.bake_still) {
+      return fmt::format(
+          RPT_("Frames {} - {}"), ctx.frame_range->first(), ctx.frame_range->last());
+    }
+  }
+  return std::nullopt;
+}
+
+void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bool is_in_sidebar)
+{
+  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *row = uiLayoutRow(col, true);
+  {
+    const char *bake_label = IFACE_("Bake");
+    if (is_in_sidebar) {
+      bake_label = ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? IFACE_("Bake to Disk") :
+                                                                        IFACE_("Bake Packed");
+    }
+
+    PointerRNA ptr;
+    uiItemFullO(row,
+                "OBJECT_OT_geometry_node_bake_single",
+                bake_label,
+                ICON_NONE,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &ptr);
+    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+  }
+  {
+    uiLayout *subrow = uiLayoutRow(row, true);
+    uiLayoutSetActive(subrow, ctx.is_baked);
+    if (is_in_sidebar) {
+      if (ctx.is_baked && !G.is_rendering) {
+        if (ctx.bake->packed) {
+          PointerRNA ptr;
+          uiItemFullO(subrow,
+                      "OBJECT_OT_geometry_node_bake_unpack_single",
+                      "",
+                      ICON_PACKAGE,
+                      nullptr,
+                      WM_OP_INVOKE_DEFAULT,
+                      UI_ITEM_NONE,
+                      &ptr);
+          WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+          RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+          RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+        }
+        else {
+          PointerRNA ptr;
+          uiItemFullO(subrow,
+                      "OBJECT_OT_geometry_node_bake_pack_single",
+                      "",
+                      ICON_UGLYPACKAGE,
+                      nullptr,
+                      WM_OP_INVOKE_DEFAULT,
+                      UI_ITEM_NONE,
+                      &ptr);
+          WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+          RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+          RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+        }
+      }
+      else {
+        /* If the data is not yet baked, still show the icon based on the derived bake target.*/
+        const int icon = ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? ICON_UGLYPACKAGE :
+                                                                              ICON_PACKAGE;
+        PointerRNA ptr;
+        uiItemFullO(subrow,
+                    "OBJECT_OT_geometry_node_bake_pack_single",
+                    "",
+                    icon,
+                    nullptr,
+                    WM_OP_INVOKE_DEFAULT,
+                    UI_ITEM_NONE,
+                    &ptr);
+      }
+    }
+    {
+      PointerRNA ptr;
+      uiItemFullO(subrow,
+                  "OBJECT_OT_geometry_node_bake_delete_single",
+                  "",
+                  ICON_TRASH,
+                  nullptr,
+                  WM_OP_INVOKE_DEFAULT,
+                  UI_ITEM_NONE,
+                  &ptr);
+      WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+      RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+      RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+    }
+  }
+}
+
+void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, uiLayout *layout)
+{
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiLayout *settings_col = uiLayoutColumn(layout, false);
+  uiLayoutSetActive(settings_col, !ctx.is_baked);
+  {
+    uiLayout *col = uiLayoutColumn(settings_col, true);
+    uiItemR(col, &ctx.bake_rna, "bake_target", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiLayout *subcol = uiLayoutColumn(col, true);
+    uiLayoutSetActive(subcol, ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK);
+    uiItemR(
+        subcol, &ctx.bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
+    uiLayout *subsubcol = uiLayoutColumn(subcol, true);
+    const bool use_custom_path = ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH;
+    uiLayoutSetActive(subsubcol, use_custom_path);
+    Main *bmain = CTX_data_main(C);
+    auto bake_path = bke::bake::get_node_bake_path(*bmain, *ctx.object, *ctx.nmd, ctx.bake->id);
+
+    char placeholder_path[FILE_MAX] = "";
+    if (StringRef(ctx.bake->directory).is_empty() &&
+        !(ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH) && bake_path.has_value() &&
+        bake_path->bake_dir.has_value())
+    {
+      STRNCPY(placeholder_path, bake_path->bake_dir->c_str());
+      if (BLI_path_is_rel(ctx.nmd->bake_directory)) {
+        BLI_path_rel(placeholder_path, BKE_main_blendfile_path(bmain));
+      }
+    }
+
+    uiItemFullR(subsubcol,
+                &ctx.bake_rna,
+                RNA_struct_find_property(&ctx.bake_rna, "directory"),
+                -1,
+                0,
+                UI_ITEM_NONE,
+                IFACE_("Path"),
+                ICON_NONE,
+                placeholder_path);
+  }
+  {
+    uiLayout *col = uiLayoutColumn(settings_col, true);
+    uiItemR(col,
+            &ctx.bake_rna,
+            "use_custom_simulation_frame_range",
+            UI_ITEM_NONE,
+            IFACE_("Custom Range"),
+            ICON_NONE);
+    uiLayout *subcol = uiLayoutColumn(col, true);
+    uiLayoutSetActive(subcol, ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
+    uiItemR(subcol, &ctx.bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+    uiItemR(subcol, &ctx.bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  }
 }
 
 static void draw_bake_data_block_list_item(uiList * /*ui_list*/,

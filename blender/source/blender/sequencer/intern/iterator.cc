@@ -87,27 +87,10 @@ static void query_all_strips_recursive(const ListBase *seqbase, VectorSet<Sequen
   }
 }
 
-static void query_all_meta_strips_recursive(const ListBase *seqbase, VectorSet<Sequence *> &strips)
-{
-  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    if (seq->type == SEQ_TYPE_META) {
-      query_all_meta_strips_recursive(&seq->seqbase, strips);
-      strips.add(seq);
-    }
-  }
-}
-
 VectorSet<Sequence *> SEQ_query_all_strips_recursive(const ListBase *seqbase)
 {
   VectorSet<Sequence *> strips;
   query_all_strips_recursive(seqbase, strips);
-  return strips;
-}
-
-VectorSet<Sequence *> SEQ_query_all_meta_strips_recursive(const ListBase *seqbase)
-{
-  VectorSet<Sequence *> strips;
-  query_all_meta_strips_recursive(seqbase, strips);
   return strips;
 }
 
@@ -243,16 +226,11 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
     if (reference_strip->seq2) {
       SEQ_query_strip_effect_chain(scene, reference_strip->seq2, seqbase, strips);
     }
-    if (reference_strip->seq3) {
-      SEQ_query_strip_effect_chain(scene, reference_strip->seq3, seqbase, strips);
-    }
   }
 
   /* Find all strips connected to reference_strip. */
   LISTBASE_FOREACH (Sequence *, seq_test, seqbase) {
-    if (seq_test->seq1 == reference_strip || seq_test->seq2 == reference_strip ||
-        seq_test->seq3 == reference_strip)
-    {
+    if (seq_test->seq1 == reference_strip || seq_test->seq2 == reference_strip) {
       SEQ_query_strip_effect_chain(scene, seq_test, seqbase, strips);
     }
   }

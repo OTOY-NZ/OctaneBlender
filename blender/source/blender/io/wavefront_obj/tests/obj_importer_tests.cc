@@ -204,7 +204,7 @@ TEST_F(OBJImportTest, import_cube)
        24,
        float3(-1, -1, 1),
        float3(1, -1, -1),
-       float3(-0.57735f, 0.57735f, -0.57735f)},
+       float3(-0.57758f, 0.57735f, -0.57711f)},
   };
   import_and_check("cube.obj", expect, std::size(expect), 1);
 }
@@ -222,7 +222,7 @@ TEST_F(OBJImportTest, import_cube_o_after_verts)
           24,
           float3(-1, -1, 1),
           float3(1, -1, -1),
-          float3(0, 0, 1),
+          float3(0.57735f, -0.57735f, 0.57735f),
       },
       {
           "OBSparseTri",
@@ -851,6 +851,36 @@ TEST_F(OBJImportTest, import_cubes_vertex_colors_mrgb)
       },
   };
   import_and_check("cubes_vertex_colors_mrgb.obj", expect, std::size(expect), 0);
+}
+
+TEST_F(OBJImportTest, import_vertex_colors_non_contiguous)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBNoColor",
+       OB_MESH,
+       3,
+       3,
+       1,
+       3,
+       float3(0, 0, 1),
+       float3(1, 0, 1),
+       float3(0, 0, 0),
+       float2(0, 0),
+       float4(-1, -1, -1, -1)},
+      {"OBRed",
+       OB_MESH,
+       3,
+       3,
+       1,
+       3,
+       float3(0, 0, 0),
+       float3(1, 0, 0),
+       float3(0, 0, 0),
+       float2(0, 0),
+       float4(1, 0, 0, 1)},
+  };
+  import_and_check("vertex_colors_non_contiguous.obj", expect, std::size(expect), 0);
 }
 
 TEST_F(OBJImportTest, import_vertices)

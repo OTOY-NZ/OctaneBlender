@@ -668,11 +668,12 @@ class OctaneGraphNode(object):
             parent_group_node = ancestor_list[-1]
             if from_socket.name in parent_group_node.inputs:
                 # Override mapped nodes
-                octane_graph_node_socket.mapping_socket = parent_group_node.inputs[from_socket.name]
-                if octane_graph_node_socket.mapping_socket.is_linked:
+                mapping_socket = parent_group_node.inputs[from_socket.name]
+                octane_graph_node_socket.mapping_socket = mapping_socket
+                if mapping_socket.is_linked:
                     ancestor_list = copy.copy(ancestor_list)
                     ancestor_list = ancestor_list[:-1]
-                    return OctaneGraphNode.resolve_link(octane_graph_node_socket.mapping_socket.links[0], ancestor_list,
+                    return OctaneGraphNode.resolve_link(mapping_socket.links[0], ancestor_list,
                                                         octane_graph_node_socket)
             return None
         elif isinstance(from_node, bpy.types.NodeReroute):
@@ -697,6 +698,9 @@ class OctaneGraphNode(object):
             octane_graph_node_socket.linked_node_octane_name = octane_graph_node.octane_name
         else:
             octane_graph_node_socket.linked_node_octane_name = ""
+        # Clear the mapping socket if the origin link is not from the group input
+        if not isinstance(origin_link.from_node, bpy.types.NodeGroupInput):
+            octane_graph_node_socket.mapping_socket = None
         self.octane_complicated_sockets[socket.name] = octane_graph_node_socket
         return octane_graph_node
 
@@ -1581,9 +1585,28 @@ def find_smoke_domain_modifier(_object):
     return None
 
 
+def object_fluid_gas_domain_find(object_):
+    for mod in object_.modifiers:
+        if mod.type == "FLUID":
+            if mod.fluid_type == "DOMAIN" and mod.domain_settings.domain_type == "GAS":
+                return mod
+    return None
+
+
+def object_is_modified(b_ob, b_scene, is_viewport):
+    if b_ob.type == "META":
+        return True
+    if b_ob.is_modified(b_scene, "PREVIEW" if is_viewport else "RENDER"):
+        return True
+    for b_slot in b_ob.material_slots:
+        if b_slot.link == "OBJECT":
+            return True
+    return False
+
+
 def is_reshapable_modifiers_applied(_object):
     for mod in _object.modifiers:
-        if mod.type in ("ARMATURE",):
+        if mod.type in ("ARMATURE", "NODES", ):
             return True
     return False
 

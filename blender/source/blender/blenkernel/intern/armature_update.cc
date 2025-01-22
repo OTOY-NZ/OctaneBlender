@@ -20,7 +20,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_path.h"
 #include "BKE_armature.hh"
 #include "BKE_curve.hh"
@@ -675,7 +675,7 @@ static void splineik_evaluate_bone(
             }
           }
 
-          /* Compute scale factor for xz axes from this value. */
+          /* Compute scale factor for XZ axes from this value. */
           final_scale = sqrtf(bulge);
         }
         else {

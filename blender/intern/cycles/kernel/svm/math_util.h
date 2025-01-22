@@ -34,10 +34,10 @@ ccl_device void svm_vector_math(ccl_private float *value,
       *vector = project(a, b);
       break;
     case NODE_VECTOR_MATH_REFLECT:
-      *vector = reflect(a, b);
+      *vector = reflect(a, safe_normalize(b));
       break;
     case NODE_VECTOR_MATH_REFRACT:
-      *vector = refract(a, normalize(b), param1);
+      *vector = refract(a, safe_normalize(b), param1);
       break;
     case NODE_VECTOR_MATH_FACEFORWARD:
       *vector = faceforward(a, b, c);
@@ -237,6 +237,24 @@ ccl_device_inline float3 svm_math_gamma_color(float3 color, float gamma)
     color.y = powf(color.y, gamma);
   if (color.z > 0.0f)
     color.z = powf(color.z, gamma);
+
+  return color;
+}
+
+ccl_device float3 svm_math_wavelength_color_xyz(float lambda_nm)
+{
+  float ii = (lambda_nm - 380.0f) * (1.0f / 5.0f);  // scaled 0..80
+  int i = float_to_int(ii);
+  float3 color;
+
+  if (i < 0 || i >= 80) {
+    color = make_float3(0.0f, 0.0f, 0.0f);
+  }
+  else {
+    ii -= i;
+    ccl_constant float *c = cie_color_match[i];
+    color = interp(make_float3(c[0], c[1], c[2]), make_float3(c[3], c[4], c[5]), ii);
+  }
 
   return color;
 }

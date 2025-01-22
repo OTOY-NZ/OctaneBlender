@@ -626,7 +626,9 @@ static bool material_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   /* Ensure item under cursor is valid drop target */
   Material *ma = (Material *)WM_drag_get_local_ID(drag, ID_MA);
-  return (ma && (outliner_ID_drop_find(C, event, ID_OB) != nullptr));
+  Object *ob = reinterpret_cast<Object *>(outliner_ID_drop_find(C, event, ID_OB));
+
+  return (!ELEM(nullptr, ob, ma) && ID_IS_EDITABLE(&ob->id) && !ID_IS_OVERRIDE_LIBRARY(&ob->id));
 }
 
 static int material_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
@@ -635,7 +637,7 @@ static int material_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
   Object *ob = (Object *)outliner_ID_drop_find(C, event, ID_OB);
   Material *ma = (Material *)WM_drag_get_local_ID_from_event(event, ID_MA);
 
-  if (ELEM(nullptr, ob, ma)) {
+  if (ELEM(nullptr, ob, ma) || !BKE_id_is_editable(bmain, &ob->id)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -968,21 +970,13 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
 
   switch (drop_data->drag_tselem->type) {
     case TSE_MODIFIER:
-      if (drop_data->ob_parent->type == OB_GPENCIL_LEGACY && ob_dst->type == OB_GPENCIL_LEGACY) {
-        object::gpencil_modifier_copy_to_object(
-            ob_dst, static_cast<GpencilModifierData *>(drop_data->drag_directdata));
-      }
-      else if (drop_data->ob_parent->type != OB_GPENCIL_LEGACY &&
-               ob_dst->type != OB_GPENCIL_LEGACY)
-      {
-        object::modifier_copy_to_object(
-            bmain,
-            CTX_data_scene(C),
-            drop_data->ob_parent,
-            static_cast<const ModifierData *>(drop_data->drag_directdata),
-            ob_dst,
-            CTX_wm_reports(C));
-      }
+      object::modifier_copy_to_object(
+          bmain,
+          CTX_data_scene(C),
+          drop_data->ob_parent,
+          static_cast<const ModifierData *>(drop_data->drag_directdata),
+          ob_dst,
+          CTX_wm_reports(C));
       break;
     case TSE_CONSTRAINT:
       if (tselem->type == TSE_POSE_CHANNEL) {
@@ -1025,21 +1019,13 @@ static void datastack_drop_reorder(bContext *C, ReportList *reports, StackDropDa
   int index = 0;
   switch (drop_data->drag_tselem->type) {
     case TSE_MODIFIER:
-      if (ob->type == OB_GPENCIL_LEGACY) {
-        index = outliner_get_insert_index(
-            drag_te, drop_te, insert_type, &ob->greasepencil_modifiers);
-        object::gpencil_modifier_move_to_index(
-            reports, ob, static_cast<GpencilModifierData *>(drop_data->drag_directdata), index);
-      }
-      else {
-        index = outliner_get_insert_index(drag_te, drop_te, insert_type, &ob->modifiers);
-        object::modifier_move_to_index(reports,
-                                       RPT_WARNING,
-                                       ob,
-                                       static_cast<ModifierData *>(drop_data->drag_directdata),
-                                       index,
-                                       true);
-      }
+      index = outliner_get_insert_index(drag_te, drop_te, insert_type, &ob->modifiers);
+      object::modifier_move_to_index(reports,
+                                     RPT_WARNING,
+                                     ob,
+                                     static_cast<ModifierData *>(drop_data->drag_directdata),
+                                     index,
+                                     true);
       break;
     case TSE_CONSTRAINT:
       if (drop_data->pchan_parent) {

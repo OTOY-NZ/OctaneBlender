@@ -333,9 +333,6 @@ typedef struct bGPDstroke {
   /** Curve used to edit the stroke using Bezier handlers. */
   struct bGPDcurve *editcurve;
 
-  /* NOTE: When adding new members, make sure to add them to BKE_gpencil_stroke_copy_settings as
-   * well! */
-
   bGPDstroke_Runtime runtime;
   void *_pad5;
 } bGPDstroke;
@@ -428,9 +425,6 @@ typedef struct bGPDframe {
   short flag;
   /** Keyframe type (eBezTriple_KeyframeType). */
   short key_type;
-
-  /* NOTE: When adding new members, make sure to add them to BKE_gpencil_frame_copy_settings as
-   * well! */
 
   bGPDframe_Runtime runtime;
 } bGPDframe;
@@ -561,9 +555,6 @@ typedef struct bGPDlayer {
   float layer_mat[4][4], layer_invmat[4][4];
   char _pad3[4];
 
-  /* NOTE: When adding new members, make sure to add them to BKE_gpencil_layer_copy_settings as
-   * well! */
-
   bGPDlayer_Runtime runtime;
 } bGPDlayer;
 
@@ -603,6 +594,7 @@ typedef enum eGPDlayer_Flag {
 typedef enum eGPDlayer_OnionFlag {
   /* do onion skinning */
   GP_LAYER_ONIONSKIN = (1 << 0),
+  GP_LAYER_ONIONSKIN_CUSTOM_COLOR = (1 << 1),
 } eGPDlayer_OnionFlag;
 
 /** #bGPDlayer.blend_mode */
@@ -767,9 +759,6 @@ typedef struct bGPdata {
   int vertex_group_active_index;
 
   bGPgrid grid;
-
-  /* NOTE: When adding new members, make sure to add them to BKE_gpencil_data_copy_settings as
-   * well! */
 
   bGPdata_Runtime runtime;
 } bGPdata;

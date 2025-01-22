@@ -34,8 +34,7 @@ int ViewShape_Init(PyObject *module)
   if (PyType_Ready(&ViewShape_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&ViewShape_Type);
-  PyModule_AddObject(module, "ViewShape", (PyObject *)&ViewShape_Type);
+  PyModule_AddObjectRef(module, "ViewShape", (PyObject *)&ViewShape_Type);
 
   return 0;
 }
@@ -208,7 +207,7 @@ PyDoc_STRVAR(
     ViewShape_vertices_doc,
     "The list of ViewVertex objects contained in this ViewShape.\n"
     "\n"
-    ":type: List of :class:`ViewVertex` objects");
+    ":type: List of :class:`ViewVertex`");
 
 static PyObject *ViewShape_vertices_get(BPy_ViewShape *self, void * /*closure*/)
 {
@@ -253,7 +252,7 @@ PyDoc_STRVAR(
     ViewShape_edges_doc,
     "The list of ViewEdge objects contained in this ViewShape.\n"
     "\n"
-    ":type: List of :class:`ViewEdge` objects");
+    ":type: List of :class:`ViewEdge`");
 
 static PyObject *ViewShape_edges_get(BPy_ViewShape *self, void * /*closure*/)
 {

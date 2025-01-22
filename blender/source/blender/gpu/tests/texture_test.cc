@@ -65,6 +65,11 @@ GPU_TEST(texture_read)
 
 static void test_texture_1d()
 {
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL) &&
+      G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS)
+  {
+    GTEST_SKIP() << "OpenGL texture clearing workaround doesn't support 1d textures.";
+  }
   const int SIZE = 32;
   GPU_render_begin();
 
@@ -331,7 +336,10 @@ static void texture_create_upload_read()
     GTEST_SKIP() << "Platform doesn't support texture format [" << STRINGIFY(DeviceFormat) << "]";
   }
 
-  size_t data_len = Size * Size * to_component_len(DeviceFormat);
+  size_t data_len = Size * Size *
+                    (HostFormat == GPU_DATA_10_11_11_REV ? to_bytesize(HostFormat) :
+                                                           to_component_len(DeviceFormat));
+
   DataType *data = static_cast<DataType *>(generate_test_data<DataType>(data_len));
   GPU_texture_update(texture, HostFormat, data);
 

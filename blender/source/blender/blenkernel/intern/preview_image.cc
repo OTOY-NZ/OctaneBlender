@@ -99,7 +99,7 @@ void BKE_previewimg_free(PreviewImage **prv)
     }
 
     MEM_delete((*prv)->runtime);
-    MEM_delete(*prv);
+    MEM_freeN(*prv);
     *prv = nullptr;
   }
 }
@@ -153,7 +153,8 @@ PreviewImage *BKE_previewimg_copy(const PreviewImage *prv)
     return nullptr;
   }
 
-  PreviewImage *prv_img = MEM_new<PreviewImage>(__func__, blender::dna::shallow_copy(*prv));
+  PreviewImage *prv_img = static_cast<PreviewImage *>(MEM_mallocN(sizeof(PreviewImage), __func__));
+  *prv_img = blender::dna::shallow_copy(*prv);
   prv_img->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__, *prv->runtime);
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
@@ -406,7 +407,7 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
       icon_w = icon_h = ICON_RENDER_DEFAULT_HEIGHT;
     }
 
-    IMB_scaleImBuf(thumb, icon_w, icon_h);
+    IMB_scale(thumb, icon_w, icon_h, IMBScaleFilter::Box, false);
     prv->w[ICON_SIZE_ICON] = icon_w;
     prv->h[ICON_SIZE_ICON] = icon_h;
     prv->rect[ICON_SIZE_ICON] = (uint *)MEM_dupallocN(thumb->byte_buffer.data);

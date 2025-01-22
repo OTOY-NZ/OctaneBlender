@@ -167,7 +167,7 @@ enum eTModifier {
   MOD_SNAP_FORCED = 1 << 6,
   MOD_EDIT_SNAP_SOURCE = 1 << 7,
 };
-ENUM_OPERATORS(eTModifier, MOD_NODE_ATTACH)
+ENUM_OPERATORS(eTModifier, MOD_EDIT_SNAP_SOURCE)
 
 /** #TransSnap.status */
 enum eTSnap {
@@ -178,6 +178,14 @@ enum eTSnap {
   SNAP_MULTI_POINTS = 1 << 2,
 };
 ENUM_OPERATORS(eTSnap, SNAP_MULTI_POINTS)
+
+/** #TransSnap.direction */
+enum eSnapDir {
+  DIR_GLOBAL_X = (1 << 0),
+  DIR_GLOBAL_Y = (1 << 1),
+  DIR_GLOBAL_Z = (1 << 2),
+};
+ENUM_OPERATORS(eSnapDir, DIR_GLOBAL_Z)
 
 /** #TransCon.mode, #TransInfo.con.mode */
 enum eTConstraint {
@@ -311,6 +319,8 @@ struct TransSnap {
   /* Snapped Element Type (currently for objects only). */
   eSnapMode source_type;
   eSnapMode target_type;
+  /* For independent snapping in different directions (currently used only by VSE preview). */
+  eSnapDir direction;
   /** Snapping from this point (in global-space). */
   float snap_source[3];
   /** To this point (in global-space). */
@@ -717,6 +727,7 @@ void transform_final_value_get(const TransInfo *t, float *value, int value_num);
 /** \name General Utils
  * \{ */
 
+/** Calculates projection vector based on a location. */
 void transform_view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3]);
 bool transdata_check_local_islands(TransInfo *t, short around);
 
@@ -754,7 +765,7 @@ void transform_input_update(TransInfo *t, const float fac);
 void transform_input_virtual_mval_reset(TransInfo *t);
 void transform_input_reset(TransInfo *t, const blender::float2 &mval);
 
-void setCustomPoints(TransInfo *t, MouseInput *mi, const int start[2], const int end[2]);
+void setCustomPoints(TransInfo *t, MouseInput *mi, const int mval_start[2], const int mval_end[2]);
 void setCustomPointsFromDirection(TransInfo *t, MouseInput *mi, const blender::float2 &dir);
 void setInputPostFct(MouseInput *mi, void (*post)(TransInfo *t, float values[3]));
 
@@ -801,7 +812,7 @@ void calculateCenter(TransInfo *t);
  * Called every time the view changes due to navigation.
  * Adjusts the mouse position relative to the object.
  */
-void tranformViewUpdate(TransInfo *t);
+void transformViewUpdate(TransInfo *t);
 
 /* API functions for getting center points. */
 void calculateCenterBound(TransInfo *t, float r_center[3]);

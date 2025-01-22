@@ -11,15 +11,22 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
+#include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_compat.h"
 #include "BLI_function_ref.hh"
+#include "BLI_generic_span.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_customdata_types.h"
@@ -32,153 +39,324 @@
 
 struct BMLog;
 struct BMesh;
-struct CCGElem;
 struct CCGKey;
-struct CustomData;
+struct Depsgraph;
 struct IsectRayPrecalc;
 struct Mesh;
-struct PBVH;
-struct PBVHNode;
 struct SubdivCCG;
+struct SubdivCCGCoord;
 struct Image;
 struct ImageUser;
+struct Object;
 namespace blender {
-namespace bke {
-enum class AttrDomain : int8_t;
-}
-namespace draw::pbvh {
-struct PBVHBatches;
-struct PBVH_GPU_Args;
-}  // namespace draw::pbvh
+namespace bke::pbvh {
+class Node;
+class Tree;
+namespace pixels {
+struct PBVHData;
+struct NodeData;
+}  // namespace pixels
+}  // namespace bke::pbvh
 }  // namespace blender
 
-struct PBVHProxyNode {
-  blender::Vector<blender::float3> co;
-};
+namespace blender::bke::pbvh {
 
-struct PBVHColorBufferNode {
-  float (*color)[4] = nullptr;
-};
+class Tree;
 
-struct PBVHPixels {
+/**
+ * \todo Most data is public but should either be removed or become private in the future.
+ * The "_" suffix means that fields shouldn't be used by consumers of the `bke::pbvh` API.
+ */
+class Node {
+  friend Tree;
+
+ public:
+  /** Axis aligned min and max of all vertex positions in the node. */
+  Bounds<float3> bounds_ = {};
+  /** Bounds from the start of current brush stroke. */
+  Bounds<float3> bounds_orig_ = {};
+
+  /* For internal nodes, the offset of the children in the blender::bke::pbvh::Tree
+   * 'nodes' array. */
+  int children_offset_ = 0;
+
+  /* Indicates whether this node is a leaf or not; also used for
+   * marking various updates that need to be applied. */
+  PBVHNodeFlags flag_ = PBVH_UpdateRedraw;
+
   /**
-   * Storage for texture painting on PBVH level.
-   *
-   * Contains #blender::bke::pbvh::pixels::PBVHData
+   * Used for ray-casting: how close the bounding-box is to the ray point.
+   * \todo Remove and store elsewhere.
    */
-  void *data;
+  float tmin_ = 0.0f;
+
+  /**
+   * Used to flash colors of updated node bounding boxes in
+   * debug draw mode (when G.debug_value / bpy.app.debug_value is 889).
+   * \todo Remove and store elsewhere.
+   */
+  int debug_draw_gen_ = 0;
+
+  /** \todo Move storage of image painting data to #Tree or elsewhere. */
+  pixels::NodeData *pixels_ = nullptr;
 };
 
-struct PBVHPixelsNode {
+struct MeshNode : public Node {
   /**
-   * Contains triangle/pixel data used during texture painting.
-   *
-   * Contains #blender::bke::pbvh::pixels::NodeData.
+   * Use a 16 bit integer for the slot index type because there will always be less than
+   * #leaf_limit vertices in a node.
    */
-  void *node_data = nullptr;
+  using LocalVertMapIndexT = int16_t;
+  /**
+   * Global vertices are mapped to local indices with a vector set, with a specialized type in
+   * order to use 32 bit integers for slot values. .
+   */
+  using LocalVertMap = VectorSet<int,
+                                 DefaultProbingStrategy,
+                                 DefaultHash<int>,
+                                 DefaultEquality<int>,
+                                 SimpleVectorSetSlot<int, LocalVertMapIndexT>,
+                                 GuardedAllocator>;
+
+  /** Indices into the #Mesh::faces() array. Refers to a subset of Tree::prim_indices_. */
+  Span<int> face_indices_;
+
+  /**
+   * Array of indices into the mesh's vertex array. Contains the
+   * indices of all vertices used by faces that are within this
+   * node's bounding box.
+   *
+   * Note that a vertex might be used by a multiple faces, and
+   * these faces might be in different leaf nodes. Such a vertex
+   * will appear in the vert_indices array of each of those leaf
+   * nodes.
+   *
+   * In order to support cases where you want access to multiple
+   * nodes' vertices without duplication, the vert_indices array
+   * is ordered such that the first part of the array, up to
+   * index 'uniq_verts', contains "unique" vertex indices. These
+   * vertices might not be truly unique to this node, but if
+   * they appear in another node's vert_indices array, they will
+   * be above that node's 'uniq_verts' value.
+   *
+   * Used for leaf nodes.
+   *
+   * \todo Find a way to disable the #VectorSet inline buffer.
+   */
+  LocalVertMap vert_indices_;
+  /** The number of vertices in #vert_indices not shared with (owned by) another node. */
+  int unique_verts_num_ = 0;
+  /**
+   * The number of corners in all of the node's referenced faces. This value can easily be
+   * recalculated but currently it's faster to avoid that and store it here.
+   */
+  int corners_num_;
+
+  /** Return the faces contained by the node. */
+  Span<int> faces() const;
+  /** Return the "unique" vertices owned by the node, excluding vertices owned by other nodes. */
+  Span<int> verts() const;
+  /**
+   * Return all vertices used by faces in this node. The same as #verts(), with the shared
+   * vertices added at the end of the array.
+   */
+  Span<int> all_verts() const;
+
+  /** The number of corners in all of the node's faces. */
+  int corners_num() const;
 };
+
+struct GridsNode : public Node {
+  /** Multires grid indices for this node. Refers to a subset of Tree::prim_indices_. */
+  Span<int> prim_indices_;
+
+  /** Return grid indices contained by the node. */
+  Span<int> grids() const;
+};
+
+struct BMeshNode : public Node {
+  /* Set of pointers to the BMFaces used by this node.
+   * NOTE: Type::BMesh only. Faces are always triangles
+   * (dynamic topology forcibly triangulates the mesh).
+   */
+  Set<BMFace *, 0> bm_faces_;
+  Set<BMVert *, 0> bm_unique_verts_;
+  Set<BMVert *, 0> bm_other_verts_;
+
+  /* Stores original coordinates of triangles. */
+  Array<float3, 0> orig_positions_;
+  Array<int3, 0> orig_tris_;
+  Array<BMVert *, 0> orig_verts_;
+};
+
+class DrawCache {
+ public:
+  virtual ~DrawCache() = default;
+  virtual void tag_positions_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_visibility_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_topology_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_face_sets_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_masks_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name) = 0;
+};
+
+/**
+ * \todo Most data is public but should either be removed or become private in the future.
+ * The "_" suffix means that fields shouldn't be used by consumers of the `bke::pbvh` API.
+ */
+class Tree {
+  friend Node;
+  Type type_;
+
+  /** Memory backing for #Node::prim_indices. Without an inline buffer to make #Tree movable. */
+  Array<int, 0> prim_indices_;
+
+ public:
+  std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
+
+  /**
+   * If true, the bounds for the corresponding node index is out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> bounds_dirty_;
+
+  /**
+   * If true, the normals for the corresponding node index are out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> normals_dirty_;
+
+  /**
+   * If true, the visibility status for the corresponding node indices are out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> visibility_dirty_;
+
+  /** \todo Remove and store elsewhere. */
+  float planes_[6][4];
+  int num_planes_ = 0;
+
+  pixels::PBVHData *pixels_ = nullptr;
+
+  std::unique_ptr<DrawCache> draw_data;
+
+ public:
+  Tree(const Tree &other) = delete;
+  Tree(Tree &&other) = default;
+  Tree &operator=(const Tree &other) = delete;
+  Tree &operator=(Tree &&other) = default;
+  ~Tree();
+
+  /** Build a BVH tree from base mesh triangles. */
+  static Tree from_mesh(const Mesh &mesh);
+  /** Build a BVH tree from grids geometry. */
+  static Tree from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg);
+  /** Build a BVH tree from a triangle BMesh. */
+  static Tree from_bmesh(BMesh &bm);
+
+  int nodes_num() const;
+  template<typename NodeT> Span<NodeT> nodes() const;
+  template<typename NodeT> MutableSpan<NodeT> nodes();
+
+  Type type() const
+  {
+    return this->type_;
+  }
+
+  /**
+   * Mark data based on positions for specific BVH nodes dirty. In particular: bounds, normals,
+   * and GPU data buffers. That data is recomputed later on in functions like #update_bounds.
+   * \warning Must not be called from multiple threads in parallel.
+   */
+  void tag_positions_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where face or vertex visibility has changed.  */
+  void tag_visibility_changed(const IndexMask &node_mask);
+
+  /**
+   * Tag nodes that have a different number of vertices or faces (currently just for Type::BMesh).
+   */
+  void tag_topology_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where face sets have changed, causing refresh of derived data. */
+  void tag_face_sets_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where mask values have changed, causing refresh of derived data. */
+  void tag_masks_changed(const IndexMask &node_mask);
+
+  /**
+   * Tag nodes where generic attribute data has changed (not positions, masks, or face sets).
+   */
+  void tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name);
+
+ private:
+  explicit Tree(Type type);
+};
+
+}  // namespace blender::bke::pbvh
 
 struct PBVHFrustumPlanes {
   float (*planes)[4];
   int num_planes;
 };
 
-BLI_INLINE BMesh *BKE_pbvh_get_bmesh(PBVH &pbvh)
-{
-  return ((PBVHPublic &)pbvh).bm;
-}
-
-Mesh *BKE_pbvh_get_mesh(PBVH &pbvh);
-
-BLI_INLINE PBVHVertRef BKE_pbvh_make_vref(intptr_t i)
-{
-  PBVHVertRef ret = {i};
-  return ret;
-}
-
-BLI_INLINE int BKE_pbvh_vertex_to_index(PBVH &pbvh, PBVHVertRef v)
-{
-  return (BKE_pbvh_type(pbvh) == PBVH_BMESH && v.i != PBVH_REF_NONE ?
-              BM_elem_index_get((BMVert *)(v.i)) :
-              (v.i));
-}
-
-BLI_INLINE PBVHVertRef BKE_pbvh_index_to_vertex(PBVH &pbvh, int index)
-{
-  switch (BKE_pbvh_type(pbvh)) {
-    case PBVH_FACES:
-    case PBVH_GRIDS:
-      return BKE_pbvh_make_vref(index);
-    case PBVH_BMESH:
-      return BKE_pbvh_make_vref((intptr_t)BKE_pbvh_get_bmesh(pbvh)->vtable[index]);
-  }
-
-  return BKE_pbvh_make_vref(PBVH_REF_NONE);
-}
-
 /* Callbacks */
 
 namespace blender::bke::pbvh {
 
-/**
- * Do a full rebuild with on Mesh data structure.
- */
-std::unique_ptr<PBVH> build_mesh(Mesh *mesh);
-void update_mesh_pointers(PBVH &pbvh, Mesh *mesh);
-/**
- * Do a full rebuild with on Grids data structure.
- */
-std::unique_ptr<PBVH> build_grids(const CCGKey *key, Mesh *mesh, SubdivCCG *subdiv_ccg);
-/**
- * Build a PBVH from a BMesh.
- */
-std::unique_ptr<PBVH> build_bmesh(BMesh *bm,
-                                  BMLog *log,
-                                  int cd_vert_node_offset,
-                                  int cd_face_node_offset);
-
-void update_bmesh_offsets(PBVH &pbvh, int cd_vert_node_offset, int cd_face_node_offset);
-
-void build_pixels(PBVH &pbvh, Mesh *mesh, Image *image, ImageUser *image_user);
-void free(std::unique_ptr<PBVH> &pbvh);
-
-/* Hierarchical Search in the BVH, two methods:
- * - For each hit calling a callback.
- * - Gather nodes in an array (easy to multi-thread) see blender::bke::pbvh::search_gather.
- */
-
-void search_callback(PBVH &pbvh,
-                     FunctionRef<bool(PBVHNode &)> filter_fn,
-                     FunctionRef<void(PBVHNode &)> hit_fn);
+void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user);
 
 /* Ray-cast
  * the hit callback is called for all leaf nodes intersecting the ray;
  * it's up to the callback to find the primitive within the leaves that is
  * hit first */
 
-void raycast(PBVH &pbvh,
-             FunctionRef<void(PBVHNode &node, float *tmin)> cb,
-             const float ray_start[3],
-             const float ray_normal[3],
+void raycast(Tree &pbvh,
+             FunctionRef<void(Node &node, float *tmin)> cb,
+             const float3 &ray_start,
+             const float3 &ray_normal,
              bool original);
 
-bool raycast_node(PBVH &pbvh,
-                  PBVHNode *node,
-                  float (*origco)[3],
-                  bool use_origco,
-                  Span<int> corner_verts,
-                  Span<int> corner_tri_faces,
-                  Span<bool> hide_poly,
-                  const float ray_start[3],
-                  const float ray_normal[3],
-                  IsectRayPrecalc *isect_precalc,
-                  float *depth,
-                  PBVHVertRef *active_vertex,
-                  int *active_face_grid_index,
-                  float *face_normal);
+bool node_raycast_mesh(const MeshNode &node,
+                       Span<float3> node_positions,
+                       Span<float3> vert_positions,
+                       OffsetIndices<int> faces,
+                       Span<int> corner_verts,
+                       Span<int3> corner_tris,
+                       Span<bool> hide_poly,
+                       const float3 &ray_start,
+                       const float3 &ray_normal,
+                       IsectRayPrecalc *isect_precalc,
+                       float *depth,
+                       int &r_active_vertex,
+                       int &r_active_face_index,
+                       float3 &r_face_normal);
 
-bool bmesh_node_raycast_detail(PBVHNode *node,
-                               const float ray_start[3],
+bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
+                        GridsNode &node,
+                        Span<float3> node_positions,
+                        const float3 &ray_start,
+                        const float3 &ray_normal,
+                        const IsectRayPrecalc *isect_precalc,
+                        float *depth,
+                        SubdivCCGCoord &r_active_vertex,
+                        int &r_active_grid_index,
+                        float3 &r_face_normal);
+
+bool node_raycast_bmesh(BMeshNode &node,
+                        const float3 &ray_start,
+                        const float3 &ray_normal,
+                        IsectRayPrecalc *isect_precalc,
+                        float *depth,
+                        bool use_original,
+                        BMVert **r_active_vertex,
+                        float3 &r_face_normal);
+
+bool raycast_node_detail_bmesh(BMeshNode &node,
+                               const float3 &ray_start,
                                IsectRayPrecalc *isect_precalc,
                                float *depth,
                                float *r_edge_length);
@@ -194,45 +372,41 @@ bool bmesh_node_raycast_detail(PBVHNode *node,
  * clip_end's can easily lead to floating-point overflows.
  */
 void clip_ray_ortho(
-    PBVH &pbvh, bool original, float ray_start[3], float ray_end[3], float ray_normal[3]);
+    Tree &pbvh, bool original, float ray_start[3], float ray_end[3], float ray_normal[3]);
 
-void find_nearest_to_ray(PBVH &pbvh,
-                         const FunctionRef<void(PBVHNode &node, float *tmin)> fn,
-                         const float ray_start[3],
-                         const float ray_normal[3],
+void find_nearest_to_ray(Tree &pbvh,
+                         const FunctionRef<void(Node &node, float *tmin)> fn,
+                         const float3 &ray_start,
+                         const float3 &ray_normal,
                          bool original);
 
-bool find_nearest_to_ray_node(PBVH &pbvh,
-                              PBVHNode *node,
-                              float (*origco)[3],
+bool find_nearest_to_ray_node(Tree &pbvh,
+                              Node &node,
+                              Span<float3> node_positions,
                               bool use_origco,
+                              Span<float3> vert_positions,
+                              const OffsetIndices<int> faces,
                               Span<int> corner_verts,
-                              Span<int> corner_tri_faces,
+                              Span<int3> corner_tris,
                               Span<bool> hide_poly,
+                              const SubdivCCG *subdiv_ccg,
                               const float ray_start[3],
                               const float ray_normal[3],
                               float *depth,
                               float *dist_sq);
 
 /* Drawing */
-void set_frustum_planes(PBVH &pbvh, PBVHFrustumPlanes *planes);
-void get_frustum_planes(const PBVH &pbvh, PBVHFrustumPlanes *planes);
+void set_frustum_planes(Tree &pbvh, PBVHFrustumPlanes *planes);
+void get_frustum_planes(const Tree &pbvh, PBVHFrustumPlanes *planes);
 
-void draw_cb(const Mesh &mesh,
-             PBVH &pbvh,
-             bool update_only_visible,
-             const PBVHFrustumPlanes &update_frustum,
-             const PBVHFrustumPlanes &draw_frustum,
-             FunctionRef<void(draw::pbvh::PBVHBatches *batches,
-                              const draw::pbvh::PBVH_GPU_Args &args)> draw_fn);
 /**
- * Get the PBVH root's bounding box.
+ * Get the Tree root's bounding box.
  */
-Bounds<float3> bounds_get(const PBVH &pbvh);
+Bounds<float3> bounds_get(const Tree &pbvh);
 
 }  // namespace blender::bke::pbvh
 
-void BKE_pbvh_sync_visibility_from_verts(PBVH &pbvh, Mesh *mesh);
+void BKE_pbvh_sync_visibility_from_verts(Object &object);
 
 namespace blender::bke::pbvh {
 
@@ -246,18 +420,8 @@ int count_grid_quads(const BitGroupVector<> &grid_visibility,
 
 }  // namespace blender::bke::pbvh
 
-/**
- * Multi-res level, only valid for type == #PBVH_GRIDS.
- */
-const CCGKey *BKE_pbvh_get_grid_key(const PBVH &pbvh);
-
-int BKE_pbvh_get_grid_num_verts(const PBVH &pbvh);
-int BKE_pbvh_get_grid_num_faces(const PBVH &pbvh);
-
-/**
- * Only valid for type == #PBVH_BMESH.
- */
-void BKE_pbvh_bmesh_detail_size_set(PBVH &pbvh, float detail_size);
+int BKE_pbvh_get_grid_num_verts(const Object &object);
+int BKE_pbvh_get_grid_num_faces(const Object &object);
 
 enum PBVHTopologyUpdateMode {
   PBVH_Subdivide = 1,
@@ -270,8 +434,12 @@ namespace blender::bke::pbvh {
 /**
  * Collapse short edges, subdivide long edges.
  */
-bool bmesh_update_topology(PBVH &pbvh,
+bool bmesh_update_topology(BMesh &bm,
+                           Tree &pbvh,
+                           BMLog &bm_log,
                            PBVHTopologyUpdateMode mode,
+                           float min_edge_len,
+                           float max_edge_len,
                            const float center[3],
                            const float view_normal[3],
                            float radius,
@@ -282,66 +450,52 @@ bool bmesh_update_topology(PBVH &pbvh,
 
 /* Node Access */
 
-void BKE_pbvh_node_mark_update(PBVHNode *node);
-void BKE_pbvh_node_mark_update_mask(PBVHNode *node);
-void BKE_pbvh_node_mark_update_color(PBVHNode *node);
-void BKE_pbvh_node_mark_update_face_sets(PBVHNode *node);
-void BKE_pbvh_node_mark_update_visibility(PBVHNode *node);
-void BKE_pbvh_node_mark_rebuild_draw(PBVHNode *node);
-void BKE_pbvh_node_mark_redraw(PBVHNode *node);
-void BKE_pbvh_node_mark_positions_update(PBVHNode *node);
-void BKE_pbvh_node_mark_topology_update(PBVHNode *node);
-void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
-bool BKE_pbvh_node_fully_hidden_get(const PBVHNode *node);
-void BKE_pbvh_node_fully_masked_set(PBVHNode *node, int fully_masked);
-bool BKE_pbvh_node_fully_masked_get(const PBVHNode *node);
-void BKE_pbvh_node_fully_unmasked_set(PBVHNode *node, int fully_masked);
-bool BKE_pbvh_node_fully_unmasked_get(const PBVHNode *node);
+void BKE_pbvh_node_mark_update(blender::bke::pbvh::Node &node);
+void BKE_pbvh_node_mark_topology_update(blender::bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_hidden_set(blender::bke::pbvh::Node &node, int fully_hidden);
+bool BKE_pbvh_node_fully_hidden_get(const blender::bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_masked_set(blender::bke::pbvh::Node &node, int fully_masked);
+bool BKE_pbvh_node_fully_masked_get(const blender::bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_unmasked_set(blender::bke::pbvh::Node &node, int fully_masked);
+bool BKE_pbvh_node_fully_unmasked_get(const blender::bke::pbvh::Node &node);
 
-void BKE_pbvh_mark_rebuild_pixels(PBVH &pbvh);
+void BKE_pbvh_mark_rebuild_pixels(blender::bke::pbvh::Tree &pbvh);
 
 namespace blender::bke::pbvh {
-
-Span<int> node_grid_indices(const PBVHNode &node);
-
-Span<int> node_verts(const PBVHNode &node);
-Span<int> node_unique_verts(const PBVHNode &node);
-Span<int> node_corners(const PBVHNode &node);
-
-/**
- * Gather the indices of all faces (not triangles) used by the node.
- * For convenience, pass a reference to the data in the result.
- */
-Span<int> node_face_indices_calc_mesh(Span<int> corner_tri_faces,
-                                      const PBVHNode &node,
-                                      Vector<int> &faces);
 
 /**
  * Gather the indices of all base mesh faces in the node.
  * For convenience, pass a reference to the data in the result.
  */
-Span<int> node_face_indices_calc_grids(const PBVH &pbvh, const PBVHNode &node, Vector<int> &faces);
+Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
+                                       const GridsNode &node,
+                                       Vector<int> &faces);
 
-Bounds<float3> node_bounds(const PBVHNode &node);
+Bounds<float3> node_bounds(const Node &node);
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_node_get_original_BB(const PBVHNode *node);
+blender::Bounds<blender::float3> BKE_pbvh_node_get_original_BB(
+    const blender::bke::pbvh::Node *node);
 
-float BKE_pbvh_node_get_tmin(const PBVHNode *node);
+float BKE_pbvh_node_get_tmin(const blender::bke::pbvh::Node *node);
 
 /**
  * Test if AABB is at least partially inside the #PBVHFrustumPlanes volume.
  */
-bool BKE_pbvh_node_frustum_contain_AABB(const PBVHNode *node, const PBVHFrustumPlanes *frustum);
+bool BKE_pbvh_node_frustum_contain_AABB(const blender::bke::pbvh::Node *node,
+                                        const PBVHFrustumPlanes *frustum);
 /**
  * Test if AABB is at least partially outside the #PBVHFrustumPlanes volume.
  */
-bool BKE_pbvh_node_frustum_exclude_AABB(const PBVHNode *node, const PBVHFrustumPlanes *frustum);
+bool BKE_pbvh_node_frustum_exclude_AABB(const blender::bke::pbvh::Node *node,
+                                        const PBVHFrustumPlanes *frustum);
 
-const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_unique_verts(PBVHNode *node);
-const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_other_verts(PBVHNode *node);
-const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(PBVHNode *node);
+const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_unique_verts(
+    blender::bke::pbvh::BMeshNode *node);
+const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_other_verts(
+    blender::bke::pbvh::BMeshNode *node);
+const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(blender::bke::pbvh::BMeshNode *node);
 
 /**
  * In order to perform operations on the original node coordinates
@@ -349,238 +503,138 @@ const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(PBVHNode *node);
  *
  * Skips triangles that are hidden.
  */
-void BKE_pbvh_bmesh_node_save_orig(BMesh *bm, BMLog *log, PBVHNode *node, bool use_original);
-void BKE_pbvh_bmesh_after_stroke(PBVH &pbvh);
+void BKE_pbvh_bmesh_node_save_orig(BMesh *bm,
+                                   BMLog *log,
+                                   blender::bke::pbvh::BMeshNode *node,
+                                   bool use_original);
+void BKE_pbvh_bmesh_after_stroke(BMesh &bm, blender::bke::pbvh::Tree &pbvh);
 
 namespace blender::bke::pbvh {
-void update_bounds(PBVH &pbvh, int flags);
-void update_mask(PBVH &pbvh);
-void update_visibility(PBVH &pbvh);
-void update_normals(PBVH &pbvh, SubdivCCG *subdiv_ccg);
+
+/**
+ * Recalculate node bounding boxes based on the current coordinates. Calculation is only done for
+ * affected nodes that have been tagged by #PBVH::tag_positions_changed().
+ */
+void update_bounds(const Depsgraph &depsgraph, const Object &object, Tree &pbvh);
+void update_bounds_mesh(Span<float3> vert_positions, Tree &pbvh);
+void update_bounds_grids(const CCGKey &key, Span<float3> positions, Tree &pbvh);
+void update_bounds_bmesh(const BMesh &bm, Tree &pbvh);
+
+/**
+ * Copy all current node bounds to the original bounds. "Original" bounds are typically from before
+ * a brush stroke started (while the "regular" bounds update on every change of positions). These
+ * are stored to optimize the BVH traversal for original coordinates enabled by various "use
+ * original" arguments in the Tree API.
+ */
+void store_bounds_orig(Tree &pbvh);
+
+/** Update node "fully masked" and "fully unmasked" values after mask values have been changed. */
+void update_mask_mesh(const Mesh &mesh, const IndexMask &node_mask, Tree &pbvh);
+void update_mask_grids(const SubdivCCG &subdiv_ccg, const IndexMask &node_mask, Tree &pbvh);
+void update_mask_bmesh(const BMesh &bm, const IndexMask &node_mask, Tree &pbvh);
+
+void update_visibility(const Object &object, Tree &pbvh);
+void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh);
+/** Update geometry normals (potentially on the original object geometry). */
+void update_normals_from_eval(Object &object_eval, Tree &pbvh);
+
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(PBVH &pbvh);
+blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh);
 namespace blender::bke::pbvh {
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
-                                        Span<const PBVHNode *> nodes,
+                                        Span<GridsNode> nodes,
+                                        const IndexMask &nodes_mask,
                                         IndexMaskMemory &memory);
 }
-void BKE_pbvh_grids_update(PBVH &pbvh, const CCGKey *key);
-void BKE_pbvh_subdiv_cgg_set(PBVH &pbvh, SubdivCCG *subdiv_ccg);
 
-void BKE_pbvh_vert_coords_apply(PBVH &pbvh, blender::Span<blender::float3> vert_positions);
-bool BKE_pbvh_is_deformed(const PBVH &pbvh);
+void BKE_pbvh_vert_coords_apply(blender::bke::pbvh::Tree &pbvh,
+                                blender::Span<blender::float3> vert_positions);
 
-/* Vertex Iterator. */
-
-/* This iterator has quite a lot of code, but it's designed to:
- * - allow the compiler to eliminate dead code and variables
- * - spend most of the time in the relatively simple inner loop */
-
-/* NOTE: PBVH_ITER_ALL does not skip hidden vertices,
- * PBVH_ITER_UNIQUE does */
-#define PBVH_ITER_ALL 0
-#define PBVH_ITER_UNIQUE 1
-
-struct PBVHVertexIter {
-  /* iteration */
-  int g;
-  int width;
-  int height;
-  int gx;
-  int gy;
-  int i;
-  int index;
-  PBVHVertRef vertex;
-
-  /* grid */
-  CCGKey key;
-  CCGElem *const *grids;
-  CCGElem *grid;
-  const blender::BitGroupVector<> *grid_hidden;
-  std::optional<blender::BoundedBitSpan> gh;
-  const int *grid_indices;
-  int totgrid;
-  int gridsize;
-
-  /* mesh */
-  blender::MutableSpan<blender::float3> vert_positions;
-  blender::Span<blender::float3> vert_normals;
-  const bool *hide_vert;
-  int totvert;
-  const int *vert_indices;
-  const float *vmask;
-  bool is_mesh;
-
-  /* bmesh */
-  std::optional<blender::Set<BMVert *, 0>::Iterator> bm_unique_verts;
-  std::optional<blender::Set<BMVert *, 0>::Iterator> bm_unique_verts_end;
-  std::optional<blender::Set<BMVert *, 0>::Iterator> bm_other_verts;
-  std::optional<blender::Set<BMVert *, 0>::Iterator> bm_other_verts_end;
-  CustomData *bm_vdata;
-  int cd_vert_mask_offset;
-
-  /* result: these are all computed in the macro, but we assume
-   * that compiler optimization's will skip the ones we don't use */
-  BMVert *bm_vert;
-  float *co;
-  const float *no;
-  const float *fno;
-  float mask;
-  bool visible;
-};
-
-void pbvh_vertex_iter_init(PBVH &pbvh, PBVHNode *node, PBVHVertexIter *vi, int mode);
-
-#define BKE_pbvh_vertex_iter_begin(pbvh, node, vi, mode) \
-  pbvh_vertex_iter_init(pbvh, node, &vi, mode); \
-\
-  for (vi.i = 0, vi.g = 0; vi.g < vi.totgrid; vi.g++) { \
-    if (vi.grids) { \
-      vi.width = vi.gridsize; \
-      vi.height = vi.gridsize; \
-      vi.index = vi.vertex.i = vi.grid_indices[vi.g] * vi.key.grid_area - 1; \
-      vi.grid = CCG_elem_offset(vi.key, vi.grids[vi.grid_indices[vi.g]], -1); \
-      if (mode == PBVH_ITER_UNIQUE) { \
-        if (vi.grid_hidden) { \
-          vi.gh.emplace((*vi.grid_hidden)[vi.grid_indices[vi.g]]); \
-        } \
-        else { \
-          vi.gh.reset(); \
-        } \
-      } \
-    } \
-    else { \
-      vi.width = vi.totvert; \
-      vi.height = 1; \
-    } \
-\
-    for (vi.gy = 0; vi.gy < vi.height; vi.gy++) { \
-      for (vi.gx = 0; vi.gx < vi.width; vi.gx++, vi.i++) { \
-        if (vi.grid) { \
-          vi.grid = CCG_elem_next(vi.key, vi.grid); \
-          vi.co = CCG_elem_co(vi.key, vi.grid); \
-          vi.fno = CCG_elem_no(vi.key, vi.grid); \
-          vi.mask = vi.key.has_mask ? CCG_elem_mask(vi.key, vi.grid) : 0.0f; \
-          vi.index++; \
-          vi.vertex.i++; \
-          vi.visible = true; \
-          if (vi.gh) { \
-            if ((*vi.gh)[vi.gy * vi.gridsize + vi.gx]) { \
-              continue; \
-            } \
-          } \
-        } \
-        else if (!vi.vert_positions.is_empty()) { \
-          vi.visible = !(vi.hide_vert && vi.hide_vert[vi.vert_indices[vi.gx]]); \
-          if (mode == PBVH_ITER_UNIQUE && !vi.visible) { \
-            continue; \
-          } \
-          vi.co = vi.vert_positions[vi.vert_indices[vi.gx]]; \
-          vi.no = vi.vert_normals[vi.vert_indices[vi.gx]]; \
-          vi.index = vi.vertex.i = vi.vert_indices[vi.i]; \
-          vi.mask = vi.vmask ? vi.vmask[vi.index] : 0.0f; \
-        } \
-        else { \
-          if (*vi.bm_unique_verts != *vi.bm_unique_verts_end) { \
-            vi.bm_vert = **vi.bm_unique_verts; \
-            (*vi.bm_unique_verts)++; \
-          } \
-          else { \
-            vi.bm_vert = **vi.bm_other_verts; \
-            (*vi.bm_other_verts)++; \
-          } \
-          vi.visible = !BM_elem_flag_test_bool(vi.bm_vert, BM_ELEM_HIDDEN); \
-          if (mode == PBVH_ITER_UNIQUE && !vi.visible) { \
-            continue; \
-          } \
-          vi.co = vi.bm_vert->co; \
-          vi.fno = vi.bm_vert->no; \
-          vi.vertex = BKE_pbvh_make_vref((intptr_t)vi.bm_vert); \
-          vi.index = BM_elem_index_get(vi.bm_vert); \
-          vi.mask = BM_ELEM_CD_GET_FLOAT(vi.bm_vert, vi.cd_vert_mask_offset); \
-        }
-
-#define BKE_pbvh_vertex_iter_end \
-  } \
-  } \
-  } \
-  ((void)0)
-
-#define PBVH_FACE_ITER_VERTS_RESERVED 8
-
-blender::MutableSpan<PBVHProxyNode> BKE_pbvh_node_get_proxies(PBVHNode *node);
-void BKE_pbvh_node_free_proxies(PBVHNode *node);
-PBVHProxyNode &BKE_pbvh_node_add_proxy(PBVH &pbvh, PBVHNode &node);
-void BKE_pbvh_node_get_bm_orco_data(PBVHNode *node,
-                                    int (**r_orco_tris)[3],
-                                    int *r_orco_tris_num,
-                                    float (**r_orco_coords)[3],
-                                    BMVert ***r_orco_verts);
-
-bool pbvh_has_mask(const PBVH &pbvh);
-
-bool pbvh_has_face_sets(PBVH &pbvh);
-
-blender::Span<blender::float3> BKE_pbvh_get_vert_positions(const PBVH &pbvh);
-blender::MutableSpan<blender::float3> BKE_pbvh_get_vert_positions(PBVH &pbvh);
-blender::Span<blender::float3> BKE_pbvh_get_vert_normals(const PBVH &pbvh);
-
-PBVHColorBufferNode *BKE_pbvh_node_color_buffer_get(PBVHNode *node);
-void BKE_pbvh_node_color_buffer_free(PBVH &pbvh);
-bool BKE_pbvh_get_color_layer(Mesh *mesh,
-                              CustomDataLayer **r_layer,
-                              blender::bke::AttrDomain *r_domain);
-
-/* Swaps colors at each element in indices (of domain pbvh->vcol_domain)
- * with values in colors. */
-void BKE_pbvh_swap_colors(PBVH &pbvh,
-                          blender::Span<int> indices,
-                          blender::MutableSpan<blender::float4> r_colors);
-
-/* Stores colors from the elements in indices (of domain pbvh->vcol_domain)
- * into colors. */
-void BKE_pbvh_store_colors(PBVH &pbvh,
-                           blender::Span<int> indices,
-                           blender::MutableSpan<blender::float4> r_colors);
-
-/* Like BKE_pbvh_store_colors but handles loop->vert conversion */
-void BKE_pbvh_store_colors_vertex(PBVH &pbvh,
-                                  blender::GroupedSpan<int> vert_to_face_map,
-                                  blender::Span<int> indices,
-                                  blender::MutableSpan<blender::float4> r_colors);
-
-bool BKE_pbvh_is_drawing(const PBVH &pbvh);
-
-void BKE_pbvh_update_active_vcol(PBVH &pbvh, Mesh *mesh);
-
-void BKE_pbvh_vertex_color_set(PBVH &pbvh,
-                               blender::GroupedSpan<int> vert_to_face_map,
-                               PBVHVertRef vertex,
-                               const blender::float4 &color);
-blender::float4 BKE_pbvh_vertex_color_get(const PBVH &pbvh,
-                                          blender::GroupedSpan<int> vert_to_face_map,
-                                          PBVHVertRef vertex);
-
-void BKE_pbvh_ensure_node_loops(PBVH &pbvh);
-int BKE_pbvh_debug_draw_gen_get(PBVHNode &node);
+void BKE_pbvh_node_get_bm_orco_data(const blender::bke::pbvh::BMeshNode &node,
+                                    blender::Span<blender::float3> &r_orig_positions,
+                                    blender::Span<blender::int3> &r_orig_tris);
 
 namespace blender::bke::pbvh {
-Vector<PBVHNode *> search_gather(PBVH &pbvh,
-                                 FunctionRef<bool(PBVHNode &)> scb,
-                                 PBVHNodeFlags leaf_flag = PBVH_Leaf);
-Vector<PBVHNode *> gather_proxies(PBVH &pbvh);
 
-void node_update_mask_mesh(Span<float> mask, PBVHNode &node);
-void node_update_mask_grids(const CCGKey &key, Span<CCGElem *> grids, PBVHNode &node);
-void node_update_mask_bmesh(int mask_offset, PBVHNode &node);
+/**
+ * Retrieve the positions array from the evaluated mesh after deforming modifiers and before
+ * topology-changing operations. If there are no deform modifiers, this returns the original mesh's
+ * vertex positions.
+ */
+Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &object_orig);
+Span<float3> vert_positions_eval_from_eval(const Object &object_eval);
 
-void node_update_visibility_mesh(Span<bool> hide_vert, PBVHNode &node);
-void node_update_visibility_grids(const BitGroupVector<> &grid_hidden, PBVHNode &node);
-void node_update_visibility_bmesh(PBVHNode &node);
+/**
+ * Retrieve write access to the evaluated deform positions, or the original object positions if
+ * there are no deformation modifiers. Writing the the evaluated positions is necessary because
+ * they are used for drawing and we don't run a full dependency graph update whenever they are
+ * changed.
+ */
+MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Object &object_orig);
 
-void update_node_bounds_mesh(Span<float3> positions, PBVHNode &node);
-void update_node_bounds_grids(const CCGKey &key, Span<CCGElem *> grids, PBVHNode &node);
-void update_node_bounds_bmesh(PBVHNode &node);
+/**
+ * Return the vertex normals corresponding the the positions from #vert_positions_eval. This may be
+ * a reference to the normals cache on the original mesh.
+ */
+Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig);
+Span<float3> vert_normals_eval_from_eval(const Object &object_eval);
+
+Span<float3> face_normals_eval_from_eval(const Object &object_eval);
+
+}  // namespace blender::bke::pbvh
+
+int BKE_pbvh_debug_draw_gen_get(blender::bke::pbvh::Node &node);
+
+namespace blender::bke::pbvh {
+
+/** Return pointers to all the leaf nodes in the BVH tree. */
+IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory);
+
+/** Create a selection of nodes that match the filter function. */
+IndexMask search_nodes(const Tree &pbvh,
+                       IndexMaskMemory &memory,
+                       FunctionRef<bool(const Node &)> filter_fn);
+
+void node_update_mask_mesh(Span<float> mask, MeshNode &node);
+void node_update_mask_grids(const CCGKey &key, Span<float> masks, GridsNode &node);
+void node_update_mask_bmesh(int mask_offset, BMeshNode &node);
+
+void node_update_visibility_mesh(Span<bool> hide_vert, MeshNode &node);
+void node_update_visibility_grids(const BitGroupVector<> &grid_hidden, GridsNode &node);
+void node_update_visibility_bmesh(BMeshNode &node);
+
+void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
+void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
+void update_node_bounds_bmesh(BMeshNode &node);
+
+/**
+ * Run the last step of the BVH bounds recalculation process, propagating updated leaf node bounds
+ * to their parent/ancestor inner nodes. This is meant to be used after leaf node bounds have been
+ * computed separately.
+ */
+void flush_bounds_to_parents(Tree &pbvh);
+
+inline Span<int> MeshNode::faces() const
+{
+  return this->face_indices_;
+}
+inline Span<int> MeshNode::verts() const
+{
+  return this->vert_indices_.as_span().slice(0, this->unique_verts_num_);
+}
+inline Span<int> MeshNode::all_verts() const
+{
+  return this->vert_indices_;
+}
+inline int MeshNode::corners_num() const
+{
+  return corners_num_;
+}
+
+inline Span<int> GridsNode::grids() const
+{
+  return this->prim_indices_;
+}
 
 }  // namespace blender::bke::pbvh

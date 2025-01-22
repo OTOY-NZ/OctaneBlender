@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +8,7 @@
  */
 
 #include "BLI_rect.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "IMB_filter.hh"
@@ -164,10 +166,9 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
       uchar *to = rect_to + size_t(stride_to) * y * 4;
 
       if (profile_to == profile_from) {
-        float straight[4];
-
         /* no color space conversion */
         if (dither && predivide) {
+          float straight[4];
           for (x = 0; x < width; x++, from += 4, to += 4) {
             premul_to_straight_v4_v4(straight, from);
             float_to_byte_dither_v4(to, straight, di, float(x) * inv_width, t);
@@ -180,8 +181,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
         }
         else if (predivide) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
-            premul_to_straight_v4_v4(straight, from);
-            rgba_float_to_uchar(to, straight);
+            premul_float_to_straight_uchar(to, from);
           }
         }
         else {
@@ -307,9 +307,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
       const float *from = rect_from + size_t(stride_from) * y * 4;
       uchar *to = rect_to + size_t(stride_to) * y * 4;
 
-      float straight[4];
-
       if (dither && predivide) {
+        float straight[4];
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
             premul_to_straight_v4_v4(straight, from);
@@ -327,8 +326,7 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
       else if (predivide) {
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
-            premul_to_straight_v4_v4(straight, from);
-            rgba_float_to_uchar(to, straight);
+            premul_float_to_straight_uchar(to, from);
           }
         }
       }
@@ -866,28 +864,35 @@ void IMB_color_to_bw(ImBuf *ibuf)
 
 void IMB_saturation(ImBuf *ibuf, float sat)
 {
-  size_t i;
-  uchar *rct = ibuf->byte_buffer.data;
-  float *rct_fl = ibuf->float_buffer.data;
-  float hsv[3];
+  using namespace blender;
 
-  if (rct) {
-    float rgb[3];
-    for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct += 4) {
-      rgb_uchar_to_float(rgb, rct);
-      rgb_to_hsv_v(rgb, hsv);
-      hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rgb, rgb + 1, rgb + 2);
-      rgb_float_to_uchar(rct, rgb);
-    }
+  const size_t pixel_count = IMB_get_rect_len(ibuf);
+  if (ibuf->byte_buffer.data != nullptr) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      uchar *ptr = ibuf->byte_buffer.data + range.first() * 4;
+      float rgb[3];
+      float hsv[3];
+      for ([[maybe_unused]] const int64_t i : range) {
+        rgb_uchar_to_float(rgb, ptr);
+        rgb_to_hsv_v(rgb, hsv);
+        hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rgb + 0, rgb + 1, rgb + 2);
+        rgb_float_to_uchar(ptr, rgb);
+        ptr += 4;
+      }
+    });
   }
 
-  if (rct_fl) {
-    if (ibuf->channels >= 3) {
-      for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct_fl += ibuf->channels) {
-        rgb_to_hsv_v(rct_fl, hsv);
-        hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rct_fl, rct_fl + 1, rct_fl + 2);
+  if (ibuf->float_buffer.data != nullptr && ibuf->channels >= 3) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      const int channels = ibuf->channels;
+      float *ptr = ibuf->float_buffer.data + range.first() * channels;
+      float hsv[3];
+      for ([[maybe_unused]] const int64_t i : range) {
+        rgb_to_hsv_v(ptr, hsv);
+        hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], ptr + 0, ptr + 1, ptr + 2);
+        ptr += channels;
       }
-    }
+    });
   }
 }
 

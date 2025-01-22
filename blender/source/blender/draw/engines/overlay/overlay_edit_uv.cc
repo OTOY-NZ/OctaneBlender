@@ -14,7 +14,7 @@
 
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_mask.h"
 #include "BKE_mesh_types.hh"
@@ -135,7 +135,7 @@ void OVERLAY_edit_uv_init(OVERLAY_Data *vedata)
                                        ((sima->flag & SI_DRAW_STRETCH) != 0);
   const bool do_tex_paint_shadows = (sima->flag & SI_NO_DRAW_TEXPAINT) == 0;
   const bool do_stencil_overlay = is_paint_mode && is_image_type && brush &&
-                                  (brush->imagepaint_tool == PAINT_TOOL_CLONE) &&
+                                  (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) &&
                                   brush->clone.image;
 
   pd->edit_uv.do_verts = show_overlays && (!do_edges_only);
@@ -409,6 +409,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
     DRW_shgroup_uniform_texture(grp, "imgTexture", mask_texture);
     const float4 color = {1.0f, 1.0f, 1.0f, 1.0f};
     DRW_shgroup_uniform_vec4_copy(grp, "color", color);
+    DRW_shgroup_uniform_float_copy(grp, "opacity", 1.0f); /* Broken. As it always was. */
     DRW_shgroup_call_obmat(grp, geom, nullptr);
   }
 

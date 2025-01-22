@@ -28,8 +28,7 @@ int StrokeAttribute_Init(PyObject *module)
   if (PyType_Ready(&StrokeAttribute_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&StrokeAttribute_Type);
-  PyModule_AddObject(module, "StrokeAttribute", (PyObject *)&StrokeAttribute_Type);
+  PyModule_AddObjectRef(module, "StrokeAttribute", (PyObject *)&StrokeAttribute_Type);
 
   StrokeAttribute_mathutils_register_callback();
   return 0;
@@ -343,7 +342,7 @@ PyDoc_STRVAR(
     "   :arg name: The name of the attribute.\n"
     "   :type name: str\n"
     "   :arg value: The attribute value.\n"
-    "   :type value: :class:`mathutils.Vector`, list or tuple of 2 real numbers\n");
+    "   :type value: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n");
 
 static PyObject *StrokeAttribute_set_attribute_vec2(BPy_StrokeAttribute *self,
                                                     PyObject *args,
@@ -377,8 +376,8 @@ PyDoc_STRVAR(
     "\n"
     "   :arg name: The name of the attribute.\n"
     "   :type name: str\n"
-    "   :arg value: The attribute value.\n"
-    "   :type value: :class:`mathutils.Vector`, list or tuple of 3 real numbers\n");
+    "   :arg value: The attribute value as a 3D vector.\n"
+    "   :type value: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n");
 
 static PyObject *StrokeAttribute_set_attribute_vec3(BPy_StrokeAttribute *self,
                                                     PyObject *args,

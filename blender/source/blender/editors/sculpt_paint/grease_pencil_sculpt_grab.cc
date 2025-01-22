@@ -31,7 +31,6 @@ class GrabOperation : public GreasePencilStrokeOperationCommon {
  public:
   using GreasePencilStrokeOperationCommon::GreasePencilStrokeOperationCommon;
   using MutableDrawingInfo = blender::ed::greasepencil::MutableDrawingInfo;
-  using DrawingPlacement = ed::greasepencil::DrawingPlacement;
 
   /* Cached point mask and influence for a particular drawing. */
   struct PointWeights {
@@ -53,6 +52,7 @@ class GrabOperation : public GreasePencilStrokeOperationCommon {
 
   void foreach_grabbed_drawing(const bContext &C,
                                FunctionRef<bool(const GreasePencilStrokeParams &params,
+                                                const DeltaProjectionFunc &projection_fn,
                                                 const IndexMask &mask,
                                                 Span<float> weights)> fn) const;
 
@@ -63,9 +63,10 @@ class GrabOperation : public GreasePencilStrokeOperationCommon {
 
 void GrabOperation::foreach_grabbed_drawing(
     const bContext &C,
-    FunctionRef<bool(
-        const GreasePencilStrokeParams &params, const IndexMask &mask, Span<float> weights)> fn)
-    const
+    FunctionRef<bool(const GreasePencilStrokeParams &params,
+                     const DeltaProjectionFunc &projection_fn,
+                     const IndexMask &mask,
+                     Span<float> weights)> fn) const
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
@@ -73,7 +74,7 @@ void GrabOperation::foreach_grabbed_drawing(
   const Scene &scene = *CTX_data_scene(&C);
   Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
   ARegion &region = *CTX_wm_region(&C);
-  View3D &view3d = *CTX_wm_view3d(&C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
   Object &object = *CTX_data_active_object(&C);
   Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
@@ -84,33 +85,25 @@ void GrabOperation::foreach_grabbed_drawing(
     if (data.point_mask.is_empty()) {
       return;
     }
-    const Layer &layer = *grease_pencil.layer(data.layer_index);
+    const Layer &layer = grease_pencil.layer(data.layer_index);
     /* If a new frame is created, could be impossible find the stroke. */
     bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(layer, data.frame_number);
     if (drawing == nullptr) {
       return;
     }
 
-    ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-    if (placement.use_project_to_surface()) {
-      placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-    }
-    else if (placement.use_project_to_nearest_stroke()) {
-      placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-      placement.set_origin_to_nearest_stroke(this->start_mouse_position);
-    }
-
     GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
         scene,
         depsgraph,
         region,
+        rv3d,
         object,
         data.layer_index,
         data.frame_number,
         data.multi_frame_falloff,
-        std::move(placement),
         *drawing);
-    if (fn(params, data.point_mask, data.weights)) {
+    DeltaProjectionFunc projection_fn = get_screen_projection_fn(params, object_eval, layer);
+    if (fn(params, projection_fn, data.point_mask, data.weights)) {
       changed = true;
     }
   });
@@ -124,7 +117,6 @@ void GrabOperation::foreach_grabbed_drawing(
 void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   const ARegion &region = *CTX_wm_region(&C);
-  const View3D &view3d = *CTX_wm_view3d(&C);
   const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
   const Scene &scene = *CTX_data_scene(&C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
@@ -134,48 +126,50 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
   Object &ob_eval = *DEG_get_evaluated_object(&depsgraph, &ob_orig);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
+  const bool is_masking = GPENCIL_ANY_SCULPT_MASK(
+      eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
+
   init_brush(brush);
 
   this->prev_mouse_position = start_sample.mouse_position;
 
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_sculpt(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_painting(C);
   this->drawing_data.reinitialize(drawings.size());
   threading::parallel_for_each(drawings.index_range(), [&](const int i) {
     const MutableDrawingInfo &info = drawings[i];
     BLI_assert(info.layer_index >= 0);
     PointWeights &data = this->drawing_data[i];
 
-    const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
     BLI_assert(grease_pencil.get_drawing_at(layer, info.frame_number) == &info.drawing);
 
-    ed::greasepencil::DrawingPlacement placement(scene, region, view3d, ob_eval, &layer);
     GreasePencilStrokeParams params = {*scene.toolsettings,
                                        region,
+                                       rv3d,
+                                       scene,
                                        ob_orig,
                                        ob_eval,
                                        layer,
                                        info.layer_index,
                                        info.frame_number,
                                        info.multi_frame_falloff,
-                                       std::move(placement),
                                        info.drawing};
-
     IndexMaskMemory selection_memory;
-    IndexMask selection = point_selection_mask(params, selection_memory);
+    IndexMask selection = point_selection_mask(params, is_masking, selection_memory);
 
     Array<float2> view_positions = calculate_view_positions(params, selection);
 
     /* Cache points under brush influence. */
     Vector<float> weights;
-    IndexMask point_mask = brush_influence_mask(scene,
-                                                brush,
-                                                start_sample.mouse_position,
-                                                1.0f,
-                                                info.multi_frame_falloff,
-                                                selection,
-                                                view_positions,
-                                                weights,
-                                                data.memory);
+    IndexMask point_mask = brush_point_influence_mask(scene,
+                                                      brush,
+                                                      start_sample.mouse_position,
+                                                      1.0f,
+                                                      info.multi_frame_falloff,
+                                                      selection,
+                                                      view_positions,
+                                                      weights,
+                                                      data.memory);
 
     if (point_mask.is_empty()) {
       /* Set empty point mask to skip. */
@@ -194,35 +188,22 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
 
 void GrabOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  const ARegion &region = *CTX_wm_region(&C);
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-
   this->foreach_grabbed_drawing(
       C,
       [&](const GreasePencilStrokeParams &params,
+          const DeltaProjectionFunc &projection_fn,
           const IndexMask &mask,
           const Span<float> weights) {
-        /* Crazy-space deformation. */
-        bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
-
         /* Transform mouse delta into layer space. */
         const float2 mouse_delta_win = this->mouse_delta(extension_sample);
-        const float3 layer_origin = params.layer.to_world_space(params.ob_eval).location();
-        const float zfac = ED_view3d_calc_zfac(&rv3d, layer_origin);
-        float3 mouse_delta;
-        ED_view3d_win_to_delta(&region, mouse_delta_win, zfac, mouse_delta);
 
         bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
         MutableSpan<float3> positions = curves.positions_for_write();
-        mask.foreach_index(GrainSize(1024), [&](const int point_i, const int index) {
+        mask.foreach_index(GrainSize(4096), [&](const int point_i, const int index) {
           /* Translate the point with the influence factor. */
-          const float3 new_pos_layer = deformation.positions[point_i] +
-                                       mouse_delta * weights[index];
-          const float3 new_pos_world = math::transform_point(
-              params.layer.to_world_space(params.ob_eval), new_pos_layer);
-          float2 new_pos_view;
-          ED_view3d_project_float_global(&region, new_pos_world, new_pos_view, V3D_PROJ_TEST_NOP);
-          positions[point_i] = params.placement.project(new_pos_view);
+          positions[point_i] = projection_fn(deformation.positions[point_i],
+                                             mouse_delta_win * weights[index]);
         });
 
         params.drawing.tag_positions_changed();

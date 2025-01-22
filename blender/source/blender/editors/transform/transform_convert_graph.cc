@@ -17,7 +17,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_layer.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_report.hh"
 
 #include "ED_anim_api.hh"
@@ -932,8 +932,8 @@ static void recalcData_graphedit(TransInfo *t)
   ac.area = t->area;
   ac.region = t->region;
   ac.sl = static_cast<SpaceLink *>((t->area) ? t->area->spacedata.first : nullptr);
-  ac.spacetype = (t->area) ? t->area->spacetype : 0;
-  ac.regiontype = (t->region) ? t->region->regiontype : 0;
+  ac.spacetype = eSpace_Type((t->area) ? t->area->spacetype : 0);
+  ac.regiontype = eRegion_Type((t->region) ? t->region->regiontype : 0);
 
   ANIM_animdata_context_getdata(&ac);
 

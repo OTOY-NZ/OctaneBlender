@@ -11,6 +11,7 @@
 
 #include "BLI_cpp_type.hh"
 #include "BLI_implicit_sharing.h"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
@@ -157,20 +158,26 @@ void CustomData_data_add(eCustomDataType type, void *data1, const void *data2);
  * Initializes a CustomData object with the same layer setup as source. `mask` is a bit-field where
  * `(mask & (1 << (layer type)))` indicates if a layer should be copied or not. Data layers using
  * implicit-sharing will not actually be copied but will be shared between source and destination.
+ *
+ * \warning Does not free or release any internal resources in `dest` CustomData, code must call
+ * #CustomData_free first if needed.
  */
-void CustomData_copy(const CustomData *source,
-                     CustomData *dest,
-                     eCustomDataMask mask,
-                     int totelem);
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem);
 /**
  * Initializes a CustomData object with the same layers as source. The data is not copied from the
  * source. Instead, the new layers are initialized using the given `alloctype`.
+ *
+ * \warning Does not free or release any internal resources in `dest` CustomData, code must call
+ * #CustomData_free first if needed.
  */
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem);
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem);
 
 /* BMESH_TODO, not really a public function but `readfile.cc` needs it. */
 void CustomData_update_typemap(CustomData *data);
@@ -224,6 +231,8 @@ CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData 
 
 /**
  * NULL's all members and resets the #CustomData.typemap.
+ *
+ * \warning Does not free or release any internal resources.
  */
 void CustomData_reset(CustomData *data);
 
@@ -272,19 +281,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
                                                  int totelem,
                                                  blender::StringRef name,
                                                  const blender::ImplicitSharingInfo *sharing_info);
-
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     eCustomDataType type,
-                                     eCDAllocType alloctype,
-                                     int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id);
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    int totelem,
-    void *layer_data,
-    const blender::ImplicitSharingInfo *sharing_info);
 
 /**
  * Frees the active or first data layer with the give type.
@@ -802,6 +798,8 @@ void CustomData_blend_write(BlendWriter *writer,
 void CustomData_blend_read(BlendDataReader *reader, CustomData *data, int count);
 
 size_t CustomData_get_elem_size(const CustomDataLayer *layer);
+
+void CustomData_count_memory(const CustomData &data, int totelem, blender::MemoryCounter &memory);
 
 #ifndef NDEBUG
 struct DynStr;

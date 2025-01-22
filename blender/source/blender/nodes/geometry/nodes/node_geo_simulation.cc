@@ -8,6 +8,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 
+#include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_bake_items_socket.hh"
@@ -45,7 +46,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_nodes.hh"
 
@@ -63,8 +64,8 @@ namespace blender::nodes::node_geo_simulation_cc {
 
 static const CPPType &get_simulation_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const char *socket_idname = bke::nodeStaticSocketType(socket_type, 0);
-  const bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket_idname);
+  const char *socket_idname = bke::node_static_socket_type(socket_type, 0);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
   return *typeinfo->geometry_nodes_cpp_type;
@@ -101,16 +102,19 @@ static bke::bake::BakeSocketConfig make_bake_socket_config(
   return config;
 }
 
-static std::shared_ptr<AnonymousAttributeFieldInput> make_attribute_field(
+static std::shared_ptr<AttributeFieldInput> make_attribute_field(
     const Object &self_object,
     const ComputeContext &compute_context,
     const bNode &node,
     const NodeSimulationItem &item,
     const CPPType &type)
 {
-  AnonymousAttributeIDPtr attribute_id = AnonymousAttributeIDPtr(MEM_new<NodeAnonymousAttributeID>(
-      __func__, self_object, compute_context, node, std::to_string(item.identifier), item.name));
-  return std::make_shared<AnonymousAttributeFieldInput>(attribute_id, type, node.label_or_name());
+  std::string attribute_name = bke::hash_to_anonymous_attribute_name(
+      self_object.id.name, compute_context.hash(), node.identifier, item.identifier);
+  std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
+      node.label_or_name(), item.name);
+  return std::make_shared<AttributeFieldInput>(
+      std::move(attribute_name), type, std::move(socket_inspection_name));
 }
 
 static void move_simulation_state_to_values(const Span<NodeSimulationItem> node_simulation_items,
@@ -296,9 +300,6 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
 
-  Scene *scene = CTX_data_scene(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-
   const bke::bNodeTreeZones *zones = ntree.zones();
   if (!zones) {
     return;
@@ -312,141 +313,28 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   }
   bNode &output_node = const_cast<bNode &>(*zone->output_node);
 
+  BakeDrawContext ctx;
+  if (!get_bake_draw_context(C, output_node, ctx)) {
+    return;
+  }
+
   draw_simulation_state(C, layout, ntree, output_node);
-
-  if (snode == nullptr) {
-    return;
-  }
-  std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-      ed::space_node::get_modifier_for_node_editor(*snode);
-  if (!object_and_modifier.has_value()) {
-    return;
-  }
-  const Object &object = *object_and_modifier->object;
-  const NodesModifierData &nmd = *object_and_modifier->nmd;
-  const std::optional<int32_t> bake_id = ed::space_node::find_nested_node_id_in_root(*snode,
-                                                                                     output_node);
-  if (!bake_id.has_value()) {
-    return;
-  }
-  const NodesModifierBake *bake = nullptr;
-  for (const NodesModifierBake &iter_bake : Span{nmd.bakes, nmd.bakes_num}) {
-    if (iter_bake.id == *bake_id) {
-      bake = &iter_bake;
-      break;
-    }
-  }
-  if (bake == nullptr) {
-    return;
-  }
-
-  PointerRNA bake_rna = RNA_pointer_create(
-      const_cast<ID *>(&object.id), &RNA_NodesModifierBake, (void *)bake);
-
-  const std::optional<IndexRange> simulation_range = bke::bake::get_node_bake_frame_range(
-      *scene, object, nmd, *bake_id);
-
-  std::optional<IndexRange> baked_range;
-  if (nmd.runtime->cache) {
-    const bke::bake::ModifierCache &cache = *nmd.runtime->cache;
-    std::lock_guard lock{cache.mutex};
-    if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
-            cache.simulation_cache_by_id.lookup_ptr(*bake_id))
-    {
-      const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
-      if (node_cache.cache_status == bke::bake::CacheStatus::Baked &&
-          !node_cache.bake.frames.is_empty())
-      {
-        const int first_frame = node_cache.bake.frames.first()->frame.frame();
-        const int last_frame = node_cache.bake.frames.last()->frame.frame();
-        baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
-      }
-    }
-  }
-  bool is_baked = baked_range.has_value();
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(&object));
+  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
 
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiLayout *row = uiLayoutRow(col, true);
-    {
-      char bake_label[1024] = N_("Bake");
-
-      PointerRNA ptr;
-      uiItemFullO(row,
-                  "OBJECT_OT_geometry_node_bake_single",
-                  bake_label,
-                  ICON_NONE,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
-      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
-      RNA_int_set(&ptr, "bake_id", bake->id);
-    }
-    {
-      PointerRNA ptr;
-      uiItemFullO(row,
-                  "OBJECT_OT_geometry_node_bake_delete_single",
-                  "",
-                  ICON_TRASH,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
-      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
-      RNA_int_set(&ptr, "bake_id", bake->id);
-    }
-    if (is_baked) {
-      char baked_range_label[64];
-      SNPRINTF(baked_range_label,
-               N_("Baked %d - %d"),
-               int(baked_range->first()),
-               int(baked_range->last()));
-      uiItemL(layout, baked_range_label, ICON_NONE);
-    }
-    else if (simulation_range.has_value()) {
-      char simulation_range_label[64];
-      SNPRINTF(simulation_range_label,
-               N_("Frames %d - %d"),
-               int(simulation_range->first()),
-               int(simulation_range->last()));
-      uiItemL(layout, simulation_range_label, ICON_NONE);
+    draw_bake_button_row(ctx, col, true);
+    if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
+      uiLayout *row = uiLayoutRow(col, true);
+      uiItemL(row, bake_state_str->c_str(), ICON_NONE);
     }
   }
-  {
-    uiLayout *settings_col = uiLayoutColumn(layout, false);
-    uiLayoutSetActive(settings_col, !is_baked);
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiLayoutSetActive(col, !is_baked);
-      uiItemR(col, &bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH);
-      uiItemR(subcol, &bake_rna, "directory", UI_ITEM_NONE, IFACE_("Path"), ICON_NONE);
-    }
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(col,
-              &bake_rna,
-              "use_custom_simulation_frame_range",
-              UI_ITEM_NONE,
-              IFACE_("Custom Range"),
-              ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
-      uiItemR(subcol, &bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-      uiItemR(subcol, &bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
-    }
-  }
-
-  draw_data_blocks(C, layout, bake_rna);
+  draw_common_bake_settings(C, ctx, layout);
+  draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
 namespace sim_input_node {
@@ -631,6 +519,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(output_storage.items_num)) {
     const NodeSimulationItem &item = output_storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    if (socket_type == SOCK_GEOMETRY && i > 0) {
+      b.add_separator();
+    }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
@@ -687,7 +578,7 @@ static void node_register()
                                   "NodeGeometrySimulationInput",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -958,7 +849,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Bool>("Skip").description(
+  b.add_input<decl::Bool>("Skip").hide_value().description(
       "Forward the output of the simulation input node directly to the output node and ignore "
       "the nodes in the simulation zone");
 
@@ -973,6 +864,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.items_num)) {
     const NodeSimulationItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    if (socket_type == SOCK_GEOMETRY && i > 0) {
+      b.add_separator();
+    }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
@@ -1012,7 +906,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometrySimulationOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometrySimulationOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_cnew<NodeGeometrySimulationOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SimulationItemsAccessor>(*src_node, *dst_node);
@@ -1061,7 +955,7 @@ static void node_register()
   ntype.get_extra_info = node_extra_info;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

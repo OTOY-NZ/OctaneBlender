@@ -350,7 +350,7 @@ void ui_draw_but_IMAGE(ARegion * /*region*/,
 
   if (w != ibuf->x || h != ibuf->y) {
     /* We scale the bitmap, rather than have OGL do a worse job. */
-    IMB_scaleImBuf(ibuf, w, h);
+    IMB_scale(ibuf, w, h, IMBScaleFilter::Box, false);
   }
 
   float col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -594,8 +594,8 @@ static void waveform_draw_one(const float *waveform, int waveform_num, const flo
   GPUVertFormat format = {0};
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, waveform_num);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
 
   GPU_vertbuf_attr_fill(vbo, pos_id, waveform);
 
@@ -624,10 +624,10 @@ static void waveform_draw_rgb(const float *waveform,
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
 
-  GPU_vertbuf_data_alloc(vbo, waveform_num);
-  WaveformColorVertex *data = static_cast<WaveformColorVertex *>(GPU_vertbuf_get_data(vbo));
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
+  WaveformColorVertex *data = vbo->data<WaveformColorVertex>().data();
   for (int i = 0; i < waveform_num; i++) {
     memcpy(&data->pos, waveform, sizeof(data->pos));
     memcpy(&data->color, col, sizeof(float) * 3);
@@ -653,9 +653,9 @@ static void circle_draw_rgb(float *points, int tot_points, const float *col, GPU
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col_id = GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
 
-  GPU_vertbuf_data_alloc(vbo, tot_points);
+  GPU_vertbuf_data_alloc(*vbo, tot_points);
   GPU_vertbuf_attr_fill(vbo, pos_id, points);
   GPU_vertbuf_attr_fill(vbo, col_id, col);
 
@@ -1793,7 +1793,10 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   format = immVertexFormat();
   pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  const uint size = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+
+  GPU_program_point_size(true);
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
@@ -1808,12 +1811,14 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
 
   cmp = cuma->curve;
-  GPU_point_size(max_ff(1.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f)));
+  const float point_size = max_ff(U.pixelsize * 3.0f,
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
   immBegin(GPU_PRIM_POINTS, cuma->totpoint);
   for (int a = 0; a < cuma->totpoint; a++) {
     const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
     const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
     immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+    immAttr1f(size, point_size);
     immVertex2f(pos, fx, fy);
   }
   immEnd();
@@ -1971,13 +1976,13 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     BLI_polyfill_calc(table_coords, tot_points, -1, tri_indices);
 
     /* Draw the triangles for the profile fill. */
-    immUniformColor3ubvAlpha((const uchar *)wcol->item, 128);
+    immUniformColor3ubvAlpha(wcol->item, 128);
     GPU_blend(GPU_BLEND_ALPHA);
     GPU_polygon_smooth(false);
     immBegin(GPU_PRIM_TRIS, 3 * tot_triangles);
     for (uint i = 0; i < tot_triangles; i++) {
+      const uint *tri = tri_indices[i];
       for (uint j = 0; j < 3; j++) {
-        uint *tri = tri_indices[i];
         fx = rect->xmin + zoomx * (table_coords[tri[j]][0] - offsx);
         fy = rect->ymin + zoomy * (table_coords[tri[j]][1] - offsy);
         immVertex2f(pos, fx, fy);

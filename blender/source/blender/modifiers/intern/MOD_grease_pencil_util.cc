@@ -27,9 +27,11 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+
+#include "GEO_resample_curves.hh"
 
 namespace blender::modifier::greasepencil {
 
@@ -101,11 +103,12 @@ void draw_layer_filter_settings(const bContext * /*C*/, uiLayout *layout, Pointe
   col = uiLayoutColumn(layout, true);
   row = uiLayoutRow(col, true);
   uiLayoutSetPropDecorate(row, false);
-  uiItemPointerR(row, ptr, "layer_filter", &obj_data_ptr, "layers", nullptr, ICON_GREASEPENCIL);
+  uiItemPointerR(
+      row, ptr, "layer_filter", &obj_data_ptr, "layers", nullptr, ICON_OUTLINER_DATA_GP_LAYER);
   sub = uiLayoutRow(row, true);
   uiItemR(sub, ptr, "invert_layer_filter", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
 
-  row = uiLayoutRowWithHeading(col, true, "Layer Pass");
+  row = uiLayoutRowWithHeading(col, true, IFACE_("Layer Pass"));
   uiLayoutSetPropDecorate(row, false);
   sub = uiLayoutRow(row, true);
   uiItemR(sub, ptr, "use_layer_pass_filter", UI_ITEM_NONE, "", ICON_NONE);
@@ -132,7 +135,7 @@ void draw_material_filter_settings(const bContext * /*C*/, uiLayout *layout, Poi
   sub = uiLayoutRow(row, true);
   uiItemR(sub, ptr, "invert_material_filter", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
 
-  row = uiLayoutRowWithHeading(col, true, "Material Pass");
+  row = uiLayoutRowWithHeading(col, true, IFACE_("Material Pass"));
   uiLayoutSetPropDecorate(row, false);
   sub = uiLayoutRow(row, true);
   uiItemR(sub, ptr, "use_material_pass_filter", UI_ITEM_NONE, "", ICON_NONE);
@@ -325,7 +328,7 @@ Vector<bke::greasepencil::Drawing *> get_drawings_for_write(GreasePencil &grease
   using namespace blender::bke::greasepencil;
   VectorSet<Drawing *> drawings;
   layer_mask.foreach_index([&](const int64_t layer_i) {
-    const Layer &layer = *grease_pencil.layer(layer_i);
+    const Layer &layer = grease_pencil.layer(layer_i);
     /* Set of owned drawings, ignore drawing references to other data blocks. */
     if (Drawing *drawing = grease_pencil.get_drawing_at(layer, frame)) {
       drawings.add(drawing);
@@ -342,7 +345,7 @@ Vector<LayerDrawingInfo> get_drawing_infos_by_layer(GreasePencil &grease_pencil,
   Set<Drawing *> drawings;
   Vector<LayerDrawingInfo> drawing_infos;
   layer_mask.foreach_index([&](const int64_t layer_i) {
-    const Layer &layer = *grease_pencil.layer(layer_i);
+    const Layer &layer = grease_pencil.layer(layer_i);
     Drawing *drawing = grease_pencil.get_drawing_at(layer, frame);
     if (drawing == nullptr) {
       return;
@@ -364,7 +367,7 @@ Vector<FrameDrawingInfo> get_drawing_infos_by_frame(GreasePencil &grease_pencil,
   Set<Drawing *> drawings;
   Vector<FrameDrawingInfo> drawing_infos;
   layer_mask.foreach_index([&](const int64_t layer_i) {
-    const Layer &layer = *grease_pencil.layer(layer_i);
+    const Layer &layer = grease_pencil.layer(layer_i);
     const std::optional<int> start_frame = layer.start_frame_at(frame);
     if (!start_frame) {
       return;
@@ -380,6 +383,18 @@ Vector<FrameDrawingInfo> get_drawing_infos_by_frame(GreasePencil &grease_pencil,
     }
   });
   return drawing_infos;
+}
+
+void ensure_no_bezier_curves(Drawing &drawing)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  IndexMaskMemory memory;
+  const IndexMask bezier_selection = curves.indices_for_curve_type(CURVE_TYPE_BEZIER, memory);
+  if (bezier_selection.is_empty()) {
+    return;
+  }
+  drawing.strokes_for_write() = geometry::resample_to_evaluated(curves, bezier_selection);
+  drawing.tag_topology_changed();
 }
 
 }  // namespace blender::modifier::greasepencil

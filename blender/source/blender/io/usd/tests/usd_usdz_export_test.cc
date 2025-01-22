@@ -12,7 +12,7 @@
 #include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLO_readfile.hh"
 
 #include "DEG_depsgraph.hh"
@@ -96,6 +96,7 @@ TEST_F(UsdUsdzExportTest, usdz_export)
 
   USDExportParams params;
   params.export_materials = false;
+  params.convert_world_material = false;
   params.visible_objects_only = false;
 
   bool result = USD_export(context, output_filepath, &params, false, nullptr);

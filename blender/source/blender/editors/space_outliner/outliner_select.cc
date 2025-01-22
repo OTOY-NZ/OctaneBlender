@@ -28,7 +28,6 @@
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -56,6 +55,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
+#include "WM_message.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
@@ -63,7 +63,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -499,7 +499,31 @@ static void tree_element_grease_pencil_node_activate(bContext *C,
   GreasePencil &grease_pencil = *(GreasePencil *)tselem->id;
   bke::greasepencil::TreeNode &node = tree_element_cast<TreeElementGreasePencilNode>(te)->node();
 
+  if (node.is_layer()) {
+    if (grease_pencil.has_active_group()) {
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                              &grease_pencil.id,
+                              &grease_pencil,
+                              GreasePencilv3LayerGroup,
+                              active);
+    }
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+  }
+  if (node.is_group()) {
+    if (grease_pencil.has_active_layer()) {
+      WM_msg_publish_rna_prop(
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+    }
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
+  }
+
   grease_pencil.set_active_node(&node);
+
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 }
@@ -596,7 +620,7 @@ static void tree_element_bone_activate(bContext *C,
     bone->flag &= ~BONE_SELECTED;
   }
   else {
-    if (ANIM_bone_is_visible(arm, bone)) {
+    if (ANIM_bone_is_visible(arm, bone) && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
       bone->flag |= BONE_SELECTED;
     }
     arm->act_bone = bone;
@@ -616,7 +640,7 @@ static void tree_element_active_ebone__sel(bContext *C, bArmature *arm, EditBone
   if (sel) {
     arm->act_edbone = ebone;
   }
-  if (ANIM_bone_is_visible_editbone(arm, ebone)) {
+  if (ANIM_bone_is_visible_editbone(arm, ebone) && ((ebone->flag & BONE_UNSELECTABLE) == 0)) {
     ED_armature_ebone_select_set(ebone, sel);
   }
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, CTX_data_edit_object(C));
@@ -1158,6 +1182,8 @@ eOLDrawState tree_element_type_active_state_get(const bContext *C,
       return tree_element_ebone_state_get(te);
     case TSE_MODIFIER:
       return tree_element_modifier_state_get(te, tselem);
+    case TSE_LINKED_NODE_TREE:
+      return OL_DRAWSEL_NONE;
     case TSE_LINKED_OB:
       return tree_element_object_state_get(tvc, tselem);
     case TSE_LINKED_PSYS:
@@ -1251,6 +1277,7 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
       case ID_SPK:
       case ID_AR:
       case ID_GD_LEGACY:
+      case ID_GP:
       case ID_LP:
       case ID_CV:
       case ID_PT:
@@ -1298,35 +1325,30 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         context = BCONTEXT_MODIFIER;
 
         if (tselem->type != TSE_MODIFIER_BASE) {
-          Object *ob = (Object *)tselem->id;
+          ModifierData *md = (ModifierData *)te->directdata;
 
-          if (ob->type == OB_GPENCIL_LEGACY) {
-            BKE_gpencil_modifier_panel_expand(static_cast<GpencilModifierData *>(te->directdata));
+          switch ((ModifierType)md->type) {
+            case eModifierType_ParticleSystem:
+              context = BCONTEXT_PARTICLE;
+              break;
+            case eModifierType_Cloth:
+            case eModifierType_Softbody:
+            case eModifierType_Collision:
+            case eModifierType_Fluidsim:
+            case eModifierType_DynamicPaint:
+            case eModifierType_Fluid:
+              context = BCONTEXT_PHYSICS;
+              break;
+            default:
+              break;
           }
-          else {
-            ModifierData *md = (ModifierData *)te->directdata;
 
-            switch ((ModifierType)md->type) {
-              case eModifierType_ParticleSystem:
-                context = BCONTEXT_PARTICLE;
-                break;
-              case eModifierType_Cloth:
-              case eModifierType_Softbody:
-              case eModifierType_Collision:
-              case eModifierType_Fluidsim:
-              case eModifierType_DynamicPaint:
-              case eModifierType_Fluid:
-                context = BCONTEXT_PHYSICS;
-                break;
-              default:
-                break;
-            }
-
-            if (context == BCONTEXT_MODIFIER) {
-              BKE_modifier_panel_expand(md);
-            }
+          if (context == BCONTEXT_MODIFIER) {
+            BKE_modifier_panel_expand(md);
           }
         }
+        break;
+      case TSE_LINKED_NODE_TREE:
         break;
       case TSE_GPENCIL_EFFECT_BASE:
       case TSE_GPENCIL_EFFECT:
@@ -1433,6 +1455,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
            TSE_SEQ_STRIP,
            TSE_SEQUENCE_DUP,
            TSE_EBONE,
+           TSE_LINKED_NODE_TREE,
            TSE_LAYER_COLLECTION))
   {
     /* Note about TSE_EBONE: In case of a same ID_AR datablock shared among several
@@ -1841,7 +1864,7 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
         }
         else {
           /* Double-clicked, but it wasn't on the icon. */
-          return OPERATOR_CANCELLED;
+          return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
         }
       }
       else {

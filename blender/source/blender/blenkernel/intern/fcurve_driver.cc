@@ -27,7 +27,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
@@ -37,7 +37,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "atomic_ops.h"
 
@@ -46,7 +46,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 #include <cstring>

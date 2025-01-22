@@ -107,6 +107,8 @@ GPU_SHADER_CREATE_INFO(draw_globals)
 
 GPU_SHADER_CREATE_INFO(draw_mesh).additional_info("draw_modelmat", "draw_resource_id");
 
+GPU_SHADER_CREATE_INFO(draw_mesh_new).additional_info("draw_modelmat_new", "draw_resource_id");
+
 GPU_SHADER_CREATE_INFO(draw_hair)
     .define("HAIR_SHADER")
     .define("DRW_HAIR_INFO")
@@ -171,12 +173,12 @@ GPU_SHADER_CREATE_INFO(draw_gpencil_new)
     .sampler(0, ImageType::FLOAT_BUFFER, "gp_pos_tx")
     .sampler(1, ImageType::FLOAT_BUFFER, "gp_col_tx")
     /* Per Object */
-    .define("gpThicknessScale", "1.0") /* TODO(fclem): Replace with object info. */
+    .push_constant(Type::FLOAT, "gpThicknessScale") /* TODO(fclem): Replace with object info. */
+    .push_constant(Type::FLOAT, "gpThicknessWorldScale") /* TODO(fclem): Same as above. */
+    .define("gpThicknessIsScreenSpace", "(gpThicknessWorldScale < 0.0)")
     /* Per Layer */
-    .additional_info("draw_modelmat_new",
-                     "draw_resource_id_varying",
-                     "draw_view",
-                     "draw_object_infos_new");
+    .push_constant(Type::FLOAT, "gpThicknessOffset")
+    .additional_info("draw_resource_id_varying", "draw_view", "draw_object_infos_new");
 
 /** \} */
 
@@ -228,6 +230,7 @@ GPU_SHADER_CREATE_INFO(draw_command_generate)
     .push_constant(Type::INT, "prototype_len")
     .push_constant(Type::INT, "visibility_word_per_draw")
     .push_constant(Type::INT, "view_shift")
+    .push_constant(Type::INT, "view_len")
     .push_constant(Type::BOOL, "use_custom_ids")
     .compute_source("draw_command_generate_comp.glsl");
 

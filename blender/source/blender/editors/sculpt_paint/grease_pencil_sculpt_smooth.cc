@@ -26,8 +26,16 @@
 namespace blender::ed::sculpt_paint::greasepencil {
 
 class SmoothOperation : public GreasePencilStrokeOperationCommon {
+ private:
+  bool temp_smooth_;
+
  public:
   using GreasePencilStrokeOperationCommon::GreasePencilStrokeOperationCommon;
+
+  SmoothOperation(const BrushStrokeMode stroke_mode, const bool temp_smooth = false)
+      : GreasePencilStrokeOperationCommon(stroke_mode), temp_smooth_(temp_smooth)
+  {
+  }
 
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
@@ -36,19 +44,42 @@ class SmoothOperation : public GreasePencilStrokeOperationCommon {
 
 void SmoothOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
-  this->init_stroke(C, start_sample);
+  if (temp_smooth_) {
+    Brush *brush = BKE_paint_brush_from_essentials(
+        CTX_data_main(&C), OB_MODE_SCULPT_GREASE_PENCIL, "Smooth");
+    BLI_assert(brush != nullptr);
+
+    init_brush(*brush);
+
+    this->start_mouse_position = start_sample.mouse_position;
+    this->prev_mouse_position = start_sample.mouse_position;
+  }
+  else {
+    this->init_stroke(C, start_sample);
+  }
 }
 
 void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
   const Scene &scene = *CTX_data_scene(&C);
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
-  const Brush &brush = *BKE_paint_brush(&paint);
+  const Brush &brush = [&]() -> const Brush & {
+    if (temp_smooth_) {
+      const Brush *brush = BKE_paint_brush_from_essentials(
+          CTX_data_main(&C), OB_MODE_SCULPT_GREASE_PENCIL, "Smooth");
+      BLI_assert(brush != nullptr);
+      return *brush;
+    }
+    Paint &paint = *BKE_paint_get_active_from_context(&C);
+    return *BKE_paint_brush(&paint);
+  }();
   const int sculpt_mode_flag = brush.gpencil_settings->sculpt_mode_flag;
+
+  const bool is_masking = GPENCIL_ANY_SCULPT_MASK(
+      eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
   this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory selection_memory;
-    const IndexMask selection = point_selection_mask(params, selection_memory);
+    const IndexMask selection = point_selection_mask(params, is_masking, selection_memory);
     if (selection.is_empty()) {
       return false;
     }
@@ -62,7 +93,7 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 
     const VArray<float> influences = VArray<float>::ForFunc(
         view_positions.size(), [&](const int64_t point_) {
-          return brush_influence(
+          return brush_point_influence(
               scene, brush, view_positions[point_], extension_sample, params.multi_frame_falloff);
         });
     Array<bool> selection_array(curves.points_num());
@@ -132,9 +163,9 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 }
 
 std::unique_ptr<GreasePencilStrokeOperation> new_smooth_operation(
-    const BrushStrokeMode stroke_mode)
+    const BrushStrokeMode stroke_mode, const bool temp_smooth)
 {
-  return std::make_unique<SmoothOperation>(stroke_mode);
+  return std::make_unique<SmoothOperation>(stroke_mode, temp_smooth);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil

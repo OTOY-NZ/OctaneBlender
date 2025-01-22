@@ -17,11 +17,11 @@
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
 #include "gpu_py.hh"
 #include "gpu_py_texture.hh"
@@ -261,7 +261,7 @@ PyDoc_STRVAR(
     "   :arg location: Location of the uniform variable to be modified.\n"
     "   :type location: int\n"
     "   :arg buffer: The data that should be set. Can support the buffer protocol.\n"
-    "   :type buffer: sequence of floats\n"
+    "   :type buffer: Sequence[float]\n"
     "   :arg length: Size of the uniform data type:\n"
     "\n"
     "      - 1: float\n"
@@ -331,7 +331,7 @@ PyDoc_STRVAR(
     "   :arg name: Name of the uniform variable whose value is to be changed.\n"
     "   :type name: str\n"
     "   :arg value: Value that will be used to update the specified uniform variable.\n"
-    "   :type value: bool or sequence of bools\n");
+    "   :type value: bool | Sequence[bool]\n");
 static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
 {
   const char *error_prefix = "GPUShader.uniform_bool";
@@ -406,7 +406,7 @@ PyDoc_STRVAR(
     "   :arg name: Name of the uniform variable whose value is to be changed.\n"
     "   :type name: str\n"
     "   :arg value: Value that will be used to update the specified uniform variable.\n"
-    "   :type value: single number or sequence of numbers\n");
+    "   :type value: float | Sequence[float]\n");
 static PyObject *pygpu_shader_uniform_float(BPyGPUShader *self, PyObject *args)
 {
   const char *error_prefix = "GPUShader.uniform_float";
@@ -478,7 +478,7 @@ PyDoc_STRVAR(
     "   :arg name: name of the uniform variable whose value is to be changed.\n"
     "   :type name: str\n"
     "   :arg seq: Value that will be used to update the specified uniform variable.\n"
-    "   :type seq: sequence of numbers\n");
+    "   :type seq: Sequence[int]\n");
 static PyObject *pygpu_shader_uniform_int(BPyGPUShader *self, PyObject *args)
 {
   const char *error_prefix = "GPUShader.uniform_int";
@@ -689,7 +689,7 @@ PyDoc_STRVAR(
     "   Information about the attributes used in the Shader.\n"
     "\n"
     "   :return: tuples containing information about the attributes in order (name, type)\n"
-    "   :rtype: tuple\n");
+    "   :rtype: tuple[tuple[str, str | None], ...]\n");
 static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*arg*/)
 {
   uint attr_len = GPU_shader_get_attribute_len(self->shader);
@@ -947,7 +947,7 @@ PyDoc_STRVAR(
     "      - ``CLIPPED``\n"
     "   :type config: str\n"
     "   :return: Shader object corresponding to the given name.\n"
-    "   :rtype: :class:`bpy.types.GPUShader`\n");
+    "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -993,7 +993,7 @@ PyDoc_STRVAR(
     "   :arg shader_info: GPUShaderCreateInfo\n"
     "   :type shader_info: :class:`bpy.types.GPUShaderCreateInfo`\n"
     "   :return: Shader object corresponding to the given name.\n"
-    "   :rtype: :class:`bpy.types.GPUShader`\n");
+    "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUShaderCreateInfo *o)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;

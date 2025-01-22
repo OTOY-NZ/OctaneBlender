@@ -242,18 +242,21 @@ void BKE_fmodifier_name_set(FModifier *fcm, const char *name);
 /**
  * Callback used by lib_query to walk over all ID usages
  * (mimics `foreach_id` callback of #IDTypeInfo structure).
- */
-void BKE_fmodifiers_foreach_id(ListBase *fmodifiers, LibraryForeachIDData *data);
-
-/**
- * Callback used by lib_query to walk over all ID usages
- * (mimics `foreach_id` callback of #IDTypeInfo structure).
+ *
+ * Note that this is only relevant when the F-Curve is a driver. Otherwise it
+ * won't refer to any other ID.
  */
 void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data);
 
 /**
  * Find the F-Curve affecting the given RNA-access path + index,
  * in the list of F-Curves provided.
+ *
+ * \note ONLY use this on a list of F-Curves that is NOT from an Action. Example
+ * of a good use would be on `adt->drivers`, or `nlastrip->fcurves`.
+ *
+ * \see #blender::animrig::fcurve_find_in_action
+ * \see #blender::animrig::fcurve_find_in_action_slot
  */
 FCurve *BKE_fcurve_find(ListBase *list, const char rna_path[], int array_index);
 
@@ -281,21 +284,6 @@ FCurve *id_data_find_fcurve(
     ID *id, void *data, StructRNA *type, const char *prop_name, int index, bool *r_driven);
 
 /**
- * Get list of LinkData's containing pointers to the F-Curves
- * which control the types of data indicated.
- * e.g. `numMatches = BKE_fcurves_filter(matches, &act->curves, "pose.bones[", "MyFancyBone");`
- *
- * Lists:
- * \param dst: list of LinkData's matching the criteria returned.
- * List must be freed after use, and is assumed to be empty when passed.
- * \param src: list of F-Curves to search through
- * Filters:
- * \param dataPrefix: i.e. `pose.bones[` or `nodes[`.
- * \param dataName: name of entity within "" immediately following the prefix.
- */
-int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, const char *dataName);
-
-/**
  * Find an F-Curve from its rna path and index.
  *
  * The search order is as follows. The first match will be returned:
@@ -310,7 +298,7 @@ int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, con
  * \note Return pointer parameters (`r_action`, `r_driven` and `r_special`) are all optional and
  * may be NULL.
  *
- * \note since Animation data-blocks may have multiple layers all containing an F-Curve for this
+ * \note since Actions may have multiple layers all containing an F-Curve for this
  * property, what is returned is a best-effort guess. The topmost layer has priority, and it is
  * assumed that when it has a strip, it's infinite.
  */
@@ -444,6 +432,11 @@ bool BKE_fcurve_is_protected(const FCurve *fcu);
  * Are any of the keyframe control points selected on the F-Curve?
  */
 bool BKE_fcurve_has_selected_control_points(const FCurve *fcu);
+
+/**
+ * Deselect all keyframes within that FCurve.
+ */
+void BKE_fcurve_deselect_all_keys(FCurve &fcu);
 
 /**
  * Checks if the F-Curve has a Cycles modifier with simple settings
@@ -659,7 +652,7 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
  * If this is used to write an FCurve, be sure to call `BLO_write_struct(writer, FCurve, fcurve);`
  * before calling this function.
  */
-void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcurve);
+void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu);
 void BKE_fcurve_blend_write_listbase(BlendWriter *writer, ListBase *fcurves);
 void BKE_fcurve_blend_read_data(BlendDataReader *reader, FCurve *fcu);
 void BKE_fcurve_blend_read_data_listbase(BlendDataReader *reader, ListBase *fcurves);

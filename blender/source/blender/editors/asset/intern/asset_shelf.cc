@@ -13,6 +13,7 @@
 #include "AS_asset_catalog_path.hh"
 #include "AS_asset_library.hh"
 
+#include "BLI_function_ref.hh"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -26,7 +27,8 @@
 #include "ED_asset_list.hh"
 #include "ED_screen.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -34,6 +36,7 @@
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
+#include "WM_message.hh"
 
 #include "ED_asset_shelf.hh"
 #include "asset_shelf.hh"
@@ -151,7 +154,7 @@ AssetShelf *create_shelf_from_type(AssetShelfType &type)
   AssetShelf *shelf = MEM_new<AssetShelf>(__func__);
   *shelf = dna::shallow_zero_initialize();
   shelf->settings.preview_size = type.default_preview_size ? type.default_preview_size :
-                                                             DEFAULT_TILE_SIZE;
+                                                             ASSET_SHELF_PREVIEW_SIZE_DEFAULT;
   shelf->settings.asset_library_reference = asset_system::all_library_reference();
   shelf->type = &type;
   shelf->preferred_row_count = 1;
@@ -202,7 +205,8 @@ static void activate_shelf(RegionAssetShelf &shelf_regiondata, AssetShelf &shelf
 static AssetShelf *update_active_shelf(const bContext &C,
                                        const eSpace_Type space_type,
                                        RegionAssetShelf &shelf_regiondata,
-                                       FunctionRef<void(AssetShelf &new_shelf)> on_create)
+                                       FunctionRef<void(AssetShelf &new_shelf)> on_create,
+                                       FunctionRef<void(AssetShelf &shelf)> on_reactivate)
 {
   /* NOTE: Don't access #AssetShelf.type directly, use #type_ensure(). */
 
@@ -226,6 +230,9 @@ static AssetShelf *update_active_shelf(const bContext &C,
     if (type_poll_for_non_popup(C, ensure_shelf_has_type(*shelf), space_type)) {
       /* Found a valid previously activated shelf, reactivate it. */
       activate_shelf(shelf_regiondata, *shelf);
+      if (on_reactivate) {
+        on_reactivate(*shelf);
+      }
       return shelf;
     }
   }
@@ -329,11 +336,27 @@ void region_listen(const wmRegionListenerParams *params)
   }
 }
 
+void region_message_subscribe(const wmRegionMessageSubscribeParams *params)
+{
+  wmMsgBus *mbus = params->message_bus;
+  WorkSpace *workspace = params->workspace;
+  ARegion *region = params->region;
+
+  wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
+  msg_sub_value_region_tag_redraw.owner = region;
+  msg_sub_value_region_tag_redraw.user_data = region;
+  msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
+  WM_msg_subscribe_rna_prop(
+      mbus, &workspace->id, workspace, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
+}
+
 void region_init(wmWindowManager *wm, ARegion *region)
 {
-  /* 4.2 LTS release specific workaround: create #RegionAssetShelf if not present yet, because of a
-   * bug #region_on_poll_success() might not have been called before init yet. */
-  RegionAssetShelf *shelf_regiondata = RegionAssetShelf::ensure_from_asset_shelf_region(*region);
+  /* Region-data should've been created by a previously called #region_on_poll_success(). */
+  RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
+  BLI_assert_msg(
+      shelf_regiondata,
+      "Region-data should've been created by a previously called `region_on_poll_success()`.");
 
   AssetShelf *active_shelf = shelf_regiondata->active_shelf;
 
@@ -468,7 +491,7 @@ int tile_height(const AssetShelfSettings &settings)
 
 static int asset_shelf_default_tile_height()
 {
-  return UI_preview_tile_size_x(DEFAULT_TILE_SIZE);
+  return UI_preview_tile_size_x(ASSET_SHELF_PREVIEW_SIZE_DEFAULT);
 }
 
 int region_prefsizey()
@@ -482,7 +505,7 @@ void region_layout(const bContext *C, ARegion *region)
   RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
   BLI_assert_msg(
       shelf_regiondata,
-      "Region-data should've been created by a previously called `region_before_redraw()`.");
+      "Region-data should've been created by a previously called `region_on_poll_success()`.");
 
   const AssetShelf *active_shelf = shelf_regiondata->active_shelf;
   if (!active_shelf) {
@@ -515,6 +538,14 @@ void region_layout(const bContext *C, ARegion *region)
 
   region_resize_to_preferred(CTX_wm_area(C), region);
 
+  /* View2D matrix might have changed due to dynamic sized regions.
+   * Without this, tooltips jump around, see #129347. Reason is that #UI_but_tooltip_refresh() is
+   * called as part of #UI_block_end(), so the block's window matrix needs to be up-to-date. */
+  {
+    UI_view2d_view_ortho(&region->v2d);
+    UI_blocklist_update_window_matrix(C, &region->uiblocks);
+  }
+
   UI_block_end(C, block);
 }
 
@@ -544,21 +575,38 @@ void region_on_poll_success(const bContext *C, ARegion *region)
     return;
   }
 
+  const int old_region_flag = region->flag;
+
   ScrArea *area = CTX_wm_area(C);
   update_active_shelf(
       *C,
       eSpace_Type(area->spacetype),
       *shelf_regiondata,
-      /*on_create=*/[&](AssetShelf &new_shelf) {
-        /* Update region visibility (`'DEFAULT_VISIBLE'` option). */
-        const int old_flag = region->flag;
+      /*on_create=*/
+      [&](AssetShelf &new_shelf) {
+        /* Set region visibility for first time shelf is created (`'DEFAULT_VISIBLE'` option). */
         SET_FLAG_FROM_TEST(region->flag,
                            (new_shelf.type->flag & ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE) == 0,
                            RGN_FLAG_HIDDEN);
-        if (old_flag != region->flag) {
-          ED_region_visibility_change_update(const_cast<bContext *>(C), area, region);
-        }
+      },
+      /*on_reactivate=*/
+      [&](AssetShelf &shelf) {
+        /* Restore region visibility from previous asset shelf instantiation when reactivating. */
+        SET_FLAG_FROM_TEST(
+            region->flag, shelf.instance_flag & ASSETSHELF_REGION_IS_HIDDEN, RGN_FLAG_HIDDEN);
       });
+
+  if (old_region_flag != region->flag) {
+    ED_region_visibility_change_update(const_cast<bContext *>(C), area, region);
+  }
+
+  if (shelf_regiondata->active_shelf) {
+    /* Remember current visibility state of the region in the shelf, so we can restore it on
+     * reactivation. */
+    SET_FLAG_FROM_TEST(shelf_regiondata->active_shelf->instance_flag,
+                       region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER),
+                       ASSETSHELF_REGION_IS_HIDDEN);
+  }
 }
 
 void header_region_listen(const wmRegionListenerParams *params)
@@ -813,7 +861,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
-void header_regiontype_register(ARegionType *region_type, const int space_type)
+static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
   HeaderType *ht = MEM_cnew<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
@@ -825,8 +873,13 @@ void header_regiontype_register(ARegionType *region_type, const int space_type)
   };
 
   BLI_addtail(&region_type->headertypes, ht);
+}
 
+void types_register(ARegionType *region_type, const int space_type)
+{
+  header_regiontype_register(region_type, space_type);
   catalog_selector_panel_register(region_type);
+  popover_panel_register(region_type);
 }
 
 /** \} */

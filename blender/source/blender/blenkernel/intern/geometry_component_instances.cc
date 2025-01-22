@@ -102,6 +102,21 @@ void InstancesComponent::replace(Instances *instances, GeometryOwnershipType own
   ownership_ = ownership;
 }
 
+Instances *InstancesComponent::release()
+{
+  BLI_assert(this->is_mutable());
+  Instances *instance = instances_;
+  instances_ = nullptr;
+  return instance;
+}
+
+void InstancesComponent::count_memory(MemoryCounter &memory) const
+{
+  if (instances_) {
+    instances_->count_memory(memory);
+  }
+}
+
 static void tag_component_reference_index_changed(void *owner)
 {
   Instances &instances = *static_cast<Instances *>(owner);

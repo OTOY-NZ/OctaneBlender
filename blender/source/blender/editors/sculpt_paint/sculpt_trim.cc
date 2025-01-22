@@ -5,10 +5,10 @@
 /** \file
  * \ingroup edsculpt
  */
-#include "DNA_mesh_types.h"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_polyfill_2d.h"
@@ -19,6 +19,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
+#include "BKE_report.hh"
 
 #include "DNA_modifier_types.h"
 
@@ -37,7 +38,10 @@
 #include "tools/bmesh_intersect.hh"
 
 #include "paint_intern.hh"
+#include "sculpt_face_set.hh"
+#include "sculpt_gesture.hh"
 #include "sculpt_intern.hh"
+#include "sculpt_islands.hh"
 
 namespace blender::ed::sculpt_paint::trim {
 
@@ -207,8 +211,6 @@ static void calculate_depth(gesture::GestureData &gesture_data,
   SculptSession &ss = *gesture_data.ss;
   ViewContext &vc = gesture_data.vc;
 
-  const int totvert = SCULPT_vertex_count_get(ss);
-
   float shape_plane[4];
   float shape_origin[3];
   float shape_normal[3];
@@ -218,24 +220,23 @@ static void calculate_depth(gesture::GestureData &gesture_data,
   float depth_front = FLT_MAX;
   float depth_back = -FLT_MAX;
 
-  for (int i = 0; i < totvert; i++) {
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
+  const Span<float3> positions = bke::pbvh::vert_positions_eval(*vc.depsgraph, *vc.obact);
+  const float4x4 &object_to_world = vc.obact->object_to_world();
 
-    const float *vco = SCULPT_vertex_co_get(ss, vertex);
+  for (const int i : positions.index_range()) {
     /* Convert the coordinates to world space to calculate the depth. When generating the trimming
      * mesh, coordinates are first calculated in world space, then converted to object space to
      * store them. */
-    float world_space_vco[3];
-    mul_v3_m4v3(world_space_vco, vc.obact->object_to_world().ptr(), vco);
+    const float3 world_space_vco = math::transform_point(object_to_world, positions[i]);
     const float dist = dist_signed_to_plane_v3(world_space_vco, shape_plane);
-    depth_front = min_ff(dist, depth_front);
-    depth_back = max_ff(dist, depth_back);
+    depth_front = std::min(dist, depth_front);
+    depth_back = std::max(dist, depth_back);
   }
 
   if (trim_operation->use_cursor_depth) {
     float world_space_gesture_initial_location[3];
     mul_v3_m4v3(world_space_gesture_initial_location,
-                vc.obact->object_to_world().ptr(),
+                object_to_world.ptr(),
                 trim_operation->initial_location);
 
     float mid_point_depth;
@@ -505,14 +506,16 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   update_normals(gesture_data);
 }
 
-static void gesture_begin(bContext &C, gesture::GestureData &gesture_data)
+static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &gesture_data)
 {
+  const Scene &scene = *CTX_data_scene(&C);
   Object *object = gesture_data.vc.obact;
   SculptSession &ss = *object->sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*object);
 
-  switch (BKE_pbvh_type(*ss.pbvh)) {
-    case PBVH_FACES:
-      face_set::ensure_face_sets_mesh(*object).finish();
+  switch (pbvh.type()) {
+    case bke::pbvh::Type::Mesh:
+      face_set::create_face_sets_mesh(*object);
       break;
     default:
       BLI_assert_unreachable();
@@ -520,9 +523,9 @@ static void gesture_begin(bContext &C, gesture::GestureData &gesture_data)
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
   generate_geometry(gesture_data);
-  SCULPT_topology_islands_invalidate(ss);
+  islands::invalidate(ss);
   BKE_sculpt_update_object_for_edit(depsgraph, gesture_data.vc.obact, false);
-  undo::push_node(*gesture_data.vc.obact, nullptr, undo::Type::Geometry);
+  undo::geometry_begin(scene, *gesture_data.vc.obact, &op);
 }
 
 static int bm_face_isect_pair(BMFace *f, void * /*user_data*/)
@@ -633,7 +636,7 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
   Mesh *trim_mesh = trim_operation->mesh;
   MutableSpan<float3> positions = trim_mesh->vert_positions_for_write();
   for (int i = 0; i < trim_mesh->verts_num; i++) {
-    flip_v3_v3(positions[i], trim_operation->true_mesh_co[i], gesture_data.symmpass);
+    positions[i] = symmetry_flip(trim_operation->true_mesh_co[i], gesture_data.symmpass);
   }
   update_normals(gesture_data);
   apply_trim(gesture_data);
@@ -657,7 +660,8 @@ static void gesture_end(bContext & /*C*/, gesture::GestureData &gesture_data)
 
   free_geometry(gesture_data);
 
-  undo::push_node(*gesture_data.vc.obact, nullptr, undo::Type::Geometry);
+  undo::geometry_end(*object);
+  BKE_sculptsession_free_pbvh(*object);
   BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&gesture_data.vc.obact->id, ID_RECALC_GEOMETRY);
 }
@@ -742,16 +746,30 @@ static bool can_invoke(const bContext &C)
   return true;
 }
 
-static bool can_exec(const bContext &C)
+static void report_invalid_mode(const blender::bke::pbvh::Type pbvh_type, ReportList &reports)
+{
+  if (pbvh_type == bke::pbvh::Type::BMesh) {
+    BKE_report(&reports, RPT_ERROR, "Not supported in dynamic topology mode");
+  }
+  else if (pbvh_type == bke::pbvh::Type::Grids) {
+    BKE_report(&reports, RPT_ERROR, "Not supported in multiresolution mode");
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static bool can_exec(const bContext &C, ReportList &reports)
 {
   const Object &object = *CTX_data_active_object(&C);
-  const SculptSession &ss = *object.sculpt;
-  if (BKE_pbvh_type(*ss.pbvh) != PBVH_FACES) {
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Mesh) {
     /* Not supported in Multires and Dyntopo. */
+    report_invalid_mode(pbvh.type(), reports);
     return false;
   }
 
-  if (ss.totvert == 0) {
+  if (static_cast<const Mesh *>(object.data)->faces_num == 0) {
     /* No geometry to trim or to detect a valid position for the trimming shape. */
     return false;
   }
@@ -763,10 +781,9 @@ static void initialize_cursor_info(bContext &C,
                                    const wmOperator &op,
                                    gesture::GestureData &gesture_data)
 {
-  const Object &ob = *CTX_data_active_object(&C);
-  SculptSession &ss = *ob.sculpt;
+  Object &ob = *CTX_data_active_object(&C);
 
-  SCULPT_vertex_random_access_ensure(ss);
+  SCULPT_vertex_random_access_ensure(ob);
 
   int mval[2];
   RNA_int_get_array(op.ptr, "location", mval);
@@ -784,7 +801,7 @@ static void initialize_cursor_info(bContext &C,
 
 static int gesture_box_exec(bContext *C, wmOperator *op)
 {
-  if (!can_exec(*C)) {
+  if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -815,7 +832,7 @@ static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int gesture_lasso_exec(bContext *C, wmOperator *op)
 {
-  if (!can_exec(*C)) {
+  if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -846,7 +863,7 @@ static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 static int gesture_line_exec(bContext *C, wmOperator *op)
 {
-  if (!can_exec(*C)) {
+  if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -877,7 +894,7 @@ static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 static int gesture_polyline_exec(bContext *C, wmOperator *op)
 {
-  if (!can_exec(*C)) {
+  if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
   }
 

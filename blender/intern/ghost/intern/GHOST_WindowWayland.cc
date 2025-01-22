@@ -316,7 +316,7 @@ static void gwl_window_cursor_custom_store(GWL_WindowCursorCustomShape &ccs,
   ccs.can_invert_color = can_invert_color;
 }
 
-static GHOST_TSuccess gwl_window_cursor_custom_load(GWL_WindowCursorCustomShape &ccs,
+static GHOST_TSuccess gwl_window_cursor_custom_load(const GWL_WindowCursorCustomShape &ccs,
                                                     GHOST_SystemWayland *system)
 {
   return system->cursor_shape_custom_set(ccs.bitmap,
@@ -329,7 +329,7 @@ static GHOST_TSuccess gwl_window_cursor_custom_load(GWL_WindowCursorCustomShape 
 }
 
 static GHOST_TSuccess gwl_window_cursor_shape_refresh(GHOST_TStandardCursor shape,
-                                                      GWL_WindowCursorCustomShape &ccs,
+                                                      const GWL_WindowCursorCustomShape &ccs,
                                                       GHOST_SystemWayland *system)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -494,6 +494,9 @@ struct GWL_Window {
 
   /** True once the window has been initialized. */
   bool is_init = false;
+
+  /** True when the GPU context is valid. */
+  bool is_valid_setup = false;
 
   /** Currently only initialized on access (avoids allocations & allows to keep private). */
   GWL_WindowScaleParams scale_params;
@@ -1752,12 +1755,13 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                          const bool is_dialog,
                                          const bool stereoVisual,
                                          const bool exclusive,
-                                         const bool is_debug)
+                                         const bool is_debug,
+                                         const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, stereoVisual, exclusive),
       system_(system),
       window_(new GWL_Window),
-      valid_setup_(false),
-      is_debug_context_(is_debug)
+      is_debug_context_(is_debug),
+      preferred_device_(preferred_device)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*system->server_mutex};
@@ -2018,10 +2022,10 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     GHOST_PRINT("Failed to create drawing context" << std::endl);
   }
   else {
-    valid_setup_ = true;
+    window_->is_valid_setup = true;
   }
 
-  if (valid_setup_ == false) {
+  if (window_->is_valid_setup == false) {
     /* Don't attempt to setup the window if there is no context.
      * This window is considered invalid and will be removed. */
   }
@@ -2309,7 +2313,7 @@ GHOST_TSuccess GHOST_WindowWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitma
 
 bool GHOST_WindowWayland::getValid() const
 {
-  return GHOST_Window::getValid() && valid_setup_;
+  return GHOST_Window::getValid() && window_->is_valid_setup;
 }
 
 void GHOST_WindowWayland::setTitle(const char *title)
@@ -2503,7 +2507,8 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
                                                      window_->backend.vulkan_window_info,
                                                      1,
                                                      2,
-                                                     is_debug_context_);
+                                                     is_debug_context_,
+                                                     preferred_device_);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -2792,7 +2797,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
        * each with different fractional scale, see: #109194.
        *
        * Note that the window will show larger, then resize to be smaller soon
-       * after opening. This would be nice to avoid but but would require DPI
+       * after opening. This would be nice to avoid but would require DPI
        * to be stored in the window (as noted above). */
       int size_next[2] = {0, 0};
       int size_orig[2] = {0, 0};
@@ -2890,7 +2895,7 @@ bool GHOST_WindowWayland::outputs_leave(GWL_Output *output)
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
 
-void GHOST_WindowWayland::pending_actions_handle()
+const void GHOST_WindowWayland::pending_actions_handle()
 {
   /* Caller must lock `server_mutex`, while individual actions could lock,
    * it's simpler to lock once when handling all window actions. */

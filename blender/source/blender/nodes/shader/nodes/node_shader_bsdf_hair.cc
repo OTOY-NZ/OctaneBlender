@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Vector>("Tangent").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSDF");
 }
 
@@ -61,5 +61,5 @@ void register_node_type_sh_bsdf_hair()
   blender::bke::node_type_size(&ntype, 150, 60, 200);
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_hair;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

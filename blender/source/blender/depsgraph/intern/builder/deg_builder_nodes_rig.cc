@@ -25,7 +25,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_lib_query.hh"
@@ -64,7 +64,6 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
                      });
 }
 
-/* IK Solver Eval Steps */
 void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con)
 {
   bKinematicConstraint *data = (bKinematicConstraint *)con->data;
@@ -96,7 +95,6 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bC
                      });
 }
 
-/* Spline IK Eval Steps */
 void DepsgraphNodeBuilder::build_splineik_pose(Object *object,
                                                bPoseChannel *pchan,
                                                bConstraint *con)

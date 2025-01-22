@@ -23,7 +23,7 @@
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -45,7 +45,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_object_types.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_vfont.hh"
 #include "BKE_vfontdata.hh"
 
@@ -162,7 +162,7 @@ static void vfont_blend_read_data(BlendDataReader *reader, ID *id)
   VFont *vf = (VFont *)id;
   vf->data = nullptr;
   vf->temp_pf = nullptr;
-  BKE_packedfile_blend_read(reader, &vf->packedfile);
+  BKE_packedfile_blend_read(reader, &vf->packedfile, vf->filepath);
 }
 
 IDTypeInfo IDType_ID_VF = {
@@ -835,6 +835,7 @@ static bool vfont_to_curve(Object *ob,
   float twidth = 0, maxlen = 0;
   int i, slen, j;
   int curbox;
+  /* These values are only set to the selection range when `selboxes` is non-null. */
   int selstart = 0, selend = 0;
   int cnr = 0, lnr = 0, wsnr = 0;
   const char32_t *mem = nullptr;
@@ -853,8 +854,7 @@ static bool vfont_to_curve(Object *ob,
 
   /* Text at the beginning of the last used text-box (use for y-axis alignment).
    * We over-allocate by one to simplify logic of getting last char. */
-  int *i_textbox_array = static_cast<int *>(
-      MEM_callocN(sizeof(*i_textbox_array) * (cu->totbox + 1), "TextBox initial char index"));
+  blender::Array<int> i_textbox_array(cu->totbox + 1, 0);
 
 #define MARGIN_X_MIN (xof_scale + tb_scale.x)
 #define MARGIN_Y_MIN (yof_scale + tb_scale.y)
@@ -1208,7 +1208,7 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (ef && ef->selboxes) {
+  if (ef && selboxes) {
     /* Set combined style flags for the selected string. Start with all styles then
      * remove one if ANY characters do not have it. Break out if we've removed them all. */
     ef->select_char_info_flag = CU_CHINFO_STYLE_ALL;
@@ -1415,7 +1415,6 @@ static bool vfont_to_curve(Object *ob,
   }
 
   MEM_freeN(lineinfo);
-  MEM_freeN(i_textbox_array);
 
   /* TEXT ON CURVE */
   /* NOTE: Only #OB_CURVES_LEGACY objects could have a path. */

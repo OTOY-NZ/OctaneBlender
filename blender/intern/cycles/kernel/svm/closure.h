@@ -84,7 +84,8 @@ ccl_device
           sheen_weight_offset, sheen_tint_offset, sheen_roughness_offset, coat_weight_offset,
           coat_roughness_offset, coat_ior_offset, eta_offset, transmission_weight_offset,
           anisotropic_rotation_offset, coat_tint_offset, coat_normal_offset, alpha_offset,
-          emission_strength_offset, emission_offset, thinfilm_thickness_offset, unused;
+          emission_strength_offset, emission_offset, thinfilm_thickness_offset,
+          diffuse_roughness_offset;
       uint4 data_node2 = read_node(kg, &offset);
 
       float3 T = stack_load_float3(stack, data_node.y);
@@ -93,8 +94,11 @@ ccl_device
                              &roughness_offset,
                              &specular_tint_offset,
                              &anisotropic_offset);
-      svm_unpack_node_uchar4(
-          data_node.w, &sheen_weight_offset, &sheen_tint_offset, &sheen_roughness_offset, &unused);
+      svm_unpack_node_uchar4(data_node.w,
+                             &sheen_weight_offset,
+                             &sheen_tint_offset,
+                             &sheen_roughness_offset,
+                             &diffuse_roughness_offset);
       svm_unpack_node_uchar4(data_node2.x,
                              &eta_offset,
                              &transmission_weight_offset,
@@ -147,9 +151,7 @@ ccl_device
       const float3 clamped_base_color = min(base_color, one_float3());
 
       // get the subsurface scattering data
-#ifdef __SUBSURFACE__
       uint4 data_subsurf = read_node(kg, &offset);
-#endif
 
       uint4 data_alpha_emission_thin = read_node(kg, &offset);
       svm_unpack_node_uchar4(data_alpha_emission_thin.x,
@@ -415,17 +417,26 @@ ccl_device
       }
 #else
       subsurface_weight = 0.0f;
+      (void)data_subsurf;
 #endif
 
-      ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
+      ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
           sd,
-          sizeof(DiffuseBsdf),
+          sizeof(OrenNayarBsdf),
           rgb_to_spectrum(base_color) * (1.0f - subsurface_weight) * weight);
       if (bsdf) {
         bsdf->N = N;
 
+        const float diffuse_roughness = saturatef(
+            stack_load_float(stack, diffuse_roughness_offset));
         /* setup bsdf */
-        sd->flag |= bsdf_diffuse_setup(bsdf);
+        if (diffuse_roughness < CLOSURE_WEIGHT_CUTOFF) {
+          sd->flag |= bsdf_diffuse_setup((ccl_private DiffuseBsdf *)bsdf);
+        }
+        else {
+          bsdf->roughness = diffuse_roughness;
+          sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(base_color));
+        }
       }
 
       break;
@@ -445,7 +456,8 @@ ccl_device
         }
         else {
           bsdf->roughness = roughness;
-          sd->flag |= bsdf_oren_nayar_setup(bsdf);
+          const Spectrum color = saturate(rgb_to_spectrum(stack_load_float3(stack, data_node.y)));
+          sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, color);
         }
       }
       break;
@@ -464,6 +476,77 @@ ccl_device
     case CLOSURE_BSDF_TRANSPARENT_ID: {
       Spectrum weight = closure_weight * mix_weight;
       bsdf_transparent_setup(sd, weight, path_flag);
+      break;
+    }
+    case CLOSURE_BSDF_PHYSICAL_CONDUCTOR:
+    case CLOSURE_BSDF_F82_CONDUCTOR: {
+#ifdef __CAUSTICS_TRICKS__
+      if (!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE))
+        break;
+#endif
+      ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
+          sd, sizeof(MicrofacetBsdf), rgb_to_spectrum(make_float3(mix_weight)));
+
+      if (bsdf != NULL) {
+        uint base_ior_offset, edge_tint_k_offset, rotation_offset, tangent_offset;
+        svm_unpack_node_uchar4(
+            node.z, &base_ior_offset, &edge_tint_k_offset, &rotation_offset, &tangent_offset);
+
+        float3 valid_reflection_N = maybe_ensure_valid_specular_reflection(sd, N);
+        float3 T = stack_load_float3(stack, tangent_offset);
+        const float anisotropy = saturatef(param2);
+        const float roughness = saturatef(param1);
+        float alpha_x = sqr(roughness), alpha_y = sqr(roughness);
+        if (anisotropy > 0.0f) {
+          float aspect = sqrtf(1.0f - anisotropy * 0.9f);
+          alpha_x /= aspect;
+          alpha_y *= aspect;
+          float anisotropic_rotation = stack_load_float(stack, rotation_offset);
+          if (anisotropic_rotation != 0.0f) {
+            T = rotate_around_axis(T, N, anisotropic_rotation * M_2PI_F);
+          }
+        }
+
+        bsdf->N = valid_reflection_N;
+        bsdf->ior = 1.0f;
+        bsdf->T = T;
+        bsdf->alpha_x = alpha_x;
+        bsdf->alpha_y = alpha_y;
+
+        ClosureType distribution = (ClosureType)node.w;
+        /* Setup BSDF */
+        if (distribution == CLOSURE_BSDF_MICROFACET_BECKMANN_ID) {
+          sd->flag |= bsdf_microfacet_beckmann_setup(bsdf);
+        }
+        else {
+          sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
+        }
+
+        const bool is_multiggx = (distribution == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID);
+
+        if (type == CLOSURE_BSDF_PHYSICAL_CONDUCTOR) {
+          ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)
+              closure_alloc_extra(sd, sizeof(FresnelConductor));
+
+          const float3 n = max(stack_load_float3(stack, base_ior_offset), zero_float3());
+          const float3 k = max(stack_load_float3(stack, edge_tint_k_offset), zero_float3());
+
+          fresnel->n = rgb_to_spectrum(n);
+          fresnel->k = rgb_to_spectrum(k);
+          bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, is_multiggx);
+        }
+        else {
+          ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)closure_alloc_extra(
+              sd, sizeof(FresnelF82Tint));
+
+          const float3 color = saturate(stack_load_float3(stack, base_ior_offset));
+          const float3 tint = saturate(stack_load_float3(stack, edge_tint_k_offset));
+
+          fresnel->f0 = rgb_to_spectrum(color);
+          const Spectrum f82 = rgb_to_spectrum(tint);
+          bsdf_microfacet_setup_fresnel_f82_tint(kg, bsdf, sd, fresnel, f82, is_multiggx);
+        }
+      }
       break;
     }
     case CLOSURE_BSDF_RAY_PORTAL_ID: {
@@ -922,13 +1005,10 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
     return;
   }
 
-  uint type, density_offset, anisotropy_offset;
-
-  uint mix_weight_offset;
-  svm_unpack_node_uchar4(node.y, &type, &density_offset, &anisotropy_offset, &mix_weight_offset);
+  uint type, density_offset, param1_offset, mix_weight_offset;
+  svm_unpack_node_uchar4(node.y, &type, &density_offset, &param1_offset, &mix_weight_offset);
   float mix_weight = (stack_valid(mix_weight_offset) ? stack_load_float(stack, mix_weight_offset) :
                                                        1.0f);
-
   if (mix_weight == 0.0f) {
     return;
   }
@@ -947,16 +1027,70 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
   weight *= density;
 
   /* Add closure for volume scattering. */
-  if (type == CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID) {
-    ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
-        sd, sizeof(HenyeyGreensteinVolume), weight);
-
-    if (volume) {
-      float anisotropy = (stack_valid(anisotropy_offset)) ?
-                             stack_load_float(stack, anisotropy_offset) :
-                             __uint_as_float(node.w);
-      volume->g = anisotropy; /* g */
-      sd->flag |= volume_henyey_greenstein_setup(volume);
+  if (CLOSURE_IS_VOLUME_SCATTER(type)) {
+    switch (type) {
+      case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
+        ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)
+            bsdf_alloc(sd, sizeof(HenyeyGreensteinVolume), weight);
+        if (volume) {
+          volume->g = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
+                                                   __uint_as_float(node.w);
+          sd->flag |= volume_henyey_greenstein_setup(volume);
+        }
+      } break;
+      case CLOSURE_VOLUME_FOURNIER_FORAND_ID: {
+        ccl_private FournierForandVolume *volume = (ccl_private FournierForandVolume *)bsdf_alloc(
+            sd, sizeof(FournierForandVolume), weight);
+        if (volume) {
+          const float IOR = stack_load_float(stack, param1_offset);
+          const float B = stack_load_float(stack, node.w);
+          sd->flag |= volume_fournier_forand_setup(volume, B, IOR);
+        }
+      } break;
+      case CLOSURE_VOLUME_RAYLEIGH_ID: {
+        ccl_private RayleighVolume *volume = (ccl_private RayleighVolume *)bsdf_alloc(
+            sd, sizeof(RayleighVolume), weight);
+        if (volume) {
+          sd->flag |= volume_rayleigh_setup(volume);
+        }
+        break;
+      }
+      case CLOSURE_VOLUME_DRAINE_ID: {
+        ccl_private DraineVolume *volume = (ccl_private DraineVolume *)bsdf_alloc(
+            sd, sizeof(DraineVolume), weight);
+        if (volume) {
+          volume->g = stack_load_float(stack, param1_offset);
+          volume->alpha = stack_load_float(stack, node.w);
+          sd->flag |= volume_draine_setup(volume);
+        }
+      } break;
+      case CLOSURE_VOLUME_MIE_ID: {
+        /* We approximate the Mie phase function for water droplets using a mix of Draine and H-G
+         * following "An Approximate Mie Scattering Function for Fog and Cloud Rendering", Johannes
+         * Jendersie and Eugene d'Eon, https://research.nvidia.com/labs/rtr/approximate-mie.
+         *
+         * The numerical fit here (eq. 4-7 in the paper) is intended for 5<d<50.
+         * Generally, we try to allow exceeding the soft limits when reasonable. Here, the only
+         * real limit is that the values need to stay within -1<g<1, 0<a and 0<mixture<1.
+         * This results in the condition d > 1.67154, so we clamp it to 2 to be safe. */
+        const float d = max(2.0f,
+                            stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
+                                                         __uint_as_float(node.w));
+        const float mixture = fast_expf(-0.599085f / (d - 0.641583f) - 0.665888f);
+        ccl_private HenyeyGreensteinVolume *hg = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
+            sd, sizeof(HenyeyGreensteinVolume), weight * (1.0f - mixture));
+        if (hg) {
+          hg->g = fast_expf(-0.0990567f / (d - 1.67154f));
+          sd->flag |= volume_henyey_greenstein_setup(hg);
+        }
+        ccl_private DraineVolume *draine = (ccl_private DraineVolume *)bsdf_alloc(
+            sd, sizeof(DraineVolume), weight * mixture);
+        if (draine) {
+          draine->g = fast_expf(-2.20679f / (d + 3.91029f) - 0.428934f);
+          draine->alpha = fast_expf(3.62489f - 8.29288f / (d + 5.52825f));
+          sd->flag |= volume_draine_setup(draine);
+        }
+      } break;
     }
   }
 

@@ -32,14 +32,9 @@
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdLux/boundableLightBase.h>
+#include <pxr/usd/usdLux/nonboundableLightBase.h>
 #include <pxr/usd/usdShade/material.h>
-
-#if PXR_VERSION >= 2111
-#  include <pxr/usd/usdLux/boundableLightBase.h>
-#  include <pxr/usd/usdLux/nonboundableLightBase.h>
-#else
-#  include <pxr/usd/usdLux/light.h>
-#endif
 
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
@@ -112,29 +107,6 @@ static void set_instance_collection(
   }
 }
 
-static void collect_point_instancer_proto_paths(const pxr::UsdPrim &prim, UsdPathSet &r_paths)
-{
-  /* Note that we use custom filter flags to allow traversing undefined prims,
-   * because prototype prims may be defined as overs which are skipped by the
-   * default predicate. */
-  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
-                                               !pxr::UsdPrimIsAbstract;
-
-  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
-
-  for (const auto &child_prim : children) {
-    if (pxr::UsdGeomPointInstancer instancer = pxr::UsdGeomPointInstancer(child_prim)) {
-      pxr::SdfPathVector paths;
-      instancer.GetPrototypesRel().GetTargets(&paths);
-      for (const pxr::SdfPath &path : paths) {
-        r_paths.add(path);
-      }
-    }
-
-    collect_point_instancer_proto_paths(child_prim, r_paths);
-  }
-}
-
 USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
                                const USDImportParams &params,
                                const ImportSettings &settings)
@@ -186,13 +158,9 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
     /* Dome lights are handled elsewhere. */
     return nullptr;
   }
-#if PXR_VERSION >= 2111
   if (params_.import_lights &&
       (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()))
   {
-#else
-  if (params_.import_lights && prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (params_.import_volumes && prim.IsA<pxr::UsdVolVolume>()) {
@@ -235,11 +203,7 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
     /* We don't handle dome lights. */
     return nullptr;
   }
-#if PXR_VERSION >= 2111
   if (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()) {
-#else
-  if (prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdVolVolume>()) {
@@ -724,8 +688,8 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
       Collection *proto_coll = create_collection(bmain, instancer_protos_coll, coll_name.c_str());
       blender::Vector<USDPrimReader *> proto_readers = instancer_proto_readers_.lookup_default(
           proto_path, {});
-      for (USDPrimReader *reader : proto_readers) {
-        Object *ob = reader->object();
+      for (USDPrimReader *proto : proto_readers) {
+        Object *ob = proto->object();
         if (!ob) {
           continue;
         }
@@ -768,6 +732,39 @@ void USDStageReader::create_point_instancer_proto_readers(const UsdPathSet &prot
   }
 }
 
+void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &prim,
+                                                         UsdPathSet &r_paths) const
+{
+  /* Note that we use custom filter flags to allow traversing undefined prims,
+   * because prototype prims may be defined as overs which are skipped by the
+   * default predicate. */
+  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
+                                               !pxr::UsdPrimIsAbstract;
+
+  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
+
+  for (const auto &child_prim : children) {
+    if (pxr::UsdGeomPointInstancer instancer = pxr::UsdGeomPointInstancer(child_prim)) {
+      /* We should only collect the prototype paths from this instancer if it would be included
+       * by our purpose and visibility checks, matching what is inside #collect_readers. */
+      if (!include_by_purpose(instancer)) {
+        continue;
+      }
+      if (!include_by_visibility(instancer)) {
+        continue;
+      }
+
+      pxr::SdfPathVector paths;
+      instancer.GetPrototypesRel().GetTargets(&paths);
+      for (const pxr::SdfPath &path : paths) {
+        r_paths.add(path);
+      }
+    }
+
+    collect_point_instancer_proto_paths(child_prim, r_paths);
+  }
+}
+
 UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
 {
   UsdPathSet result;
@@ -776,12 +773,12 @@ UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
     return result;
   }
 
-  io::usd::collect_point_instancer_proto_paths(stage_->GetPseudoRoot(), result);
+  collect_point_instancer_proto_paths(stage_->GetPseudoRoot(), result);
 
   std::vector<pxr::UsdPrim> protos = stage_->GetPrototypes();
 
   for (const pxr::UsdPrim &proto_prim : protos) {
-    io::usd::collect_point_instancer_proto_paths(proto_prim, result);
+    collect_point_instancer_proto_paths(proto_prim, result);
   }
 
   return result;

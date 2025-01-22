@@ -29,7 +29,7 @@
 #include "DNA_world_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_compute_contexts.hh"
@@ -119,7 +119,7 @@ static std::optional<ComputeContextHash> get_compute_context_hash_for_node_edito
   for (const int i : treepath.index_range().drop_back(1)) {
     /* The tree path contains the name of the node but not its ID. */
     bNodeTree *tree = treepath[i]->nodetree;
-    const bNode *node = bke::nodeFindNodebyName(tree, treepath[i + 1]->node_name);
+    const bNode *node = bke::node_find_node_by_name(tree, treepath[i + 1]->node_name);
     if (node == nullptr) {
       /* The current tree path is invalid, probably because some parent group node has been
        * deleted. */
@@ -130,10 +130,6 @@ static std::optional<ComputeContextHash> get_compute_context_hash_for_node_edito
   return compute_context_builder.hash();
 }
 
-/*
- * This function returns the `NestedTreePreviews *` for the nodetree shown in the SpaceNode.
- * This is the first function in charge of the previews by calling `ensure_nodetree_previews`.
- */
 NestedTreePreviews *get_nested_previews(const bContext &C, SpaceNode &snode)
 {
   if (snode.id == nullptr || GS(snode.id->name) != ID_MA) {
@@ -306,7 +302,6 @@ static ImBuf *get_image_from_viewlayer_and_pass(RenderResult &rr,
   return ibuf;
 }
 
-/* `node_release_preview_ibuf` should be called after this. */
 ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree,
                                  NestedTreePreviews &tree_previews,
                                  const bNode &node)
@@ -377,7 +372,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
       }
     }
     if (output_node == nullptr) {
-      output_node = bke::nodeAddStaticNode(nullptr, nested_nt, NODE_GROUP_OUTPUT);
+      output_node = bke::node_add_static_node(nullptr, nested_nt, NODE_GROUP_OUTPUT);
       output_node->flag |= NODE_DO_OUTPUT;
     }
 
@@ -387,12 +382,12 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
 
-    bke::nodeAddLink(nested_nt, nested_node_iter, nested_socket_iter, output_node, out_socket);
+    bke::node_add_link(nested_nt, nested_node_iter, nested_socket_iter, output_node, out_socket);
     BKE_ntree_update_main_tree(G.pr_main, nested_nt, nullptr);
 
     /* Change the `nested_node` pointer to the nested node-group instance node. The tree path
      * contains the name of the instance node but not its ID. */
-    nested_node_iter = bke::nodeFindNodebyName(path_prev->nodetree, path->node_name);
+    nested_node_iter = bke::node_find_node_by_name(path_prev->nodetree, path->node_name);
 
     /* Update the sockets of the node because we added a new interface. */
     BKE_ntree_update_tag_node_property(path_prev->nodetree, nested_node_iter);
@@ -404,11 +399,11 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                                                        route_name);
   }
 
-  bke::nodeAddLink(treepath.first()->nodetree,
-                   nested_node_iter,
-                   nested_socket_iter,
-                   &final_node,
-                   &final_socket);
+  bke::node_add_link(treepath.first()->nodetree,
+                     nested_node_iter,
+                     nested_socket_iter,
+                     &final_node,
+                     &final_socket);
 }
 
 /* Connect the node to the output of the first nodetree from `treepath`. Last element of `treepath`
@@ -430,10 +425,10 @@ static void connect_node_to_surface_output(const Span<bNodeTreePath *> treepath,
     socket_preview = socket_preview->link->fromsock;
   }
   /* Ensure output is usable. */
-  out_surface_socket = bke::nodeFindSocket(&output_node, SOCK_IN, "Surface");
+  out_surface_socket = bke::node_find_socket(&output_node, SOCK_IN, "Surface");
   if (out_surface_socket->link) {
     /* Make sure no node is already wired to the output before wiring. */
-    bke::nodeRemLink(main_nt, out_surface_socket->link);
+    bke::node_remove_link(main_nt, out_surface_socket->link);
   }
 
   connect_nested_node_to_node(treepath,
@@ -459,13 +454,13 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
     bNode *node_preview = nodesocket.first;
     bNodeSocket *socket_preview = nodesocket.second;
 
-    bNode *aov_node = bke::nodeAddStaticNode(nullptr, main_nt, SH_NODE_OUTPUT_AOV);
+    bNode *aov_node = bke::node_add_static_node(nullptr, main_nt, SH_NODE_OUTPUT_AOV);
     STRNCPY(reinterpret_cast<NodeShaderOutputAOV *>(aov_node->storage)->name,
             nodesocket.first->name);
     if (socket_preview == nullptr) {
       continue;
     }
-    bNodeSocket *aov_socket = bke::nodeFindSocket(aov_node, SOCK_IN, "Color");
+    bNodeSocket *aov_socket = bke::node_find_socket(aov_node, SOCK_IN, "Color");
     if (socket_preview->in_out == SOCK_IN) {
       if (socket_preview->link == nullptr) {
         /* Copy the custom value of the socket directly to the AOV node.
@@ -527,14 +522,14 @@ static bool prepare_viewlayer_update(void *pvl_data, ViewLayer *vl, Depsgraph *d
     return job_data->AOV_nodes.size() > 0 && !vl->prev;
   }
 
-  bNodeSocket *displacement_socket = bke::nodeFindSocket(
+  bNodeSocket *displacement_socket = bke::node_find_socket(
       job_data->mat_output_copy, SOCK_IN, "Displacement");
   if (job_data->mat_displacement_copy.first != nullptr && displacement_socket->link == nullptr) {
-    bke::nodeAddLink(job_data->treepath_copy.first()->nodetree,
-                     job_data->mat_displacement_copy.first,
-                     job_data->mat_displacement_copy.second,
-                     job_data->mat_output_copy,
-                     displacement_socket);
+    bke::node_add_link(job_data->treepath_copy.first()->nodetree,
+                       job_data->mat_displacement_copy.first,
+                       job_data->mat_displacement_copy.second,
+                       job_data->mat_output_copy,
+                       displacement_socket);
   }
   connect_node_to_surface_output(job_data->treepath_copy, nodesocket, *job_data->mat_output_copy);
 
@@ -703,7 +698,7 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
   for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
     if (node_iter->flag & NODE_DO_OUTPUT) {
       node_iter->flag &= ~NODE_DO_OUTPUT;
-      bNodeSocket *disp_socket = bke::nodeFindSocket(node_iter, SOCK_IN, "Displacement");
+      bNodeSocket *disp_socket = bke::node_find_socket(node_iter, SOCK_IN, "Displacement");
       if (disp_socket != nullptr && disp_socket->link != nullptr) {
         job_data->mat_displacement_copy = std::make_pair(disp_socket->link->fromnode,
                                                          disp_socket->link->fromsock);
@@ -714,7 +709,7 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
 
   /* Add a new output node used only for the previews. This is useful to keep the previously
    * connected links (for previewing the output nodes for example). */
-  job_data->mat_output_copy = bke::nodeAddStaticNode(
+  job_data->mat_output_copy = bke::node_add_static_node(
       nullptr, job_data->mat_copy->nodetree, SH_NODE_OUTPUT_MATERIAL);
   job_data->mat_output_copy->flag |= NODE_DO_OUTPUT;
 
@@ -782,7 +777,7 @@ static void ensure_nodetree_previews(const bContext &C,
     return;
   }
   if (tree_previews.rendering) {
-    WM_jobs_stop(CTX_wm_manager(&C), CTX_wm_space_node(&C), shader_preview_startjob);
+    WM_jobs_stop_type(CTX_wm_manager(&C), CTX_wm_space_node(&C), WM_JOB_TYPE_RENDER_PREVIEW);
     return;
   }
   tree_previews.rendering = true;
@@ -817,8 +812,8 @@ static void ensure_nodetree_previews(const bContext &C,
        original_path;
        original_path = original_path->next)
   {
-    bNode *parent = bke::nodeFindNodebyName(job_data->treepath_copy.last()->nodetree,
-                                            original_path->node_name);
+    bNode *parent = bke::node_find_node_by_name(job_data->treepath_copy.last()->nodetree,
+                                                original_path->node_name);
     if (parent == nullptr) {
       /* In some cases (e.g. muted nodes), there may not be an equivalent node in the copied
        * nodetree. In that case, just skip the node. */
@@ -837,15 +832,10 @@ static void ensure_nodetree_previews(const bContext &C,
   WM_jobs_start(CTX_wm_manager(&C), wm_job);
 }
 
-void stop_preview_job(wmWindowManager &wm)
-{
-  WM_jobs_stop(&wm, nullptr, shader_preview_startjob);
-}
-
 void free_previews(wmWindowManager &wm, SpaceNode &snode)
 {
   /* This should not be called from the drawing pass, because it will result in a deadlock. */
-  WM_jobs_kill(&wm, &snode, shader_preview_startjob);
+  WM_jobs_kill_type(&wm, &snode, WM_JOB_TYPE_RENDER_PREVIEW);
   snode.runtime->tree_previews_per_context.clear_and_shrink();
 }
 

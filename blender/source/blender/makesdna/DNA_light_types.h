@@ -16,7 +16,6 @@
 #endif
 
 struct AnimData;
-struct CurveMapping;
 struct Ipo;
 struct bNodeTree;
 
@@ -53,25 +52,17 @@ typedef struct Light {
   /* Sun light. */
   float sun_angle;
 
-  /* Shadow color. */
-  float shdwr, shdwg, shdwb;
-
   /* Nodes. */
   short pr_texture, use_nodes;
 
   /* Eevee */
-  float bias;
   float clipsta;
-  float clipend;
+  float clipend_deprecated;
 
   float cascade_max_dist;
   float cascade_exponent;
   float cascade_fade;
   int cascade_count;
-
-  float contact_dist;
-  float contact_bias;
-  float contact_thickness;
 
   float diff_fac;
   float spec_fac;
@@ -82,7 +73,6 @@ typedef struct Light {
   float shadow_filter_radius;
   float shadow_maximum_resolution;
   float shadow_jitter_overblur;
-  char _pad3[4];
 
   /* Preview */
   struct PreviewImage *preview;
@@ -144,7 +134,7 @@ enum {
   // LA_SHAD_TEX = 1 << 16, /* Deprecated. */
   LA_SHOW_CONE = 1 << 17,
   // LA_SHOW_SHADOW_BOX = 1 << 18,
-  LA_SHAD_CONTACT = 1 << 19,
+  // LA_SHAD_CONTACT = 1 << 19, /* Deprecated. */
   LA_CUSTOM_ATTENUATION = 1 << 20,
   LA_USE_SOFT_FALLOFF = 1 << 21,
   /** Use absolute resolution clamping instead of relative. */

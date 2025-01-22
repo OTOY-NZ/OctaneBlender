@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 
@@ -13,6 +14,9 @@ GeometryComponentEditData::GeometryComponentEditData() : GeometryComponent(Type:
 GeometryComponentPtr GeometryComponentEditData::copy() const
 {
   GeometryComponentEditData *new_component = new GeometryComponentEditData();
+  if (gizmo_edit_hints_) {
+    new_component->gizmo_edit_hints_ = std::make_unique<GizmoEditHints>(*gizmo_edit_hints_);
+  }
   if (curves_edit_hints_) {
     new_component->curves_edit_hints_ = std::make_unique<CurvesEditHints>(*curves_edit_hints_);
   }
@@ -38,6 +42,7 @@ void GeometryComponentEditData::clear()
   BLI_assert(this->is_mutable() || this->is_expired());
   curves_edit_hints_.reset();
   grease_pencil_edit_hints_.reset();
+  gizmo_edit_hints_.reset();
 }
 
 static ImplicitSharingPtrAndData save_shared_attribute(const GAttributeReader &attribute)
@@ -49,7 +54,7 @@ static ImplicitSharingPtrAndData save_shared_attribute(const GAttributeReader &a
   }
   auto *data = new ImplicitSharedValue<GArray<>>(attribute.varray.type(), attribute.varray.size());
   attribute.varray.materialize(data->data.data());
-  return {ImplicitSharingPtr<ImplicitSharingInfo>(data), data->data.data()};
+  return {ImplicitSharingPtr<>(data), data->data.data()};
 }
 
 static void remember_deformed_curve_positions_if_necessary(
@@ -98,7 +103,7 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
       *edit_component.grease_pencil_edit_hints_->drawing_hints;
   for (const int layer_index : layers.index_range()) {
     const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
-        *grease_pencil->layer(layer_index));
+        grease_pencil->layer(layer_index));
     const greasepencil::Layer &orig_layer = *orig_layers[layer_index];
     const greasepencil::Drawing *orig_drawing = orig_grease_pencil.get_drawing_at(
         orig_layer, grease_pencil->runtime->eval_frame);

@@ -194,7 +194,8 @@ void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
 
 bool attribute_set_poll(bContext &C, const ID &object_data)
 {
-  const CustomDataLayer *layer = BKE_id_attributes_active_get(&const_cast<ID &>(object_data));
+  AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(object_data));
+  const CustomDataLayer *layer = BKE_attributes_active_get(owner);
   if (!layer) {
     CTX_wm_operator_poll_msg_set(&C, "No active attribute");
     return false;
@@ -210,11 +211,17 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
 
 static bool geometry_attributes_poll(bContext *C)
 {
+  using namespace blender::bke;
   const Object *ob = object::context_object(C);
   const Main *bmain = CTX_data_main(C);
-  const ID *data = (ob) ? static_cast<ID *>(ob->data) : nullptr;
-  return (ob && BKE_id_is_editable(bmain, &ob->id) && data && BKE_id_is_editable(bmain, data)) &&
-         BKE_id_attributes_supported(data);
+  if (!ob || !BKE_id_is_editable(bmain, &ob->id)) {
+    return false;
+  }
+  const ID *data = (ob) ? static_cast<const ID *>(ob->data) : nullptr;
+  if (!data || !BKE_id_is_editable(bmain, data)) {
+    return false;
+  }
+  return AttributeAccessor::from_id(*data).has_value();
 }
 
 static bool geometry_attributes_remove_poll(bContext *C)
@@ -225,7 +232,8 @@ static bool geometry_attributes_remove_poll(bContext *C)
 
   Object *ob = object::context_object(C);
   ID *data = (ob) ? static_cast<ID *>(ob->data) : nullptr;
-  if (BKE_id_attributes_active_get(data) != nullptr) {
+  AttributeOwner owner = AttributeOwner::from_id(data);
+  if (BKE_attributes_active_get(owner) != nullptr) {
     return true;
   }
 
@@ -246,7 +254,8 @@ static const EnumPropertyItem *geometry_attribute_domain_itemf(bContext *C,
     return rna_enum_dummy_NULL_items;
   }
 
-  return rna_enum_attribute_domain_itemf(static_cast<ID *>(ob->data), false, r_free);
+  const AttributeOwner owner = AttributeOwner::from_id(static_cast<ID *>(ob->data));
+  return rna_enum_attribute_domain_itemf(owner, false, r_free);
 }
 
 static int geometry_attribute_add_exec(bContext *C, wmOperator *op)
@@ -258,13 +267,14 @@ static int geometry_attribute_add_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "name", name);
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
-  CustomDataLayer *layer = BKE_id_attribute_new(id, name, type, domain, op->reports);
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
 
   if (layer == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  BKE_id_attributes_active_set(id, layer->name);
+  BKE_attributes_active_set(owner, layer->name);
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -278,6 +288,21 @@ static int geometry_attribute_add_invoke(bContext *C, wmOperator *op, const wmEv
   prop = RNA_struct_find_property(op->ptr, "name");
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_string_set(op->ptr, prop, DATA_("Attribute"));
+  }
+  /* Set a valid default domain, in case Point domain is not supported. */
+  prop = RNA_struct_find_property(op->ptr, "domain");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    EnumPropertyItem *items;
+    int totitems;
+    bool free;
+    RNA_property_enum_items(
+        C, op->ptr, prop, const_cast<const EnumPropertyItem **>(&items), &totitems, &free);
+    if (totitems > 0) {
+      RNA_property_enum_set(op->ptr, prop, items[0].value);
+    }
+    if (free) {
+      MEM_freeN(items);
+    }
   }
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("Add Attribute"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
@@ -329,13 +354,14 @@ static int geometry_attribute_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
   ID *id = static_cast<ID *>(ob->data);
-  CustomDataLayer *layer = BKE_id_attributes_active_get(id);
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  CustomDataLayer *layer = BKE_attributes_active_get(owner);
 
-  if (!BKE_id_attribute_remove(id, layer->name, op->reports)) {
+  if (!BKE_attribute_remove(owner, layer->name, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  int *active_index = BKE_id_attributes_active_index_p(id);
+  int *active_index = BKE_attributes_active_index_p(owner);
   if (*active_index > 0) {
     *active_index -= 1;
   }
@@ -370,7 +396,8 @@ static int geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "name", name);
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
-  CustomDataLayer *layer = BKE_id_attribute_new(id, name, type, domain, op->reports);
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
 
   float color[4];
   RNA_float_get_array(op->ptr, "color", color);
@@ -420,6 +447,7 @@ static bool geometry_attribute_convert_poll(bContext *C)
 
   Object *ob = object::context_object(C);
   ID *data = static_cast<ID *>(ob->data);
+  AttributeOwner owner = AttributeOwner::from_id(data);
   if (GS(data->name) != ID_ME) {
     return false;
   }
@@ -427,7 +455,7 @@ static bool geometry_attribute_convert_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
     return false;
   }
-  if (BKE_id_attributes_active_get(data) == nullptr) {
+  if (BKE_attributes_active_get(owner) == nullptr) {
     return false;
   }
   return true;
@@ -437,7 +465,8 @@ static int geometry_attribute_convert_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
   ID *ob_data = static_cast<ID *>(ob->data);
-  CustomDataLayer *layer = BKE_id_attributes_active_get(ob_data);
+  AttributeOwner owner = AttributeOwner::from_id(ob_data);
+  CustomDataLayer *layer = BKE_attributes_active_get(owner);
   const ConvertAttributeMode mode = static_cast<ConvertAttributeMode>(
       RNA_enum_get(op->ptr, "mode"));
   Mesh *mesh = reinterpret_cast<Mesh *>(ob_data);
@@ -478,7 +507,8 @@ static int geometry_attribute_convert_exec(bContext *C, wmOperator *op)
           BKE_defvert_add_index_notest(dverts + i, defgroup_index, weight);
         }
       }
-      int *active_index = BKE_id_attributes_active_index_p(&mesh->id);
+      AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+      int *active_index = BKE_attributes_active_index_p(owner);
       if (*active_index > 0) {
         *active_index -= 1;
       }
@@ -600,8 +630,8 @@ static int geometry_color_attribute_remove_exec(bContext *C, wmOperator *op)
   if (active_name.empty()) {
     return OPERATOR_CANCELLED;
   }
-
-  if (!BKE_id_attribute_remove(id, active_name.c_str(), op->reports)) {
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  if (!BKE_attribute_remove(owner, active_name.c_str(), op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -651,7 +681,8 @@ static int geometry_color_attribute_duplicate_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CustomDataLayer *new_layer = BKE_id_attribute_duplicate(id, active_name, op->reports);
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  CustomDataLayer *new_layer = BKE_attribute_duplicate(owner, active_name, op->reports);
   if (new_layer == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -705,9 +736,10 @@ static int geometry_attribute_convert_invoke(bContext *C,
 {
   Object *ob = object::context_object(C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
   const bke::AttributeMetaData meta_data = *mesh->attributes().lookup_meta_data(
-      BKE_id_attributes_active_get(&mesh->id)->name);
+      BKE_attributes_active_get(owner)->name);
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");
   if (!RNA_property_is_set(op->ptr, prop)) {
@@ -781,6 +813,8 @@ static int geometry_color_attribute_convert_exec(bContext *C, wmOperator *op)
                                 eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
                                 bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
                                 op->reports);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
   return OPERATOR_FINISHED;
 }
 

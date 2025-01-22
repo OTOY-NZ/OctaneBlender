@@ -85,7 +85,7 @@ static int geometry_extract_apply(bContext *C,
   Scene *scene = CTX_data_scene(C);
   Depsgraph &depsgraph = *CTX_data_depsgraph_on_load(C);
 
-  ED_object_sculptmode_exit(C, depsgraph);
+  blender::ed::sculpt_paint::object_sculpt_mode_exit(C, depsgraph);
 
   BKE_sculpt_mask_layers_ensure(&depsgraph, bmain, ob, nullptr);
 
@@ -194,7 +194,7 @@ static int geometry_extract_apply(bContext *C,
   new_mesh->attributes_for_write().remove(".sculpt_mask");
 
   BKE_editmesh_free_data(em);
-  MEM_freeN(em);
+  MEM_delete(em);
 
   if (new_mesh->verts_num == 0) {
     BKE_id_free(bmain, new_mesh);
@@ -458,6 +458,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
   using namespace blender::ed;
+  const Scene &scene = *CTX_data_scene(C);
   Main &bmain = *CTX_data_main(C);
   Object &ob = *CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -473,7 +474,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
 
   /* Undo crashes when new object is created in the middle of a sculpt, see #87243. */
   if (ob.mode == OB_MODE_SCULPT && !create_new_object) {
-    sculpt_paint::undo::geometry_begin(ob, op);
+    sculpt_paint::undo::geometry_begin(scene, ob, op);
   }
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(new_mesh);
@@ -534,6 +535,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
     }
     if (!create_new_object) {
       sculpt_paint::undo::geometry_end(ob);
+      BKE_sculptsession_free_pbvh(ob);
     }
   }
 

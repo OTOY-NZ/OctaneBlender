@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
+"Project-Id-Version: Blender 4.3.0 Release Candidate (b'7dfe47164a63')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-07-15 07:57+0000\n"
+"POT-Creation-Date: 2024-11-18 11:20+0000\n"
 "PO-Revision-Date: 2024-04-29 13:28+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -680,10 +680,6 @@ msgid "Description"
 msgstr "ﻒﻳﺮﻌﺗ"
 
 
-msgid "All"
-msgstr "ﻞﻜﻟﺍ"
-
-
 msgid "ID Name"
 msgstr "ﻲﻔﻳﺮﻌﺘﻟﺍ ﻢﺳﻹ﻿ﺍ"
 
@@ -1208,6 +1204,126 @@ msgid "Worlds"
 msgstr "ﻢﻟﺍﻮﻌﻟﺍ"
 
 
+msgid "ID Type"
+msgstr "ﻑﺮﻌﻤﻟﺍ ﻉﻮﻧ"
+
+
+msgid "Armature"
+msgstr "ﻞﻜﻴﻫ"
+
+
+msgid "Brush"
+msgstr "ﺓﺎﺷﺮﻓ"
+
+
+msgid "Camera"
+msgstr "ﺍﺮﻴﻤﻜﻟﺍ"
+
+
+msgid "Curve"
+msgstr "ﻰﻨﺤﻨﻣ"
+
+
+msgid "Font"
+msgstr "ﻂﺨﻟﺍ"
+
+
+msgid "Image"
+msgstr "ﺓﺭﻮﺻ"
+
+
+msgid "Key"
+msgstr "ﺡﺎﺘﻔﻣ"
+
+
+msgid "Lattice"
+msgstr "ﺔﻜﺒﺷ"
+
+
+msgid "Library"
+msgstr "ﺔﺒﺘﻜﻣ"
+
+
+msgid "Light"
+msgstr "ءﻮﺿ"
+
+
+msgid "Line Style"
+msgstr "ﻂﺨﻟﺍ ﻂﻤﻧ"
+
+
+msgid "Mask"
+msgstr "ءﺎﻄﻏ"
+
+
+msgid "Material"
+msgstr "ﺔﻣﺎﺧ"
+
+
+msgid "Mesh"
+msgstr "ﻢﺴﺠﻣ"
+
+
+msgid "Metaball"
+msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
+
+
+msgid "Movie Clip"
+msgstr "ﻮﻳﺪﻴﻓ ﻂﻳﺮﺷ"
+
+
+msgid "Node Tree"
+msgstr "ﺓﺪﻘﻌﻟﺍ ﺓﺮﺠﺷ"
+
+
+msgid "Paint Curve"
+msgstr "ﻰﻨﺤﻨﻤﻟﺍ ﻢﺳﺭﺍ"
+
+
+msgid "Palette"
+msgstr "ﻥﺍﻮﻟﻻ﻿ﺍ ﺡﻮﻟ"
+
+
+msgid "Particle"
+msgstr "ءﻱﺰﺟ"
+
+
+msgid "Scene"
+msgstr "ﺪﻬﺸﻣ"
+
+
+msgid "Screen"
+msgstr "ﺔﺷﺎﺷ"
+
+
+msgid "Sound"
+msgstr "ﺕﻮﺻ"
+
+
+msgid "Speaker"
+msgstr "ﺕﻮﺻ ﺮﺒﻜﻣ"
+
+
+msgid "Text"
+msgstr "ﺺﻧ"
+
+
+msgid "Texture"
+msgstr "ﺞﻴﺴﻨﻟﺍ"
+
+
+msgid "Volume"
+msgstr "ﻢﺠﺤﻟﺍ"
+
+
+msgid "Window Manager"
+msgstr "ﺬﻓﺍﻮﻧ ﺮﻳﺪﻣ"
+
+
+msgid "World"
+msgstr "ﻢﻟﺎﻌﻟﺍ"
+
+
 msgid "Blender RNA"
 msgstr "ﺍ.ﻥ.ﺭ ﺭﺪﻨﻠﺑ"
 
@@ -1676,10 +1792,6 @@ msgid "All rules are averaged"
 msgstr "ﺪﻋﺍﻮﻘﻟﺍ ﻞﻛ ﻂﻴﺳﻮﺗ"
 
 
-msgid "Volume"
-msgstr "ﻢﺠﺤﻟﺍ"
-
-
 msgid "Automatic"
 msgstr "ﻲﺗﺍﺫ"
 
@@ -2022,10 +2134,6 @@ msgid "Active"
 msgstr "ﻝﺎﻌﻓ"
 
 
-msgid "Material"
-msgstr "ﺔﻣﺎﺧ"
-
-
 msgid "Vertex Color"
 msgstr "ﺔﻄﻘﻨﻟﺍ ﻥﻮﻟ"
 
@@ -2036,6 +2144,10 @@ msgstr "ﻩﺎﺠﺗﺇ"
 
 msgid "Normal"
 msgstr "ﻢﻇﺎﻧ"
+
+
+msgid "All"
+msgstr "ﻞﻜﻟﺍ"
 
 
 msgid "Strokes"
@@ -2056,30 +2168,6 @@ msgstr "ﻂﺴﺑ"
 
 msgid "Threshold"
 msgstr "ﺔﺒﺘﻌﻟﺍ"
-
-
-msgid "Marker"
-msgstr "ﺔﻣﻼ﻿ﻋ"
-
-
-msgid "Airbrush"
-msgstr "ﺥﺎﺨﺑ"
-
-
-msgid "Fill"
-msgstr "ﺔﺌﺒﻌﺗ"
-
-
-msgid "Draw"
-msgstr "ﻢﺳﺭﺍ"
-
-
-msgid "Blur"
-msgstr "ﺐﻴﺒﻀﺗ"
-
-
-msgid "Smear"
-msgstr "ﺦﻄّﻟ"
 
 
 msgid "Input Samples"
@@ -2112,6 +2200,10 @@ msgstr "ﺭﺎﻃﺍ"
 
 msgid "Stroke"
 msgstr "ﺔﺒﻄﺷ"
+
+
+msgid "Fill"
+msgstr "ﺔﺌﺒﻌﺗ"
 
 
 msgid "Background Image"
@@ -2164,10 +2256,6 @@ msgstr "ﻢﺋﻻ﻿"
 
 msgid "Crop"
 msgstr "ﺺﻗ"
-
-
-msgid "Image"
-msgstr "ﺓﺭﻮﺻ"
 
 
 msgid "Image displayed and edited in this space"
@@ -2224,10 +2312,6 @@ msgstr "ﺔﻴﻔﻠﺨﻟﺍ ﺭﺪﺼﻣ"
 
 msgid "Data source used for background"
 msgstr "ﺔﻴﻔﻠﺨﻠﻟ ﺔﻠﻤﻌﺘﺴﻤﻟﺍ ﺕﺎﻧﺎﻴﺒﻟﺍ ﺭﺪﺼﻣ"
-
-
-msgid "Movie Clip"
-msgstr "ﻮﻳﺪﻴﻓ ﻂﻳﺮﺷ"
 
 
 msgid "Camera Clip"
@@ -2352,10 +2436,6 @@ msgstr "ﻯﺮﺧﻷ﻿ﺍ ﺕﺎﻨﺋﺎﻜﻟﺎﺑ ﻡﺍﺪﻄﺻﻹ﻿ﺍ 
 
 msgid "Collision Quality"
 msgstr "ﻡﺩﺎﺼﺘﻟﺍ ﺓﺩﻮﺟ"
-
-
-msgid "How many collision iterations should be done. (higher is better quality but slower)"
-msgstr "(ﺄﻄﺑﺃ ﻦﻜﻟ ﺓﺩﻮﺟ ﻞﻀﻓﺃ ﺮﺜﻛﻷ﻿ﺍ) .ﻢﺘﺗ ﻥﺃ ﺐﺠﻳ ﻡﺩﺎﺼﺘﻟﺍ ﺕﺍﺭﺍﺮﻜﺗ ﺩﺪﻋ ﻢﻛ"
 
 
 msgid "Restitution"
@@ -2830,10 +2910,6 @@ msgid "Color management settings used for displaying images on the display"
 msgstr "ﻖﺼﻠﻤﻟﺍ ﺽﺮﻌﻟ ﻡﺪﺨﺘﺴﻤﻟﺍ ﻂﺨﻟﺍ ﻢﺠﺣ"
 
 
-msgid "Curve"
-msgstr "ﻰﻨﺤﻨﻣ"
-
-
 msgid "Color curve mapping applied before display transform"
 msgstr "ﺽﺮﻌﻟﺍ ﻝﻮﺤﺗ ﻞﺒﻗ ﻖﺒﻄﻤﻟﺍ ﻥﻮﻠﻟﺍ ﻰﻨﺤﻨﻣ ﻂﻴﻄﺨﺗ"
 
@@ -2882,6 +2958,10 @@ msgid "Do not perform any color transform on display, use old non-color managed 
 msgstr "ﺽﺮﻌﻠﻟ ﺔﻤﻳﺪﻘﻟﺍ ﺭﺍﺪﻣ ﺮﻴﻐﻟﺍ ﻥﻮﻠﻟﺍ ﺔﻴﻨﻘﺗ ﻡﺪﺨﺘﺳﺍ ,ﺽﺮﻌﻟﺍ ﺪﻨﻋ ﻥﻮﻠﻟ ﻞﻳﻮﺤﺗ ﻱﺍ ﻱﺩّﺆﺗ ﻻ﻿"
 
 
+msgid "Temperature"
+msgstr "ﺓﺭﺍﺮﺤﻟﺍ"
+
+
 msgid "Color Mapping"
 msgstr "ﻥﻮﻠﻟﺍ ﻂﻴﻄﺨﺗ"
 
@@ -2916,10 +2996,6 @@ msgstr "ﻢﺘﻋ"
 
 msgid "Lighten"
 msgstr "ﻒﻄﻟ"
-
-
-msgid "Screen"
-msgstr "ﺔﺷﺎﺷ"
 
 
 msgid "Overlay"
@@ -3357,10 +3433,6 @@ msgstr "!"
 
 msgid "Use transform property of target to look up pose for owner from an Action"
 msgstr "ﺙﺪﺤﻟﺍ ﻦﻣ ﻚﻟﺎﻤﻠﻟﺔﻔﻗﻭ ﺪﺠﺗ ﻰﺘﺣ ﻑﺪﻬﻠﻟ ﻝﻮﺤﺘﻟﺍ ﺔﻴﺻﺎﺧ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Armature"
-msgstr "ﻞﻜﻴﻫ"
 
 
 msgid "Child Of"
@@ -3917,10 +3989,6 @@ msgstr "ﺭﺎﺴﻤﻟﺍ ﻊﺒﺗﺍ ﺪﻴﻗ"
 
 msgid "Lock motion to the target motion track"
 msgstr "ﻑﺪﻬﻟﺍ ﺭﺎﺴﻣ ﺔﻛﺮﺤﺑ ﺔﻛﺮﺤﻟﺍ ﻂﺑﺭﺍ"
-
-
-msgid "Camera"
-msgstr "ﺍﺮﻴﻤﻜﻟﺍ"
 
 
 msgid "Camera to which motion is parented (if empty active scene camera is used)"
@@ -4948,14 +5016,6 @@ msgid "Active Spline"
 msgstr "ﻲﻟﺎﺤﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ"
 
 
-msgid "Dash"
-msgstr "ﻑﺬﻗﺍ"
-
-
-msgid "Material Index"
-msgstr "ﺔﻣﺎﺧ ﺮﺷﺆﻣ"
-
-
 msgid "Dependency Graph"
 msgstr "ﺩﺎﻤﺘﻋﻹ﻿ﺍ ﻞﺴﻠﺴﺗ ﻢﺳﺭ"
 
@@ -4966,10 +5026,6 @@ msgstr "ﺬﻔﻨﻣ"
 
 msgid "Render"
 msgstr "ﺮﻴﻴﺼﺗ"
-
-
-msgid "Scene"
-msgstr "ﺪﻬﺸﻣ"
 
 
 msgid "Generated Coordinates"
@@ -5814,10 +5870,6 @@ msgstr "ﻱﺭﻮﺤﻣ ﺞﻴﺴﻧ"
 
 msgid "Data Layer"
 msgstr "ﺕﺎﻧﺎﻴﺒﻟﺍ ﺔﻘﺒﻃ"
-
-
-msgid "Texture"
-msgstr "ﺞﻴﺴﻨﻟﺍ"
 
 
 msgid "Is Active"
@@ -6863,14 +6915,6 @@ msgstr "ﺔﻴﺋﺍﻮﺸﻌﻠﻟ ﻲﻠﺧﺍﺪﻟﺍ ﺖﻗﻮﻟﺍ ﻢﻴ
 
 msgid "Amplitude of the noise - the amount that it modifies the underlying curve"
 msgstr " ﻲﺴﻴﺋﺮﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ ﻪﺑ ﺮﻴﻐﺗ ﻱﺬﻟﺍ ﺭﺪﻘﻟﺍ - ﺞﻴﺠﻀﻟﺍ ﻯﺪﻣ"
-
-
-msgid "Python F-Modifier"
-msgstr "ﻥﻮﺜﻳﺎﺑ ﻲﻧﺎﻴﺑ ﺮﻴﻐﻣ"
-
-
-msgid "Perform user-defined operation on the modified F-Curve"
-msgstr "ﺮﻴﻐﻤﻟﺍ ﻲﻧﺎﻴﺒﻟﺍ ﻂﺨﻟﺍ ﻰﻠﻋ ﻡﺪﺨﺘﺴﻤﻟﺍ ﺔﻴﻠﻤﻋ ﻖﺒﻃ"
 
 
 msgid "Stepped Interpolation F-Modifier"
@@ -7985,10 +8029,6 @@ msgid "Select feature edges not satisfying the given face mark conditions"
 msgstr "ﻩﺎﻄﻌﻤﻟﺍ ﻪﺟﻮﻟﺍ ﺔﻣﻼ﻿ﻋ ﻁﻭﺮﺸﻟ ﺔﻴﻓﺍﻭ ﺮﻴﻐﻟﺍ ﺔﻴﺴﻴﺋﺮﻟﺍ ﻑﺍﻮﺤﻟﺍ ﺮﺘﺧﺍ"
 
 
-msgid "Line Style"
-msgstr "ﻂﺨﻟﺍ ﻂﻤﻧ"
-
-
 msgid "Line style settings"
 msgstr "ﻂﺨﻟﺍ ﻂﻤﻧ ﺕﺍﺩﺍﺪﻋﺇ"
 
@@ -8229,10 +8269,6 @@ msgid "View Map Cache"
 msgstr "ﺔﻄﻳﺮﺨﻟﺍ ﻥﺰﺨﻣ ﺮﻬﻇﺍ"
 
 
-msgid "Grease Pencil Frame"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺭﺎﻃﺇ"
-
-
 msgid "Collection of related sketches on a particular frame"
 msgstr "ﻦﻴﻌﻣ ﺭﺎﻃﺇ ﻰﻠﻋ ﺔﻄﺒﺗﺮﻣ ﺕﺎﻣﻮﺳﺭ ﺔﻋﻮﻤﺠﻣ"
 
@@ -8245,44 +8281,12 @@ msgid "The frame on which this sketch appears"
 msgstr "ﻢﺳﺮﻟﺍ ﺍﺬﻫ ﻪﻴﻠﻋ ﺮﻬﻈﻳ ﻱﺬﻟﺍ ﺭﺎﻃﻹ﻿ﺍ"
 
 
-msgid "Paint Lock"
-msgstr "ﻢﺳﺮﻟﺍ ﺪﻴّﻗ"
-
-
-msgid "Frame is being edited (painted on)"
-msgstr "(ﻪﻴﻠﻋ ﻡﻮﺳﺮﻣ) ﺭﺎﻃﻹ﻿ﺍ ﻰﻠﻋ ﻞﻳﺪﻌﺘﻟﺍ ﻢﺗ"
-
-
-msgid "Keyframe"
-msgstr "ﺡﺎﺘﻔﻤﻟﺍ"
-
-
-msgid "Breakdown"
-msgstr "ﻲﺋﺪﺒﻣ"
-
-
-msgid "Extreme"
-msgstr "ﻲﺋﺎﻬﻧ"
-
-
-msgid "Jitter"
-msgstr "!"
-
-
-msgid "Generated"
-msgstr "ﺪﻟﻮﺘﻣ"
-
-
 msgid "Frame is selected for editing in the Dope Sheet"
 msgstr "ﻂﻴﻄﺨﺘﻟﺍ ﺔﻗﺭﻭ ﻲﻓ ﺮﻳﺮﺤﺘﻠﻟ ﺭﺎﻃﻹ﻿ﺍ ﺭﺎﻴﺘﺧﺍ ﻢﺗ"
 
 
 msgid "Freehand curves defining the sketch on this frame"
 msgstr "ﺭﺎﻃﻹ﻿ﺍ ﺍﺬﻫ ﻰﻠﻋ ﺩﻮﺟﻮﻤﻟﺍ ﻢﺳﺮﻠﻟ ﺓﺩﺪﺤﻣ ﺓﺮﺣ ﺕﺎﻴﻨﺤﻨﻣ"
-
-
-msgid "Grease Pencil Layer"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﻘﺒﻃ"
 
 
 msgid "Collection of related sketches"
@@ -8321,24 +8325,12 @@ msgid "Frames Before"
 msgstr "ﺔﻘﺑﺎﺴﻟﺍ ﺮﻃﻷ﻿ﺍ"
 
 
-msgid "Blend Mode"
-msgstr "ﺞﻣﺪﻟﺍ ﻂﻤﻧ"
-
-
-msgid "Regular"
-msgstr "ﻱﺩﺎﻋ"
-
-
 msgid "Frames"
 msgstr "ﺮﻃﺃ"
 
 
 msgid "Sketches for this layer on different frames"
 msgstr "ﺔﻔﻠﺘﺨﻣ ﺕﺍﺭﺎﻃﺇ ﻰﻠﻋ ﺔﻘﺒﻄﻟﺍ ﻩﺬﻬﻟ ﺕﺎﻣﻮﺳﺮﻟﺍ"
-
-
-msgid "Set layer Visibility"
-msgstr "ﺔﻘﺒﻄﻟﺍ ﺡﻮﺿﻭ ﺩﺪﺣ"
 
 
 msgid "Layer name"
@@ -8361,44 +8353,12 @@ msgid "Lock current frame displayed by layer"
 msgstr "ﺔﻘﺒﻄﻟﺎﺑ ﺽﻭﺮﻌﻤﻟﺍ ﻲﻟﺎﺤﻟﺍ ﺭﺎﻃﻹ﻿ﺍ ﻖﻠﻏﺇ"
 
 
-msgid "Layer Opacity"
-msgstr "ﺔﻘﺒﻄﻟﺍ ﺔﻣﻮﺘﻋ"
-
-
-msgid "Parent Bone"
-msgstr "ﻞﺻﻻ﻿ﺍ ﺔﻤﻈﻋ"
-
-
-msgid "Name of parent bone in case of a bone parenting relation"
-msgstr "ﺔﻤﻈﻌﻟ ﻉﺮﻔﺗ ﺔﻗﻼ﻿ﻋ ﺔﻟﺎﺣ ﻲﻓ ﻞﺻﻻ﻿ﺍ ﺔﻤﻈﻌﻟﺍ ﻢﺳﺍ"
-
-
-msgid "Parent Type"
-msgstr "ﻞﺻﻻ﻿ﺍ ﻉﻮﻧ"
-
-
-msgid "Type of parent relation"
-msgstr "ﻞﺻﻻ﻿ﺍ ﺔﻗﻼ﻿ﻋ ﻉﻮﻧ"
-
-
-msgid "Pass Index"
-msgstr "ﺮﻤﻤﻟﺍ ﻞﻴﻟﺩ"
-
-
 msgid "Layer is selected for editing in the Dope Sheet"
 msgstr "ﻂﻴﻄﺨﺘﻟﺍ ﺔﻗﺭﻭ ﻲﻓ ﺮﻳﺮﺤﺘﻠﻟ ﺓﺭﺎﺘﺨﻣ ﺔﻘﺒﻄﻟﺍ"
 
 
-msgid "Show Points"
-msgstr "ﻂﻘﻨﻟﺍ ﺮﻬﻇﺃ"
-
-
 msgid "Onion Skinning"
 msgstr "ﺔﻴﻓﺎﻔﺸﻟﺍ ﻞﻴﻌﻔﺗ"
-
-
-msgid "Use Mask"
-msgstr "ﻉﺎﻨﻘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 
 msgid "Spacing"
@@ -8417,40 +8377,8 @@ msgid "Grid"
 msgstr "ﺔﻜﺒﺷ"
 
 
-msgid "Grease Pencil Stroke"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﺒﻄﺷ"
-
-
 msgid "Freehand curve defining part of a sketch"
 msgstr "ﻢﺳﺭ ﻦﻣ ءﺰﺠﻟ ﺩﺪّﺤﻣ ﺮﺣ ﻰﻨﺤﻨﻣ"
-
-
-msgid "Stroke is in screen-space"
-msgstr "ﺔﺷﺎﺸﻟﺍ ءﺎﻀﻓ ﻲﻓ ﺔﺒﻄﺸﻟﺍ"
-
-
-msgid "3D Space"
-msgstr "ءﺎﻀﻓ"
-
-
-msgid "Stroke is in 3D-space"
-msgstr "ﻲﺛﻼ﻿ﺜﻟﺍ ءﺎﻀﻓ ﻲﻓ ﺔﺒﻄﺸﻟﺍ"
-
-
-msgid "2D Space"
-msgstr "ءﺎﻀﻓ"
-
-
-msgid "Stroke is in 2D-space"
-msgstr "ﻲﺋﺎﻨﺜﻟﺍ ءﺎﻀﻓ ﻲﻓ ﺔﺒﻄﺸﻟﺍ"
-
-
-msgid "2D Image"
-msgstr "ﺓﺭﻮﺻ ﻒﺿﺃ"
-
-
-msgid "Stroke is in 2D-space (but with special 'image' scaling)"
-msgstr "(ﺓﺭﻮﺼﻠﻟ ﺹﺎﺧ ﻢﻴﺠﺤﺗ ﻊﻣ ﻦﻜﻟ) ﻲﺋﺎﻨﺜﻟﺍ ءﺎﻀﻓ ﻲﻓ ﺔﺒﻄﺸﻟﺍ"
 
 
 msgid "Stroke Points"
@@ -8461,32 +8389,12 @@ msgid "Stroke data points"
 msgstr "ﺔﺒﻄﺸﻟﺍ ﺕﺎﻧﺎﻴﺑ ﻂﻘﻧ"
 
 
-msgid "Stroke is selected for viewport editing"
-msgstr "ﺽﺮﻌﻟﺍ ﺬﻔﻨﻣ ﻲﻓ ﺮﻳﺮﺤﺘّﻟ ﺓﺭﺎﺘﺨﻣ ﺔﺒﻄﺸﻟﺍ"
-
-
-msgid "Triangles"
-msgstr "ﺚﻠﺜﻣ ﻞﻜﺷ"
-
-
-msgid "Grease Pencil Stroke Point"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﺒﻄﺷ ﺔﻄﻘﻧ"
-
-
 msgid "Data point for freehand stroke curve"
 msgstr "ﺮﺤﻟﺍ ﺔﺒﻄﺸﻟﺍ ﻰﻨﺤﻨﻤﻠﻟ ﺕﺎﻧﺎﻴﺑ ﺔﻄﻘﻧ"
 
 
 msgid "Coordinates"
 msgstr "ﺕﺎﻴﺛﺍﺪﺣﺇ"
-
-
-msgid "Pressure of tablet at point when drawing it"
-msgstr "ﺎﻬﺑ ﻢﺳﺮﻟﺍ ﺪﻨﻋ ﺔﺣﻮﻠﻟﺍ ﻦﻣ ﺔﻄﻘﻧ ﻯﻮﺘﺴﻣ ﻰﻠﻋ ﻂﻐﻀﻟﺍ"
-
-
-msgid "Point is selected for viewport editing"
-msgstr "ﺬﻔﻨﻤﻟﺍ ﻲﻓ ﻞﻳﺪﻌﺘﻠﻟ ﺓﺭﺎﺘﺨﻣ ﺔﻄﻘﻨﻟﺍ"
 
 
 msgid "Basis Matrix"
@@ -8521,338 +8429,76 @@ msgid "Tool Properties"
 msgstr "ﺓﺍﺩﻷ﻿ﺍ ﺺﺋﺎﺼﺧ"
 
 
-msgid "Modifier name"
-msgstr "ﺮﻴﻐﻤﻟﺍ ﻢﺳﺇ"
+msgid "Dash"
+msgstr "ﻑﺬﻗﺍ"
 
 
-msgid "Set modifier expanded in the user interface"
-msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺔﻬﺟﺍﻭ ﻲﻓ ﺍﺪﻤﻣ ﺮﻴﻐﻤﻟﺍ ﻞﻌﺟﺇ"
+msgid "Material Index"
+msgstr "ﺔﻣﺎﺧ ﺮﺷﺆﻣ"
 
 
-msgid "Edit Mode"
-msgstr "ﺮﻳﺮﺤﺘﻟﺍ ﻊﺿﻭ"
+msgid "Reference"
+msgstr "ﻊﺟﺮﻣ"
 
 
-msgid "Use modifier during render"
-msgstr "ﺮﻴﻴﺼﺘﻟﺍ ﻝﻼ﻿ﺧ ﺮﻴّﻐﻤﻟﺍ ﻡﺪﺨﺘﺳﺇ"
+msgid "Grease Pencil Frame"
+msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺭﺎﻃﺇ"
 
 
-msgid "Display modifier in viewport"
-msgstr "ﺽﺮﻌﻟﺍ ﺬﻔﻨﻣ ﻲﻓ ﺮﻴﻐّﻤﻟﺍ ﺽﺮﻋﺇ"
+msgid "Keyframe"
+msgstr "ﺡﺎﺘﻔﻤﻟﺍ"
 
 
-msgid "Time Offset"
-msgstr "ﺖﻗﻮﻟﺍ ﺔﺣﺍﺯﺍ"
+msgid "Breakdown"
+msgstr "ﻲﺋﺪﺒﻣ"
 
 
-msgid "Vertex Weight Proximity"
-msgstr "ﺔﻄﻘﻧ ﻥﺯﻭ ﺐﻳﺮﻘﺗ"
+msgid "Extreme"
+msgstr "ﻲﺋﺎﻬﻧ"
 
 
-msgid "Array"
-msgstr "ﻒﻴﻔﺻ"
+msgid "Jitter"
+msgstr "!"
 
 
-msgid "Build"
-msgstr "ءﺎﻨﺑ"
+msgid "Generated"
+msgstr "ﺪﻟﻮﺘﻣ"
 
 
-msgid "Envelope"
-msgstr "ﻒﻠﻐﻣ"
+msgid "Grease Pencil Layer"
+msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﻘﺒﻃ"
 
 
-msgid "Mirror"
-msgstr "ﻞﺛﺎﻣ"
+msgid "Blend Mode"
+msgstr "ﺞﻣﺪﻟﺍ ﻂﻤﻧ"
 
 
-msgid "Hook"
-msgstr "ﻑﺎﻄﺨﻟﺍ"
+msgid "Regular"
+msgstr "ﻱﺩﺎﻋ"
 
 
-msgid "Lattice"
-msgstr "ﺔﻜﺒﺷ"
+msgid "Local Matrix"
+msgstr "ﺔﻴﻠﺤﻤﻟﺍ ﺔﻓﻮﻔﺼﻤﻟﺍ"
 
 
-msgid "Smooth"
-msgstr "ﻢﻋﺎﻧ"
+msgid "Layer Opacity"
+msgstr "ﺔﻘﺒﻄﻟﺍ ﺔﻣﻮﺘﻋ"
 
 
-msgid "Hue/Saturation"
-msgstr "ﺰﻴﻛﺮﺘﻟﺍ/ﺯﺎﻴﺤﻧﻻ﻿ﺍ"
+msgid "Parent Bone"
+msgstr "ﻞﺻﻻ﻿ﺍ ﺔﻤﻈﻋ"
 
 
-msgid "Armature Modifier"
-msgstr "ﻞﻜﻴﻬﻟﺍ ﺮﻴﻐﻣ"
+msgid "Pass Index"
+msgstr "ﺮﻤﻤﻟﺍ ﻞﻴﻟﺩ"
 
 
-msgid "Invert vertex group influence"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﻴﺛﺄﺗ ﺲﻜﻋﺍ"
-
-
-msgid "Use Bone Envelopes"
-msgstr "ﻢﻈﻌﻟﺍ ﺔﻔﻠﻏﺃ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Use Vertex Groups"
-msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Bind vertex groups to armature modifier"
-msgstr "ﻞﻜﻴﻬﻟﺍ ﺮﻴﻐﻤﻟ ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻂﺑﺭﺍ"
-
-
-msgid "Constant Offset"
-msgstr "ﺔﺘﺑﺎﺛ ﺔﺣﺍﺯﺍ"
-
-
-msgid "Pass"
-msgstr "ﺭﺍﺮﻜﺗ"
-
-
-msgid "Relative Offset"
-msgstr "ﺔﻴﺒﺴﻧ ﺔﺣﺍﺯﺍ"
-
-
-msgid "Shift"
-msgstr "ﻰﻠﻋﺃ"
-
-
-msgid "Uniform Scale"
-msgstr "ﻢﻈﺘﻨﻣ ﻢﻴﺠﺤﺗ"
-
-
-msgid "Build Modifier"
-msgstr "ءﺎﻨﺒﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Speed Factor"
-msgstr "ﺔﻋﺮﺴﻟﺍ ﻞﻣﺎﻌﻣ"
-
-
-msgid "Transition"
-msgstr "ﻝﺎﻘﺘﻧﺍ"
-
-
-msgid "Grow"
-msgstr "ﺮﺒّﻛ"
-
-
-msgid "Custom Curve"
-msgstr "ﺺﺼﺨﻣ ﻰﻨﺤﻨﻣ"
-
-
-msgid "Hook Modifier"
-msgstr "ﻑﺎﻄﺨﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Falloff Curve"
-msgstr "ﺺﻗﺎﻨﺘﻟﺍ ﻰﻨﺤﻨﻣ"
-
-
-msgctxt "Curve"
-msgid "Falloff Type"
-msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ ﻉﻮﻧ"
-
-
-msgctxt "Curve"
-msgid "No Falloff"
-msgstr "ﻲﺷﻼ﻿ﺗ ﻥﻭﺪﺑ"
-
-
-msgctxt "Curve"
-msgid "Curve"
-msgstr "ﻰﻨﺤﻨﻣ"
-
-
-msgctxt "Curve"
-msgid "Smooth"
-msgstr "ﻢﻋﺎﻧ"
-
-
-msgctxt "Curve"
-msgid "Sphere"
-msgstr "ﺓﺮﻛ"
-
-
-msgctxt "Curve"
-msgid "Root"
-msgstr "ﺭﺬﺟ"
-
-
-msgctxt "Curve"
-msgid "Inverse Square"
-msgstr "ﻲﺴﻜﻋ ﻲﻌﻴﺑﺮﺗ"
-
-
-msgctxt "Curve"
-msgid "Sharp"
-msgstr "ﺩﺎﺣ"
-
-
-msgctxt "Curve"
-msgid "Linear"
-msgstr "ﺔﻴﻄﺧ"
-
-
-msgctxt "Curve"
-msgid "Constant"
-msgstr "ﺖﺑﺎﺛ"
-
-
-msgid "Name of Parent Bone for hook (if applicable), also recalculates and clears offset"
-msgstr "ﺔﺣﺍﺯﻹ﻿ﺍ ﻂﺒﺿ ﻭ ﺏﺎﺴﺣ ﺪﻴﻌﺗ ﺎﻀﻳﺃ ،(ﻖﻴﺒﻄﺘﻠﻟ ﻞﺑﺎﻗ ﺍﺫﺇ) ﻑﺎﻄﺨﻠﻟ ﻞﺻﻷ﻿ﺍ ﺔﻤﻈﻋ ﻢﺳﺍ"
-
-
-msgid "Lattice Modifier"
-msgstr "ﺔﻜﺒﺸﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Strength of modifier effect"
-msgstr "ﺮﻴﻐﻤﻟﺍ ﺮﻴﺛﺎﺗ ﺓﺪﺷ"
-
-
-msgid "Point Density"
-msgstr "ﺔﻄﻘﻨﻟﺍ ﺔﻓﺎﺜﻛ"
-
-
-msgid "Step"
-msgstr "ﺓﻮﻄﺨﻟﺍ"
-
-
-msgid "Shaded"
-msgstr "ﻞﻠﻈﻣ"
-
-
-msgid "Boundaries"
-msgstr "ﺩﻭﺪﺤﻟﺍ"
-
-
-msgid "Mirror Modifier"
-msgstr "ﺔﻠﺛﺎﻤﻤﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Steps"
-msgstr "ﺕﺍﻮﻄﺧ"
-
-
-msgid "Target Object"
-msgstr "ﻑﺪﻬﻟﺍ ﻦﺋﺎﻜﻟﺍ"
-
-
-msgid "Subdivisions"
-msgstr "ﺔﻴﻋﺮﻔﻟﺍ ﺕﺎﻤﻴﺴﻘﺘﻟﺍ"
-
-
-msgid "Keep Shape"
-msgstr "ﻞﻜﺸﻟﺍ ﻰﻠﻋ ﻆﻓﺎﺣ"
-
-
-msgid "Shrinkwrap Modifier"
-msgstr "ﻲﺷﺎﻤﻜﻧﻻ﻿ﺍ ﻒﻴﻠﻐﺘﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Auxiliary Target"
-msgstr "ﻲﻓﺎﺿﻹ﻿ﺍ ﻑﺪﻬﻟﺍ"
-
-
-msgid "Distance to keep from the target"
-msgstr "ﻑﺪﻬﻟﺍ ﻰﺘﺣ ﺔﻴﻘﺒﺘﻤﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ"
-
-
-msgid "Project Limit"
-msgstr "ﻁﺎﻘﺳﻹ﻿ﺍ ﺭﺮﺣ"
-
-
-msgid "Number of subdivisions that must be performed before extracting vertices' positions and normals"
-msgstr "ﻢﻇﺍﻮﻨﻟﺍ ﻭ ﻂﻘﻨﻟﺍ ﻊﻗﺍﻮﻣ ﺝﺍﺮﺨﺘﺳﺍ ﻞﺒﻗ ﺬﻔﻨﺗ ﻥﺃ ﺐﺠﻳ ﻲﺘﻟﺍ ﺕﺎﻤﻴﺴﻘﺘﻟﺍ ﺩﺪﻋ"
-
-
-msgid "Negative"
-msgstr "ﻲﺒﻠﺳ"
-
-
-msgid "Allow vertices to move in the negative direction of axis"
-msgstr "ﺭﻮﺤﻤﻠﻟ ﺐﻟﺎﺴﻟﺍ ﻩﺎﺠﺗﻻ﻿ﺍ ﻲﻓ ﻙﺮﺤﺘﻟﺍ ﻂﻘﻨﻠﻟ ﺢﺗﺃ"
-
-
-msgid "Shrink the mesh to the nearest target surface"
-msgstr "ﻑﺪﻬﻠﻟ ﺢﻄﺳ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
-
-
-msgid "Shrink the mesh to the nearest target surface along a given axis"
-msgstr "ﺩﺪﺤﻤﻟﺍ ﺭﻮﺤﻤﻟﺍ ﻰﻠﻋ ﻑﺪﻬﻠﻟ ﺢﻄﺳ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
-
-
-msgid "Shrink the mesh to the nearest target vertex"
-msgstr "ﻑﺪﻬﻟﺍ ﺢﻄﺳ ﻰﻠﻋ ﺔﻄﻘﻧ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
-
-
-msgid "Fixed"
-msgstr "ﺖﺑﺎﺛ"
-
-
-msgid "Adaptive"
-msgstr "ﻒﻴّﻜﺘﻣ"
-
-
-msgid "Merge"
-msgstr "ﺞﻣﺩﺇ"
-
-
-msgid "Sharp Threshold"
-msgstr "ﺓﺩﺎﺤﻟﺍ ﺔﺒﺘﻌﻟﺍ"
-
-
-msgid "Smooth Modifier"
-msgstr "ﺔﻣﻮﻌﻨﻟﺍ ﺮﻴﻐﻣ"
-
-
-msgid "Subdivision Type"
-msgstr "ﻢﻴﺴﻘﺘﻟﺍ ﻉﻮﻧ"
-
-
-msgid "Simple"
-msgstr "ﻂﻴﺴﺑ"
-
-
-msgid "Frame Scale"
-msgstr "ﻪﺟﻮﻤﻟﺍ ﻢﺠﺣ"
+msgid "Translation"
+msgstr "ﺔﺣﺍﺯﻹ﻿ﺍ"
 
 
 msgid "Reverse"
 msgstr "ﺲﻜﻋﺇ"
-
-
-msgid "Frame Offset"
-msgstr "ﺭﺎﻃﻻ﻿ﺍ ﺔﺣﺍﺯﺇ"
-
-
-msgid "Space"
-msgstr "ءﺎﻀﻓ"
-
-
-msgid "Highest"
-msgstr "ﻰﻠﻋﻷ﻿ﺍ"
-
-
-msgid "Lowest"
-msgstr "ﻰﻧﺩﻻ﻿ﺍ"
-
-
-msgid "Vertex Group Element"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﺼﻨﻋ"
-
-
-msgid "Weight value of a vertex in a vertex group"
-msgstr "ﻂﻘﻧ ﺔﻋﻮﻤﺠﻣ ﻲﻓ ﺔﻄﻘﻨﻟ ﻥﺯﻮﻟﺍ ﺔﻤﻴﻗ"
-
-
-msgid "Group Index"
-msgstr "ﺔﻋﻮﻤﺠﻣ ﺮﺷﺆﻣ"
-
-
-msgid "Vertex Weight"
-msgstr "ﺔﻄﻘﻧ ﻥﺯﻭ"
 
 
 msgid "Repeat"
@@ -8889,74 +8535,6 @@ msgstr "ﻂﺨﻟﺍ ﺮﻬﻇﺃ"
 
 msgid "Display lines rather than filled shapes"
 msgstr "ﻪﺌﺒﻌﻤﻟﺍ ﻝﺎﻜﺷﻻ﻿ﺍ ﻦﻣ ﻝﺪﺑ ﻁﻮﻄﺧ ﺽﺮﻋﺍ"
-
-
-msgid "Brush"
-msgstr "ﺓﺎﺷﺮﻓ"
-
-
-msgid "Font"
-msgstr "ﻂﺨﻟﺍ"
-
-
-msgid "Key"
-msgstr "ﺡﺎﺘﻔﻣ"
-
-
-msgid "Library"
-msgstr "ﺔﺒﺘﻜﻣ"
-
-
-msgid "Light"
-msgstr "ءﻮﺿ"
-
-
-msgid "Mask"
-msgstr "ءﺎﻄﻏ"
-
-
-msgid "Mesh"
-msgstr "ﻢﺴﺠﻣ"
-
-
-msgid "Metaball"
-msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
-
-
-msgid "Node Tree"
-msgstr "ﺓﺪﻘﻌﻟﺍ ﺓﺮﺠﺷ"
-
-
-msgid "Paint Curve"
-msgstr "ﻰﻨﺤﻨﻤﻟﺍ ﻢﺳﺭﺍ"
-
-
-msgid "Palette"
-msgstr "ﻥﺍﻮﻟﻻ﻿ﺍ ﺡﻮﻟ"
-
-
-msgid "Particle"
-msgstr "ءﻱﺰﺟ"
-
-
-msgid "Sound"
-msgstr "ﺕﻮﺻ"
-
-
-msgid "Speaker"
-msgstr "ﺕﻮﺻ ﺮﺒﻜﻣ"
-
-
-msgid "Text"
-msgstr "ﺺﻧ"
-
-
-msgid "Window Manager"
-msgstr "ﺬﻓﺍﻮﻧ ﺮﻳﺪﻣ"
-
-
-msgid "World"
-msgstr "ﻢﻟﺎﻌﻟﺍ"
 
 
 msgid "Editable"
@@ -9049,6 +8627,10 @@ msgstr "ﻥﻮﺑ ﻲﺑ"
 
 msgid "Display bones as boxes, showing subdivision and B-Splines"
 msgstr "ﺏ-ﺕﺎﻴﻨﺤﻨﻣ ﻭ ﺕﺎﻤﻴﺴﻘﺘﻟﺍ ﺮﻬﻈﺗ ,ﻖﻳﺩﺎﻨﺼﻛ ﻡﺎﻈﻌﻟﺍ ﺮﻬﻇﺍ"
+
+
+msgid "Envelope"
+msgstr "ﻒﻠﻐﻣ"
 
 
 msgid "Display bones as extruded spheres, showing deformation influence volume"
@@ -9167,10 +8749,6 @@ msgid "Clone Image"
 msgstr "ﺓﺭﻮﺼﻟﺍ ﺦﺴﻧﺍ"
 
 
-msgid "Image for clone tool"
-msgstr "ﺦﺴﻨﻟﺍ ﺓﺍﺩﺍ ﺓﺭﻮﺻ"
-
-
 msgid "Clone Offset"
 msgstr "ﺦﺴﻨﻟﺍ ﺔﺣﺍﺯﺍ"
 
@@ -9253,6 +8831,18 @@ msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﺔﺒﺘﻋ"
 
 msgid "Threshold above which filling is not propagated"
 msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﺎﻫﺪﻌﺑ ﻢﻤﻌﺗ ﻻ﻿ ﻲﺘﻟﺍ ﺔﺒﺘﻌﻟﺍ"
+
+
+msgid "Draw"
+msgstr "ﻢﺳﺭﺍ"
+
+
+msgid "Blur"
+msgstr "ﺐﻴﺒﻀﺗ"
+
+
+msgid "Smear"
+msgstr "ﺦﻄّﻟ"
 
 
 msgid "Gradient Spacing"
@@ -9379,6 +8969,10 @@ msgid "Secondary Color"
 msgstr "ﻲﻧﺎﺜﻟﺍ ﻥﻮﻠّﻟﺍ"
 
 
+msgid "Sharp Threshold"
+msgstr "ﺓﺩﺎﺤﻟﺍ ﺔﺒﺘﻌﻟﺍ"
+
+
 msgid "Threshold below which, no sharpening is done"
 msgstr "ﺬﺤﺸﻟﺍ ﺎﻬﻠﺒﻗ ﻢﺘﻳ ﻻ﻿ ﻲﺘﻟﺍ ﺔﺒﺘﻌﻟﺍ"
 
@@ -9459,8 +9053,16 @@ msgid "Allows a single dot to be carefully positioned"
 msgstr "ﺔﻗﺪﺑ ﺓﺪﺣﺍﻮﻟﺍ ﺔﺨﻄﻠﻟﺍ ﻊﺿﻮﺗ ﻥﺄﺑ ﺢﻤﺳﺍ"
 
 
+msgid "Space"
+msgstr "ءﺎﻀﻓ"
+
+
 msgid "Limit brush application to the distance specified by spacing"
 msgstr "ﺪﻋﺎﺒﺘﻟﺎﺑ ﺓﺩﺪﺤﻤﻟﺍ ﺔﻓﺎﺴﻤﻠﻟ ﺓﺎﺷﺮﻔﻟﺍ ﻖﻴﺒﻄﺗ ﺮﺼﺣﺍ"
+
+
+msgid "Airbrush"
+msgstr "ﺥﺎﺨﺑ"
 
 
 msgid "Keep applying paint effect while holding mouse (spray)"
@@ -9695,20 +9297,16 @@ msgid "Automatically adjust strength to give consistent results for different sp
 msgstr "ﺔﻔﻠﺘﺨﻤﻟﺍ ﺕﺍﺪﻋﺎﺒﺘﻠﻟ ﺔﻘﺳﺎﻨﺘﻣ ﺞﺋﺎﺘﻧ ءﺎﻄﻋﻹ﻿ ﺎﻴﺗﺍﺫ ﺓﻮﻘﻟﺍ ﻝﺪّﻋ"
 
 
-msgid "Vertex Paint Tool"
-msgstr "ﻂﻘﻨﻟﺍ ﻰﻠﻋ ﻢﺳﺮﻟﺍ ﺓﺍﺩﺍ"
-
-
 msgid "Vertex weight when brush is applied"
 msgstr "ﺓﺎﺷﺮﻔﻟﺍ ﻖﻴﺒﻄﺗ ﺪﻨﻋ ﺔﻄﻘﻨﻟﺍ ﻥﺯﻭ"
 
 
-msgid "Weight Paint Tool"
-msgstr "ﻥﺯﻮﻟﺍ ﻢﺳﺭ ﺓﺍﺩﺍ"
-
-
 msgid "Path to external displacements file"
 msgstr "ﻲﺟﺭﺎﺨﻟﺍ ﺕﺎﻫﻮﺸﺘﻟﺍ ﻒﻠﻤﻟ ﺭﺎﺴﻣ"
+
+
+msgid "Frame Offset"
+msgstr "ﺭﺎﻃﻻ﻿ﺍ ﺔﺣﺍﺯﺇ"
 
 
 msgid "Sequence"
@@ -10911,10 +10509,6 @@ msgid "Use custom colors for ghost frames"
 msgstr "ﺔﻴﺤﺒﺸﻟﺍ ﺮﻃﻸ﻿ﻟ ﺔﺼﺼﺨﻣ ﻥﺍﻮﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 
-msgid "Stroke Edit Mode"
-msgstr "ﺔﺒﻄﺸﻟﺍ ﺮﻳﺮﺤﺗ ﻊﺿﻭ"
-
-
 msgid "Alpha Mode"
 msgstr "ﺎﻔﻟﻷ﻿ﺍ ﻊﺿﻭ"
 
@@ -11339,20 +10933,12 @@ msgid "Directional area light source"
 msgstr "ﻪﺠﺘﻣ ﺔﻘﻄﻨﻣ ءﻮﺿ ﺭﺪﺼﻣ"
 
 
-msgid "Shadow Buffer Bias"
-msgstr "ﻞﻈﻟﺍ ﺔﻜﺒﺷ ﻑﺍﺮﺤﻧﺇ"
-
-
 msgid "Shadow Buffer Clip Start"
 msgstr "ﺔﻜﺒﺸﻟﺍ ﻞﻇ ﻢﻴﻠﻘﺗ ﺔﻳﺍﺪﺑ"
 
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "ﻝﻼ﻿ﻇ ﺎﻬﻠﺒﻗ ﺪﻟﻮﺘﻳ ﻦﻟ ﻲﺘﻟﺍ ﻭ ,ﻞﻈﻟﺍ ﺔﻄﻳﺮﺧ ﻢﻴﻠﻘﺗ ﺔﻳﺍﺪﺑ"
-
-
-msgid "Shadow Color"
-msgstr "ﻞﻈﻟﺍ ﻥﻮﻟ"
 
 
 msgid "Shadow Soft Size"
@@ -11513,14 +11099,6 @@ msgstr "ﺵﺎﻤﻗ"
 
 msgid "Roughness"
 msgstr "ﺔﻧﻮﺸﺧ"
-
-
-msgid "Opaque"
-msgstr "ﻢﺘﻌﻣ"
-
-
-msgid "Alpha Clip"
-msgstr "ﺎﻔﻟﺍ ﻢﻴﻠﻘﺗ"
 
 
 msgid "Specular Color"
@@ -11757,10 +11335,6 @@ msgstr "ﺮﻃﻷ﻿ﺎﺑ ﻢﻠﻔﻟﺍ ﺔﺻﺎﻘﻟ ﺔﻔﺸﺘﻜﻤﻟ
 
 msgid "Global scene frame number at which this movie starts playing (affects all data associated with a clip)"
 msgstr "(ﺔﺻﺎﺼﻘﻟﺎﺑ ﺔﻘﻠّﻌﺘﻤﻟﺍ ﺕﺎﻧﺎﻴﺒﻟﺍ ﻞﻛ ﻰﻠﻋ ﺮﺛﺆﻳ) ﺽﺮﻌﻟﺎﺑ ﻢﻠﻔﻟﺍ ﺍﺬﻫ ﺃﺪﺒﻳ ﻩﺪﻨﻋ ﻱﺬﻟﺍ ﻭ ﻲﻤﻟﺎﻌﻟﺍ ﺪﻬﺸﻤﻟﺍ ﺭﺎﻃﺇ ﻢﻗﺭ"
-
-
-msgid "Grease pencil data for this movie clip"
-msgstr " ﻩﺬﻫ ﻢﻠﻔﻟﺍ ﺔﺻﺎﺼﻘﻟ ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ"
 
 
 msgid "Where the clip comes from"
@@ -12103,10 +11677,6 @@ msgid "Matrix access to location, rotation and scale (including deltas), before 
 msgstr "ﻝﻮﺻﻻ﻿ﺍ ﻭ ﺩﻮﻴﻘﻟﺍ ﻖﺒّﻄﺗ ﻥﺍ ﻞﺒﻗ ,(ﻕﻭﺮﻔﻟﺍ ﺎﻨﻤﻀﺘﻣ) ﻢﺠﺤﻟﺍ ﻭ ﻥﺍﺭﻭﺪﻟﺍ ,ﻊﻗﻮﻤﻠﻟ ﻲﻓﻮﻔﺼﻣ ﻝﻮﺧﺩ"
 
 
-msgid "Local Matrix"
-msgstr "ﺔﻴﻠﺤﻤﻟﺍ ﺔﻓﻮﻔﺼﻤﻟﺍ"
-
-
 msgid "Inverse of object's parent matrix at time of parenting"
 msgstr "ﻂﺑﺮﻟﺍ ﺪﻨﻋ ﻦﺋﺎﻜﻟﺍ ﻞﺻﺍ ﺔﻓﻮﻔﺼﻣ ﺱﻮﻜﻌﻣ"
 
@@ -12125,6 +11695,10 @@ msgstr "ﻦﺋﺎﻜﻟﺍ ﻞﻋﺎﻔﺗ ﻂﻤﻧ"
 
 msgid "Object Mode"
 msgstr "ﻦﺋﺎﻜﻟﺍ ﻊﺿﻭ"
+
+
+msgid "Edit Mode"
+msgstr "ﺮﻳﺮﺤﺘﻟﺍ ﻊﺿﻭ"
 
 
 msgid "Pose Mode"
@@ -12161,6 +11735,18 @@ msgstr "ﺔﻛﺮﺤﻟﺍ ﺭﺎﺴﻣ"
 
 msgid "Motion Path for this element"
 msgstr "ﺮﺼﻨﻌﻟﺍ ﺍﺬﻬﻟ ﺔﻛﺮﺤﻟﺍ ﺭﺎﺴﻣ"
+
+
+msgid "Name of parent bone in case of a bone parenting relation"
+msgstr "ﺔﻤﻈﻌﻟ ﻉﺮﻔﺗ ﺔﻗﻼ﻿ﻋ ﺔﻟﺎﺣ ﻲﻓ ﻞﺻﻻ﻿ﺍ ﺔﻤﻈﻌﻟﺍ ﻢﺳﺍ"
+
+
+msgid "Parent Type"
+msgstr "ﻞﺻﻻ﻿ﺍ ﻉﻮﻧ"
+
+
+msgid "Type of parent relation"
+msgstr "ﻞﺻﻻ﻿ﺍ ﺔﻗﻼ﻿ﻋ ﻉﻮﻧ"
 
 
 msgid "The object is parented to an object"
@@ -12491,6 +12077,10 @@ msgid "Create child particles"
 msgstr "ﺔﻴﻋﺮﻓ ﺕﺎﻴﺋﺰﺟ ﺊﺸﻧﺃ"
 
 
+msgid "Simple"
+msgstr "ﻂﻴﺴﺑ"
+
+
 msgid "Interpolated"
 msgstr "ﺪﻟﻮﺘﻣ"
 
@@ -12561,6 +12151,10 @@ msgstr "ﺽﺮﻋ"
 
 msgid "Percentage of particles to display in 3D view"
 msgstr "ﻲﺛﻼ﻿ﺜﻟﺍ ﺬﻔﻨﻣ ﻲﻓ ﺔﺿﻭﺮﻌﻤﻟﺍ ﺕﺎﺌﻳﺰﺠﻟﺍ ﺔﺒﺴﻧ"
+
+
+msgid "Steps"
+msgstr "ﺕﺍﻮﻄﺧ"
 
 
 msgid "Distribution"
@@ -14853,28 +14447,8 @@ msgid "Codec"
 msgstr "ﺓﺮﻔﻴﺷ"
 
 
-msgid "Codec settings for OpenEXR"
-msgstr "OpenEXRﻝ ﺓﺮﻔﻴﺸﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ"
-
-
 msgid "Pxr24 (lossy)"
 msgstr "Pxr24 (ﺓﺭﺎﺴﺨﻟﺎﺑ)"
-
-
-msgid "ZIP (lossless)"
-msgstr "ZIP (ﺓﺭﺎﺴﺧ ﻼ﻿ﺑ)"
-
-
-msgid "PIZ (lossless)"
-msgstr "PIZ (ﺓﺭﺎﺴﺧ ﻼ﻿ﺑ)"
-
-
-msgid "RLE (lossless)"
-msgstr "RLE (ﺓﺭﺎﺴﺧ ﻼ﻿ﺑ)"
-
-
-msgid "ZIPS (lossless)"
-msgstr "ZIPS (ﺓﺭﺎﺴﺧ ﻼ﻿ﺑ)"
 
 
 msgid "B44 (lossy)"
@@ -14935,6 +14509,10 @@ msgstr "1 ﻮﻫ ﻲﺒﻴﺗﺮﺘﻟﺍ ﺎﻬﻤﻗﺭ ﺓﺭﻮﺻ ﻝﻭﺃ
 
 msgid "Layer in multilayer image"
 msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﺓﺩﺪﻌﺘﻣ ﺓﺭﻮﺻ ﻲﻫ ﺔﻘﺒﻄﻟﺍ"
+
+
+msgid "Pass"
+msgstr "ﺭﺍﺮﻜﺗ"
 
 
 msgid "Pass in multilayer image"
@@ -15701,21 +15279,6 @@ msgid "NDOF Button 10"
 msgstr "NDOF 10 ﺭﺯ"
 
 
-msgctxt "UI_Events_KeyMaps"
-msgid "NDOF Button A"
-msgstr "NDOF ﺃ ﺭﺯ"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "NDOF Button B"
-msgstr "NDOF ﺏ ﺭﺯ"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "NDOF Button C"
-msgstr "NDOF ﺝ ﺭﺯ"
-
-
 msgid "Map Type"
 msgstr "ﺭﺎﺼﺘﺧﻹ﻿ﺍ ﻉﻮﻧ"
 
@@ -16230,12 +15793,42 @@ msgid "Falloff"
 msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ"
 
 
+msgctxt "Curve"
+msgid "Smooth"
+msgstr "ﻢﻋﺎﻧ"
+
+
 msgid "Smooth falloff"
 msgstr "ﻢﻴﻌﻨﺘﻟﺍ ﺶﻣﺎﻫ"
 
 
+msgctxt "Curve"
+msgid "Sphere"
+msgstr "ﺓﺮﻛ"
+
+
+msgctxt "Curve"
+msgid "Root"
+msgstr "ﺭﺬﺟ"
+
+
+msgctxt "Curve"
+msgid "Inverse Square"
+msgstr "ﻲﺴﻜﻋ ﻲﻌﻴﺑﺮﺗ"
+
+
 msgid "Inverse Square falloff"
 msgstr "ﻲﺴﻜﻋ ﻲﻌﻴﺑﺮﺗ ﻝﺅﺎﻀﺜﺗ"
+
+
+msgctxt "Curve"
+msgid "Sharp"
+msgstr "ﺩﺎﺣ"
+
+
+msgctxt "Curve"
+msgid "Linear"
+msgstr "ﺔﻴﻄﺧ"
 
 
 msgid "Restrict View"
@@ -16292,10 +15885,6 @@ msgstr "ﻞﺻﻻ﻿ﺍ ﻊﻨّﻗ"
 
 msgid "Parenting settings for masking element"
 msgstr "ﻉﺎﻨﻘﻟﺍ ﺮﺼﻨﻌﻟ ﻞﺻﻻ﻿ﺍ ﺕﺍﺩﺍﺪﻋﺇ"
-
-
-msgid "ID Type"
-msgstr "ﻑﺮﻌﻤﻟﺍ ﻉﻮﻧ"
 
 
 msgid "Sub Parent"
@@ -16378,6 +15967,10 @@ msgid "Alignment"
 msgstr "ﺓﺍﺫﺎﺤﻤﻟﺍ"
 
 
+msgid "Fixed"
+msgstr "ﺖﺑﺎﺛ"
+
+
 msgid "Fill Color"
 msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﻥﻮﻟ"
 
@@ -16422,6 +16015,106 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
+msgid "Mirror"
+msgstr "ﻞﺛﺎﻣ"
+
+
+msgid "Snap"
+msgstr "ﻱﺫﺎﺣ"
+
+
+msgid "UV Mapping"
+msgstr "UV ءﺎﺴﻛﺇ"
+
+
+msgid "Navigation"
+msgstr "ﺢﻔّﺼﺗ"
+
+
+msgid "Align View"
+msgstr "ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
+
+
+msgid "Align View to Active"
+msgstr "ﻝﺎﻌّﻔﻠﻟ ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
+
+
+msgid "Select More/Less"
+msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
+
+
+msgid "Select Similar"
+msgstr "ﻞﺛﺎﻤﻤﻟﺍ ﺮﺘﺧﺇ"
+
+
+msgid "Select All by Trait"
+msgstr "ﺔﻤﺴﻟﺍ ﺐﺴﺣ ﻞﻛ ﺭﺎﻴﺘﺧﺍ"
+
+
+msgid "Select Linked"
+msgstr "ﺔﻄﺒﺗﺮﻤﻟﺍ ﺭﺎﺘﺧﺇ"
+
+
+msgid "Relations"
+msgstr "ﺕﺎﻗﻼ﻿ﻌﻟﺍ"
+
+
+msgid "Rigid Body"
+msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
+
+
+msgid "Apply"
+msgstr "ﻖﺒﻃ"
+
+
+msgid "Track"
+msgstr "ﺐﻘّﻌﺗ"
+
+
+msgid "Quick Effects"
+msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
+
+
+msgid "Make Single User"
+msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
+
+
+msgid "Hooks"
+msgstr "ﺕﺎﻓﺎﻄﺧ"
+
+
+msgid "In-Betweens"
+msgstr "ﻦﻴﺑ ﺎﻣ"
+
+
+msgid "Propagate"
+msgstr "ﻢﻤﻋ"
+
+
+msgid "Names"
+msgstr "ءﺎﻤﺳﺃ"
+
+
+msgid "Face Data"
+msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
+
+
+msgid "Merge"
+msgstr "ﺞﻣﺩﺇ"
+
+
+msgid "Special Characters"
+msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
+
+
+msgid "Bone Roll"
+msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
+
+
 msgctxt "MovieClip"
 msgid "Clip"
 msgstr "ﻢﻠﻗ"
@@ -16433,10 +16126,6 @@ msgstr "ﺏﻭﺪﻨﻣ"
 
 msgid "Reconstruction"
 msgstr "ءﺎﻨﺒﻟﺍ ﺓﺩﺎﻋﺍ"
-
-
-msgid "Track"
-msgstr "ﺐﻘّﻌﺗ"
 
 
 msgid "Zoom"
@@ -16455,16 +16144,16 @@ msgid "Channel"
 msgstr "ﺓﺎﻨﻗ"
 
 
-msgid "Snap"
-msgstr "ﻱﺫﺎﺣ"
+msgid "Marker"
+msgstr "ﺔﻣﻼ﻿ﻋ"
 
 
 msgid "Material Specials"
 msgstr "ﺕﺎﻣﺎﺨﻟﺍ ﺕﺎﻓﺎﺿﺇ"
 
 
-msgid "Select Linked"
-msgstr "ﺔﻄﺒﺗﺮﻤﻟﺍ ﺭﺎﺘﺧﺇ"
+msgid "Smooth"
+msgstr "ﻢﻋﺎﻧ"
 
 
 msgid "UV"
@@ -16503,6 +16192,10 @@ msgid "Keying"
 msgstr "ﺺﺤﻔﻟﺍ"
 
 
+msgid "Import"
+msgstr "ﺩﺭﻮﺘﺳﺇ"
+
+
 msgid "Layout"
 msgstr "ﻖﻴﺴﻨﺗ"
 
@@ -16535,16 +16228,12 @@ msgid "Frame Rate Presets"
 msgstr "ﺮﻃﻷ﻿ﺍ ﻝﺪﻌﻤﻟ ﺔﻘﺒﺴﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ"
 
 
+msgid "Transition"
+msgstr "ﻝﺎﻘﺘﻧﺍ"
+
+
 msgid "Sequencer"
 msgstr "ﻞﺴِﻠﺴﻣ"
-
-
-msgid "Apply"
-msgstr "ﻖﺒﻃ"
-
-
-msgid "Navigation"
-msgstr "ﺢﻔّﺼﺗ"
 
 
 msgid "Inputs"
@@ -16587,10 +16276,6 @@ msgid "External Data"
 msgstr "ﺔﻴﺟﺭﺎﺧ ﺕﺎﻧﺎﻴﺑ"
 
 
-msgid "Import"
-msgstr "ﺩﺭﻮﺘﺳﺇ"
-
-
 msgid "Data Previews"
 msgstr "ﺕﺎﻧﺎﻴﺒﻟﺍ ﺕﺎﻨﻳﺎﻌﻣ"
 
@@ -16603,85 +16288,9 @@ msgid "Presets"
 msgstr "ﺔﻘﺒﺴﻣ ﺕﺍﺩﺍﺪﻋﺇ"
 
 
-msgid "Enabled Modes"
-msgstr "ﺔﻠﻌﻔﻤﻟﺍ ﻁﺎﻤﻧﻻ﻿ﺍ"
-
-
-msgid "Names"
-msgstr "ءﺎﻤﺳﺃ"
-
-
 msgctxt "Operator"
 msgid "Parent"
 msgstr "ﻞﺻﺃ"
-
-
-msgid "Bone Roll"
-msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
-
-
-msgid "Select More/Less"
-msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
-
-
-msgid "Special Characters"
-msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
-
-
-msgid "Face Data"
-msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
-
-
-msgid "Select All by Trait"
-msgstr "ﺔﻤﺴﻟﺍ ﺐﺴﺣ ﻞﻛ ﺭﺎﻴﺘﺧﺍ"
-
-
-msgid "Select Similar"
-msgstr "ﻞﺛﺎﻤﻤﻟﺍ ﺮﺘﺧﺇ"
-
-
-msgid "Hooks"
-msgstr "ﺕﺎﻓﺎﻄﺧ"
-
-
-msgid "Make Single User"
-msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
-
-
-msgid "Quick Effects"
-msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
-
-
-msgid "Relations"
-msgstr "ﺕﺎﻗﻼ﻿ﻌﻟﺍ"
-
-
-msgid "Rigid Body"
-msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
-
-
-msgid "Propagate"
-msgstr "ﻢﻤﻋ"
-
-
-msgid "In-Betweens"
-msgstr "ﻦﻴﺑ ﺎﻣ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
-
-
-msgid "UV Mapping"
-msgstr "UV ءﺎﺴﻛﺇ"
-
-
-msgid "Align View"
-msgstr "ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
-
-
-msgid "Align View to Active"
-msgstr "ﻝﺎﻌّﻔﻠﻟ ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
 
 
 msgid "Operator Presets"
@@ -16912,6 +16521,10 @@ msgid "Ellipsoid"
 msgstr "ﺞﻴﻠﻫﺇ"
 
 
+msgid "Negative"
+msgstr "ﻲﺒﻠﺳ"
+
+
 msgid "Set metaball as negative one"
 msgstr "ﺔﺒﻟﺎﺴﻛ ﺔﻠﻋﺎﻔﺘﻤﻟﺍ ﺓﺮﻜﻟﺍ ﺩﺪﺣ"
 
@@ -16920,8 +16533,28 @@ msgid "Modifier affecting the geometry data of an object"
 msgstr "ﻦﺋﺎﻛ ﻢﺴﺠﻣ ﺕﺎﻧﺎﻴﺑ ﻰﻠﻋ ﺮﺛﺆﻤﻟﺍ ﺮﻴﻐﻤﻟﺍ"
 
 
+msgid "Modifier name"
+msgstr "ﺮﻴﻐﻤﻟﺍ ﻢﺳﺇ"
+
+
+msgid "Set modifier expanded in the user interface"
+msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺔﻬﺟﺍﻭ ﻲﻓ ﺍﺪﻤﻣ ﺮﻴﻐﻤﻟﺍ ﻞﻌﺟﺇ"
+
+
 msgid "On Cage"
 msgstr "ﺺﻔﻗ ﻲﻓ"
+
+
+msgid "Use modifier during render"
+msgstr "ﺮﻴﻴﺼﺘﻟﺍ ﻝﻼ﻿ﺧ ﺮﻴّﻐﻤﻟﺍ ﻡﺪﺨﺘﺳﺇ"
+
+
+msgid "Display modifier in viewport"
+msgstr "ﺽﺮﻌﻟﺍ ﺬﻔﻨﻣ ﻲﻓ ﺮﻴﻐّﻤﻟﺍ ﺽﺮﻋﺇ"
+
+
+msgid "Vertex Weight Proximity"
+msgstr "ﺔﻄﻘﻧ ﻥﺯﻭ ﺐﻳﺮﻘﺗ"
 
 
 msgid "Data Transfer"
@@ -16948,8 +16581,24 @@ msgid "Vertex Weight Mix"
 msgstr "ﺔﻄﻘﻧ ﻥﺯﻭ ﺝﺰﻣ"
 
 
+msgid "Hue/Saturation"
+msgstr "ﺰﻴﻛﺮﺘﻟﺍ/ﺯﺎﻴﺤﻧﻻ﻿ﺍ"
+
+
+msgid "Time Offset"
+msgstr "ﺖﻗﻮﻟﺍ ﺔﺣﺍﺯﺍ"
+
+
+msgid "Array"
+msgstr "ﻒﻴﻔﺻ"
+
+
 msgid "Bevel"
 msgstr "ﺔﻔﻄﺷ"
+
+
+msgid "Build"
+msgstr "ءﺎﻨﺑ"
 
 
 msgid "Decimate"
@@ -16992,6 +16641,10 @@ msgid "Displace"
 msgstr "ﻩﻮّﺷ"
 
 
+msgid "Hook"
+msgstr "ﻑﺎﻄﺨﻟﺍ"
+
+
 msgid "Mesh Deform"
 msgstr "ﻞﻜﺸﻟﺍ ﻝﻮﺤﻣ"
 
@@ -17032,12 +16685,32 @@ msgid "Apply this and all preceding deformation modifiers on splines' points rat
 msgstr " ءﻮﻠﻤﻣ ﺢﻄﺳ/ﻰﻨﺤﻨﻣ ﻝﺪﺑ ﻰﻨﺤﻨﻤﻟﺍ ﻂﻘﻧ ﻰﻠﻋ ﺔﻘﺑﺎﺴﻟﺍ ﻞﻳﻮﺤﺘﻟﺍ ﺕﺍﺮﻴﻐﻣ ﻞﻛ ﻭ ﺍﺬﻫ ﻖﻴﺒﻄﺗ"
 
 
+msgid "Armature Modifier"
+msgstr "ﻞﻜﻴﻬﻟﺍ ﺮﻴﻐﻣ"
+
+
 msgid "Armature deformation modifier"
 msgstr "ﻞﻜﻴﻬﻠﻟ ﻊﻳﻮﻄﺗ ﺮﻴﻐﻣ"
 
 
+msgid "Invert vertex group influence"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﻴﺛﺄﺗ ﺲﻜﻋﺍ"
+
+
+msgid "Use Bone Envelopes"
+msgstr "ﻢﻈﻌﻟﺍ ﺔﻔﻠﻏﺃ ﻡﺪﺨﺘﺳﺍ"
+
+
 msgid "Multi Modifier"
 msgstr "ﺮﻴﻐﻤﻟﺍ ﺩﺪﻌﺘﻣ"
+
+
+msgid "Use Vertex Groups"
+msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻡﺪﺨﺘﺳﺍ"
+
+
+msgid "Bind vertex groups to armature modifier"
+msgstr "ﻞﻜﻴﻬﻟﺍ ﺮﻴﻐﻤﻟ ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻂﺑﺭﺍ"
 
 
 msgid "Array Modifier"
@@ -17076,6 +16749,10 @@ msgid "Start Cap"
 msgstr "ﺔﻳﺍﺪﺒﻟﺍ ﺓﺮﻴﻜﺴﺗ"
 
 
+msgid "Constant Offset"
+msgstr "ﺔﺘﺑﺎﺛ ﺔﺣﺍﺯﺍ"
+
+
 msgid "Add a constant offset"
 msgstr "ﺔﺘﺑﺎﺛ ﺔﺣﺍﺯﺍ ﻒﺿﺍ"
 
@@ -17086,6 +16763,10 @@ msgstr "ﻂﻘﻨﻟﺍ ﺞﻣﺩﺍ"
 
 msgid "Merge vertices in first and last duplicates"
 msgstr "ﺮﺧﻵ﻿ﺍ ﻭ ﻝﻭﻷ﻿ﺍ ﺭﺍﺮﻜﺘﻟﺍ ﻲﻓ ﻂﻘﻨﻟﺍ ﺞﻣﺩﺇ"
+
+
+msgid "Relative Offset"
+msgstr "ﺔﻴﺒﺴﻧ ﺔﺣﺍﺯﺍ"
 
 
 msgid "Bevel Modifier"
@@ -17116,6 +16797,10 @@ msgid "Vertex group name"
 msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻢﺳﺍ"
 
 
+msgid "Vertex Weight"
+msgstr "ﺔﻄﻘﻧ ﻥﺯﻭ"
+
+
 msgid "Boolean Modifier"
 msgstr "ﻲﻘﻄﻨﻣ ﺮﻴﻐﻣ"
 
@@ -17130,6 +16815,10 @@ msgstr "ﺢﺤﺻ"
 
 msgid "Union"
 msgstr "ﺩﺎﺤﺗﺍ"
+
+
+msgid "Build Modifier"
+msgstr "ءﺎﻨﺒﻟﺍ ﺮﻴﻐﻣ"
 
 
 msgid "Start frame of the effect"
@@ -17480,6 +17169,146 @@ msgid "Fluid simulation modifier"
 msgstr "ﻞﺋﺎﺴﻟﺍ ﺓﺎﻛﺎﺤﻣ ﺮﻴﻐﻣ"
 
 
+msgid "Shift"
+msgstr "ﻰﻠﻋﺃ"
+
+
+msgid "Uniform Scale"
+msgstr "ﻢﻈﺘﻨﻣ ﻢﻴﺠﺤﺗ"
+
+
+msgid "Speed Factor"
+msgstr "ﺔﻋﺮﺴﻟﺍ ﻞﻣﺎﻌﻣ"
+
+
+msgid "Grow"
+msgstr "ﺮﺒّﻛ"
+
+
+msgid "Hook Modifier"
+msgstr "ﻑﺎﻄﺨﻟﺍ ﺮﻴﻐﻣ"
+
+
+msgctxt "Curve"
+msgid "Falloff Type"
+msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ ﻉﻮﻧ"
+
+
+msgctxt "Curve"
+msgid "No Falloff"
+msgstr "ﻲﺷﻼ﻿ﺗ ﻥﻭﺪﺑ"
+
+
+msgctxt "Curve"
+msgid "Curve"
+msgstr "ﻰﻨﺤﻨﻣ"
+
+
+msgctxt "Curve"
+msgid "Constant"
+msgstr "ﺖﺑﺎﺛ"
+
+
+msgid "Name of Parent Bone for hook (if applicable), also recalculates and clears offset"
+msgstr "ﺔﺣﺍﺯﻹ﻿ﺍ ﻂﺒﺿ ﻭ ﺏﺎﺴﺣ ﺪﻴﻌﺗ ﺎﻀﻳﺃ ،(ﻖﻴﺒﻄﺘﻠﻟ ﻞﺑﺎﻗ ﺍﺫﺇ) ﻑﺎﻄﺨﻠﻟ ﻞﺻﻷ﻿ﺍ ﺔﻤﻈﻋ ﻢﺳﺍ"
+
+
+msgid "Strength of modifier effect"
+msgstr "ﺮﻴﻐﻤﻟﺍ ﺮﻴﺛﺎﺗ ﺓﺪﺷ"
+
+
+msgid "Point Density"
+msgstr "ﺔﻄﻘﻨﻟﺍ ﺔﻓﺎﺜﻛ"
+
+
+msgid "Step"
+msgstr "ﺓﻮﻄﺨﻟﺍ"
+
+
+msgid "Shaded"
+msgstr "ﻞﻠﻈﻣ"
+
+
+msgid "Boundaries"
+msgstr "ﺩﻭﺪﺤﻟﺍ"
+
+
+msgid "Target Object"
+msgstr "ﻑﺪﻬﻟﺍ ﻦﺋﺎﻜﻟﺍ"
+
+
+msgid "Subdivisions"
+msgstr "ﺔﻴﻋﺮﻔﻟﺍ ﺕﺎﻤﻴﺴﻘﺘﻟﺍ"
+
+
+msgid "Keep Shape"
+msgstr "ﻞﻜﺸﻟﺍ ﻰﻠﻋ ﻆﻓﺎﺣ"
+
+
+msgid "Shrinkwrap Modifier"
+msgstr "ﻲﺷﺎﻤﻜﻧﻻ﻿ﺍ ﻒﻴﻠﻐﺘﻟﺍ ﺮﻴﻐﻣ"
+
+
+msgid "Auxiliary Target"
+msgstr "ﻲﻓﺎﺿﻹ﻿ﺍ ﻑﺪﻬﻟﺍ"
+
+
+msgid "Distance to keep from the target"
+msgstr "ﻑﺪﻬﻟﺍ ﻰﺘﺣ ﺔﻴﻘﺒﺘﻤﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ"
+
+
+msgid "Project Limit"
+msgstr "ﻁﺎﻘﺳﻹ﻿ﺍ ﺭﺮﺣ"
+
+
+msgid "Number of subdivisions that must be performed before extracting vertices' positions and normals"
+msgstr "ﻢﻇﺍﻮﻨﻟﺍ ﻭ ﻂﻘﻨﻟﺍ ﻊﻗﺍﻮﻣ ﺝﺍﺮﺨﺘﺳﺍ ﻞﺒﻗ ﺬﻔﻨﺗ ﻥﺃ ﺐﺠﻳ ﻲﺘﻟﺍ ﺕﺎﻤﻴﺴﻘﺘﻟﺍ ﺩﺪﻋ"
+
+
+msgid "Allow vertices to move in the negative direction of axis"
+msgstr "ﺭﻮﺤﻤﻠﻟ ﺐﻟﺎﺴﻟﺍ ﻩﺎﺠﺗﻻ﻿ﺍ ﻲﻓ ﻙﺮﺤﺘﻟﺍ ﻂﻘﻨﻠﻟ ﺢﺗﺃ"
+
+
+msgid "Shrink the mesh to the nearest target surface"
+msgstr "ﻑﺪﻬﻠﻟ ﺢﻄﺳ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
+
+
+msgid "Shrink the mesh to the nearest target surface along a given axis"
+msgstr "ﺩﺪﺤﻤﻟﺍ ﺭﻮﺤﻤﻟﺍ ﻰﻠﻋ ﻑﺪﻬﻠﻟ ﺢﻄﺳ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
+
+
+msgid "Shrink the mesh to the nearest target vertex"
+msgstr "ﻑﺪﻬﻟﺍ ﺢﻄﺳ ﻰﻠﻋ ﺔﻄﻘﻧ ﺏﺮﻗﻻ﻿ ﻢﺴﺠﻤﻟﺍ ﺶﻤﻛﺍ"
+
+
+msgid "Adaptive"
+msgstr "ﻒﻴّﻜﺘﻣ"
+
+
+msgid "Smooth Modifier"
+msgstr "ﺔﻣﻮﻌﻨﻟﺍ ﺮﻴﻐﻣ"
+
+
+msgid "Subdivision Type"
+msgstr "ﻢﻴﺴﻘﺘﻟﺍ ﻉﻮﻧ"
+
+
+msgid "Frame Scale"
+msgstr "ﻪﺟﻮﻤﻟﺍ ﻢﺠﺣ"
+
+
+msgid "Highest"
+msgstr "ﻰﻠﻋﻷ﻿ﺍ"
+
+
+msgid "Lowest"
+msgstr "ﻰﻧﺩﻻ﻿ﺍ"
+
+
+msgid "Falloff Curve"
+msgstr "ﺺﻗﺎﻨﺘﻟﺍ ﻰﻨﺤﻨﻣ"
+
+
 msgid "Laplacian Deform Modifier"
 msgstr "ﻥﺎﻴﺳﻼ﻿ﺑﻻ﻿ ﻊﻳﻮﻄﺗ ﺮﻴّﻐﻣ"
 
@@ -17502,6 +17331,10 @@ msgstr "ﻞﻔﻘﻟﺍ ﺩﻭﺪﺣ"
 
 msgid "Normalized"
 msgstr "ﺔﻤﻈﻨﻣ"
+
+
+msgid "Lattice Modifier"
+msgstr "ﺔﻜﺒﺸﻟﺍ ﺮﻴﻐﻣ"
 
 
 msgid "Mask Modifier"
@@ -17534,6 +17367,10 @@ msgstr "ﻢﺴﺠﻤﻟﺍ ﻊﻳﻮﻄﺗ ﺮﻴﻐﻣ"
 
 msgid "Mesh object to deform with"
 msgstr "ﻊﻳﻮﻄﺘﻟﺍ ﻦﺋﺎﻛ ﻢﺴﺠﻣ"
+
+
+msgid "Mirror Modifier"
+msgstr "ﺔﻠﺛﺎﻤﻤﻟﺍ ﺮﻴﻐﻣ"
 
 
 msgid "Object to use as mirror"
@@ -18752,6 +18589,10 @@ msgid "Use Blue Channel"
 msgstr "ءﺎﻗﺭﺰﻟﺍ ﺓﺎﻨﻘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 
+msgid "Use Mask"
+msgstr "ﻉﺎﻨﻘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
+
+
 msgid "Normalize"
 msgstr "ﻱﻮّﺳ"
 
@@ -18840,10 +18681,6 @@ msgid "Minimal value of correlation between matched pattern and reference that i
 msgstr "ﺔﺤﺟﺎﻧ ﺔﻘﺣﻼ﻿ﻣ ﻪﻧﺍ ﻰﻠﻋ ﻞﻣﺎﻌﻤﻟﺍ ﻊﺟﺮﻤﻟﺍ ﻭ ﻥﺭﺎﻘﻤﻟﺍ ﻂﻤﻨﻟﺍ ﻦﻴﺑ ﻂﺑﺍﺮﺗ ﺔﻤﻴﻗ ﻞﻗﺍ"
 
 
-msgid "Grease pencil data for this track"
-msgstr "ﺭﺎﺴﻤﻟﺍ ﺍﺬﻬﻟ ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ"
-
-
 msgid "Has Bundle"
 msgstr "ﺔﻣﺰﺣ ﻪﻳﺪﻟ"
 
@@ -18874,10 +18711,6 @@ msgstr "ﺺﺼﺨﻣ ﻥﻮﻟ"
 
 msgid "Display what the tracking algorithm sees in the preview"
 msgstr "ﺔﻨﻳﺎﻌﻤﻟﺍ ﻲﻓ ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺔﻴﻣﺯﺭﺍﻮﺧ ﻩﺍﺮﺗ ﺎﻣ ﺮﻬﻇﺃ"
-
-
-msgid "Normalize light intensities while tracking. Slower"
-msgstr "ﺄﻄﺑﺍ .ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺪﻨﻋ ءﻮﻀﻟﺍ ﺓﺪﺣ ﻢﻈﻧ"
 
 
 msgid "NLA Strip"
@@ -20105,6 +19938,14 @@ msgid "Only Faces"
 msgstr "ﻪﺟﻭﻻ﻿ﺍ ﻂﻘﻓ"
 
 
+msgid "Triangles"
+msgstr "ﺚﻠﺜﻣ ﻞﻜﺷ"
+
+
+msgid "Secondary"
+msgstr "ﻱﻮﻧﺎﺛ"
+
+
 msgid "Linear interpolation"
 msgstr "ﻲﻄﺧ ﺪﻴﻟﻮﺗ"
 
@@ -20119,6 +19960,10 @@ msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﻉﻮﻧ"
 
 msgid "Conformal"
 msgstr "ﻒﻴﻜﺘﻣ"
+
+
+msgid "Warning"
+msgstr ":ﺮﻳﺬﺤﺗ"
 
 
 msgid "Label Font Size"
@@ -20677,6 +20522,609 @@ msgid "Object Constraints"
 msgstr "ﻦﺋﺎﻜﻟﺍ ﺩﻮﻴﻗ"
 
 
+msgctxt "Operator"
+msgid "Clear Useless Actions"
+msgstr "ﺔﻣﺪﺨﺘﺴﻣ ﺮﻴﻐﻟﺍ ﺕﺎﻛﺮﺤﻟﺍ ﻒﻈﻧ"
+
+
+msgctxt "Operator"
+msgid "Export Keying Set..."
+msgstr "...ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﻳﺪﺼﺗ"
+
+
+msgctxt "Operator"
+msgid "Show All"
+msgstr "ﻞﻜﻟﺍ ﺮﻬﻇﺍ"
+
+
+msgid "Add or remove a Camera Preset"
+msgstr "ﺍﺮﻴﻣﺎﻜﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Camera Preset"
+msgstr "ﺍﺮﻴﻤﻜﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
+
+
+msgid "Add or remove a Safe Areas Preset"
+msgstr "ﺔﻨﻣﺁ ﺔﻘﻄﻨﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣﺇ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Safe Area Preset"
+msgstr "ﺔﻨﻣﺁ ﺔﻘﻄﻨﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "3D Markers to Mesh"
+msgstr "ﻢﺴﺠﻤﻠﻟ 3D ـﻟﺍ ﺕﺎﻣﻼ﻿ﻋ"
+
+
+msgid "Add or remove a Tracking Camera Intrinsics Preset"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺍﺮﻴﻣﺎﻛ ﺕﺎﻳﺮﻫﻮﺠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Constraint to F-Curve"
+msgstr "ﻞﻤﻌﻟﺍ ﻰﻨﺤﻨﻤﻟ ﺪﻴﻗ"
+
+
+msgctxt "Operator"
+msgid "Delete Proxy"
+msgstr "ﺏﻭﺪﻨﻤﻟﺍ ﻑﺬﺣﺍ"
+
+
+msgctxt "Operator"
+msgid "Filter Tracks"
+msgstr "ﺕﺍﺭﺎﺴﻤﻟﺍ ﻲﻔّﺻ"
+
+
+msgctxt "Operator"
+msgid "Set Active Clip"
+msgstr "ﺔﻟﺎﻌّﻔﻟﺍ ﺔﺻﺎﺼﻘﻟﺍ ﺩﺪﺣ"
+
+
+msgctxt "Operator"
+msgid "Set as Background"
+msgstr "ﺔﻴﻔﻠﺨﻛ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Setup Tracking Scene"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺪﻬﺸﻣ ﺕﺍﺩﺍﺪﻋﺇ"
+
+
+msgid "Add or remove a Clip Track Color Preset"
+msgstr "ﺔﺻﺎﺼﻘﻟﺍ ﺭﺎﺴﻣ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Add Track Color Preset"
+msgstr "ﺭﺎﺴﻤﻟﺍ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
+
+
+msgctxt "Operator"
+msgid "Copy Track Settings"
+msgstr "ﺭﺎﺴﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺦﺴﻧﺍ"
+
+
+msgid "Add or remove a motion tracking settings preset"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺔﻛﺮﺣ ﺕﺍﺩﺪﻋﻹ﻿ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Tracking Settings Preset"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Cloth Preset"
+msgstr "ﺲﺑﻼ﻿ﻤﻟﺍ ﻲﻛﺎﺤﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
+
+
+msgid "Evaluate the namespace up until the cursor and give a list of options or complete the name if there is only one"
+msgstr "ﺪﺣﺍﻭ ﻂﻘﻓ ﻙﺎﻨﻫ ﻥﺎﻛ ﺍﺫﺇ ﻢﺳﻻ﻿ﺍ ﻞﻤﻛﺃ ﻭﺃ ﺕﺍﺭﺎﻴﺧ ﺔﻤﺋﺎﻗ ﻂﻋﺃ ﻭ ﺮﺷﺆﻤﻟﺍ ﺪﻨﻌﻟ ﻢﺳﻻ﻿ﺍ ﺔﺣﺎﺴﻣ ﻢﻴﻗ"
+
+
+msgctxt "Operator"
+msgid "Console Autocomplete"
+msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﻲﻓ ﻲﺋﺎﻘﻠﺘﻟﺍ ﻞﻴﻤﻜﺘﻟﺍ"
+
+
+msgctxt "Operator"
+msgid "Console Banner"
+msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﻂﻳﺮﺷ"
+
+
+msgctxt "Operator"
+msgid "Console Execute"
+msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﺢﺘﻓﺃ"
+
+
+msgid "Set the current language for this console"
+msgstr " ﻩﺬﻫ ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻠﻟ ﺔﻴﻟﺎﺤﻟﺍ ﺔﻐﻠﻟﺍ ﺩﺪﺣ"
+
+
+msgctxt "Operator"
+msgid "Console Language"
+msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﺔﻐﻟ"
+
+
+msgctxt "Operator"
+msgid "Use Nodes"
+msgstr "ﺪﻘﻌﻟﺍ ﻡﺪﺨﺘﺳﺇ"
+
+
+msgctxt "Operator"
+msgid "Export BVH"
+msgstr "BVH ﺭﺪّﺻ"
+
+
+msgctxt "Operator"
+msgid "Export FBX"
+msgstr "FBX ﺭﺪّﺻ"
+
+
+msgid "Add or remove a Fluid Preset"
+msgstr "ﻞﺋﺎﺴﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Fluid Preset"
+msgstr "ﻞﺋﺎﺴﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Image Edit Externally"
+msgstr "ﺎﻴﺟﺭﺎﺧ ﺓﺭﻮﺼﻟﺍ ﺭﺮﺣ"
+
+
+msgctxt "Operator"
+msgid "Project Apply"
+msgstr "ﻁﺎﻘﺳﻻ﻿ﺍ ﻖﺒﻃ"
+
+
+msgctxt "Operator"
+msgid "Project Edit"
+msgstr "ﻁﺎﻘﺳﻹ﻿ﺍ ﺭﺮﺣ"
+
+
+msgctxt "Operator"
+msgid "Import FBX"
+msgstr "FBX ﺩﺭﻮﺘﺳﺇ"
+
+
+msgctxt "Operator"
+msgid "Add Torus"
+msgstr "ﺭﺎﻃﺍ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Select Previous Element"
+msgstr "ﻖﺑﺎﺴﻟﺍ ﺮﺼﻨﻌﻟﺍ ﺮﺘﺧﺍ"
+
+
+msgctxt "Operator"
+msgid "Bake Action"
+msgstr "ﺔﻛﺮﺤﻟﺍ ﻥﺰﺧ"
+
+
+msgid "Add a node to the active tree"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺓﺮﺠﺸﻠﻟ ﺓﺪﻘﻋ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Node"
+msgstr "ﺪﻳﺪﺟ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Collapse and Hide Unused Sockets"
+msgstr "ﺔﻣﺪﺨﺘﺴﻣ ﺮﻴﻐﻟﺍ ﺕﺎﺤﺘﻔﻟﺍ ﻲﻔﺧﺍ ﻭ ﻱﻮﻃﺍ"
+
+
+msgid "Add or remove a Node Color Preset"
+msgstr "ﺓﺪﻘﻌﻟﺍ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ "
+
+
+msgctxt "Operator"
+msgid "Add Node Color Preset"
+msgstr "ﺓﺪﻘﻌﻠﻟ ﻖﺒﺴﻣ ﻥﻮﻟ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
+
+
+msgctxt "Operator"
+msgid "Parent Node Tree"
+msgstr "ﻞﺻﻻ﻿ﺍ ﺓﺪﻘﻌﻟﺍ ﺓﺮﺠﺷ"
+
+
+msgctxt "Operator"
+msgid "Add Modifier"
+msgstr "ﺮﻴﻐﻣ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Align Objects"
+msgstr "ﺕﺎﻨﺋﺎﻜﻟﺍ ﻱﺫﺎﺣ"
+
+
+msgctxt "Operator"
+msgid "Animated Transforms to Deltas"
+msgstr "ﻕﺭﺍﻮﻔﻟﺍ ﻰﻟﺍ ﺔﻛﺮّﺤﻤﻟﺍ ﺕﻻ﻿ﻮﺤﺘﻟﺍ"
+
+
+msgctxt "Operator"
+msgid "Clear All Restrict Render"
+msgstr "ﺮﻴﻴﺼﺘﻟﺍ ﺩﻮﻴﻗ ﻞﻛ ﻎﻟﺃ"
+
+
+msgctxt "Operator"
+msgid "Restrict Render Unselected"
+msgstr "ﺭﺎﺘﺨﻣ ﺮﻴﻐﻠﻟ ﺮﻴﻴﺼﺘﻟﺍ ﺪﻴﻗ"
+
+
+msgctxt "Operator"
+msgid "Quick Explode"
+msgstr "ﻊﻳﺮﺳ ﺭﺎﺠﻔﻧﺍ"
+
+
+msgctxt "Operator"
+msgid "Quick Fur"
+msgstr "ﻊﻳﺮﺳ ﻭﺮﻓ"
+
+
+msgctxt "Operator"
+msgid "Quick Smoke"
+msgstr "ﻊﻳﺮﺳ ﻥﺎﺧﺩ"
+
+
+msgctxt "Operator"
+msgid "Randomize Transform"
+msgstr "ﺎﻴﺋﺍﻮﺸﻋ ﻝﻮﺤﺘﻟﺍ ﻉﻮّﻧ"
+
+
+msgctxt "Operator"
+msgid "New"
+msgstr "ﺪﻳﺪﺟ"
+
+
+msgid "Select the active camera"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺍﺮﻴﻤﻜﻟﺍ ﺮﺘﺧﺍ"
+
+
+msgctxt "Operator"
+msgid "Select Camera"
+msgstr "ﺍﺮﻴﻣﺎﻜﻟﺍ ﺭﺎﺘﺧﺇ"
+
+
+msgctxt "Operator"
+msgid "Select Hierarchy"
+msgstr "ﺔﻴﻠﻜﻴﻬﻟﺍ ﺭﺎﺘﺧﺇ"
+
+
+msgid "Select objects matching a naming pattern"
+msgstr "ﺔﻴﻤﺴﺗ ﻂﻤﻨﻟ ﺔﻘﺑﺎﻄﻤﻟﺍ ﺕﺎﻨﺋﺎﻜﻟﺍ ﺮﺘﺧﺍ"
+
+
+msgctxt "Operator"
+msgid "Select Pattern"
+msgstr "ﻂﻤﻨﻟﺍ ﺭﺎﺘﺧﺇ"
+
+
+msgctxt "Operator"
+msgid "Transfer Shape Key"
+msgstr "ﻞﻜﺸﻟﺍ ﺡﺎﺘﻔﻣ ﻞﻘﻧﺇ"
+
+
+msgctxt "Operator"
+msgid "Subdivision Set"
+msgstr "ﻢﻴﻌﻨﺗ ﺔﻋﻮﻤﺠﻣ"
+
+
+msgctxt "Operator"
+msgid "Dirty Vertex Colors"
+msgstr "ﺔﺛﻮّﻠﻣ ﻂﻘﻨﻟﺍ ﻥﺍﻮﻟﺍ"
+
+
+msgid "Add or remove a Hair Dynamics Preset"
+msgstr "ﺮﻌﺸﻟﺍ ﺕﺎﻴﻣﺎﻨﻳﺪﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣﺇ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Refresh"
+msgstr "ﺙﺪّﺣ"
+
+
+msgctxt "Operator"
+msgid "Copy Previous Settings"
+msgstr "ﺔﻘﺑﺎﺴﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ ﺦﺴﻧ"
+
+
+msgctxt "Operator"
+msgid "Activate Keyconfig"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﺣﻮﻟ ﺭﺍﺭﺯﺃ ﻒﺋﺎﻇﻭ ﺕﺍﺭﺎﻴﺧ ﻞﻴﻌﻔﺗ"
+
+
+msgctxt "Operator"
+msgid "Export Key Configuration..."
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺭﺪّﺻ"
+
+
+msgctxt "Operator"
+msgid "Import Key Configuration..."
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺩﺭﻮﺘﺳﺍ"
+
+
+msgctxt "Operator"
+msgid "Remove Key Config"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣ"
+
+
+msgctxt "Operator"
+msgid "Test Key Configuration for Conflicts"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺽﺭﺎﻌﺗ ﺺﺤﻓﺃ"
+
+
+msgctxt "Operator"
+msgid "Add Key Map Item"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺨﻟ ﺮﺼﻨﻋ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Remove Key Map Item"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺨﻟ ﺮﺼﻨﻋ ﻑﺬﺣﺍ"
+
+
+msgctxt "Operator"
+msgid "Restore Key Map Item"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺧ ﺮﺼﻨﻋ ﻊﺟﺮﺘﺳﺍ"
+
+
+msgctxt "Operator"
+msgid "Restore Key Map(s)"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺧ ﻊﺟﺮﺘﺳﺍ"
+
+
+msgctxt "Operator"
+msgid "Install Theme..."
+msgstr "...ﻂﻤﻨﻟﺍ ﺐﺼّﻧ"
+
+
+msgid "Add an Integrator Preset"
+msgstr "ﻞﻣﺎﻜﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Integrator Preset"
+msgstr "ﻞﻣﺎﻜﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
+
+
+msgid "Add a Sampling Preset"
+msgstr "ﺔﻨﻳﺎﻌﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Sampling Preset"
+msgstr "ﺔﻨﻳﺎﻌﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
+
+
+msgid "Play back rendered frames/movies using an external player"
+msgstr "ﻲﺟﺭﺎﺧ ﺽﺮﻋ ﻡﺍﺪﺨﺘﺳﺎﺑ ﺓﺮﻴّﺼﻤﻟﺍ ﻡﻼ﻿ﻓﻻ﻿ﺍ/ﺮﻃﻻ﻿ﺍ ﺽﺮﻋ ﺪﻋﺍ"
+
+
+msgctxt "Operator"
+msgid "Play Rendered Animation"
+msgstr "ﺓﺮﻴّﺼﻤﻟﺍ ﺔﻛﺮﺤﻟﺍ ﺽﺮﻋﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Render Preset"
+msgstr "ﺮﻴﻴﺼﺘﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Edge Marks to Keying Set"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺔﻓﺎﺣ ﺕﺎﻣﻼ﻿ﻋ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Add Face Marks to Keying Set"
+msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﻪﺟﻭ ﺕﺎﻣﻼ﻿ﻋ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Execute a Python Preset"
+msgstr "ﺎﻘﺒﺴﻣ ﺪﻌﻣ ﻥﻮﺜﻳﺎﺑ ﻒﻠﻣ ﺬﻔﻧ"
+
+
+msgid "Do cross-fading volume animation of two selected sound strips"
+msgstr "ﻦﻳﺭﺎﺘﺨﻣ ﺕﻮﺻ ﻲﻄﻳﺮﺸﻟ ﻞﺋﺎﻀﺘﻣ ﻞﺧﺍﺪﺘﻣ ﻲﻤﺠﺣ ﻙﺮﺤﺗ ﺊﺸﻧﺍ"
+
+
+msgctxt "Operator"
+msgid "Deinterlace Movies"
+msgstr "ﻡﻼ﻿ﻓﻷ﻿ﺍ ﻲﻓ ﻚﺑﺎﺸﺘﻟﺍ ﻞﻴﻠﻘﺗ"
+
+
+msgctxt "Operator"
+msgid "Export UV Layout"
+msgstr "UV ﺝﺫﻮﻤﻧ ﺭﺪّﺻ"
+
+
+msgctxt "Operator"
+msgid "Follow Active Quads"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺕﺎﻴﻋﺎﺑﺮﻟﺍ ﻊﺒﺗﺍ"
+
+
+msgctxt "Operator"
+msgid "Lightmap Pack"
+msgstr "ءﻮﻀﻟﺍ ﺔﻄﻳﺮﺧ ﺔﻣﺰﺣ"
+
+
+msgctxt "Operator"
+msgid "Randomize"
+msgstr "ﻲﺋﺍﻮﺸﻋ ﻞﻌﺟﺇ"
+
+
+msgctxt "Operator"
+msgid "Extrude Individual and Move"
+msgstr "ﻙﺮّﺣ ﻭ ﺎﻳﺩﺮﻓ ﻖﺜﺑﺍ"
+
+
+msgctxt "Operator"
+msgid "Extrude and Move on Normals"
+msgstr "ﻢﻇﺍﻮﻨﻟﺍ ﻰﻠﻋ ﻙﺮّﺣ ﻭ ﻖﺜﺑﺍ"
+
+
+msgctxt "Operator"
+msgid "Extrude and Move on Individual Normals"
+msgstr "ﻼ﻿ﺼﻔﻨﻣ ﻢﻇﺍﻮﻨﻟﺍ ﻰﻠﻋ ﻙﺮّﺣ ﻭ ﻖﺜﺑﺇ"
+
+
+msgctxt "Operator"
+msgid "Context Collection Boolean Set"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﻘﻄﻨﻣ ﻢﻴﻗ ﺔﻋﻮﻤﺠﻣ"
+
+
+msgctxt "Operator"
+msgid "Context Array Cycle"
+msgstr "ﻕﺎﻴﺳ ﺔﻓﻮﻔﺼﻣ ﺓﺭﻭﺩ"
+
+
+msgid "Toggle a context value"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻤﻴﻗ ﺐﻠﻗﺍ"
+
+
+msgctxt "Operator"
+msgid "Context Enum Cycle"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺩﺍﺪﻋ ﺓﺭﻭﺩ"
+
+
+msgctxt "Operator"
+msgid "Context Int Cycle"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻢﻗﺭ ﺓﺭﻭﺩ"
+
+
+msgctxt "Operator"
+msgid "Context Enum Menu"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺩﺍﺪﻋ ﺔﻤﺋﺎﻗ"
+
+
+msgctxt "Operator"
+msgid "Context Modal Mouse"
+msgstr "ﻕﺎﻴﺴﻟﺎﺑ ﺔﻃﻭﺮﺸﻣ ﺓﺭﺄﻓ"
+
+
+msgctxt "Operator"
+msgid "Context Enum Pie"
+msgstr "ﻊﻄﻘﻟﺍ ﻕﺎﻴﺳ ﺩﺪﻋ"
+
+
+msgid "Scale a float context value"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻜﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠّﺣ"
+
+
+msgctxt "Operator"
+msgid "Context Scale Float"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻜﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠﺣ"
+
+
+msgctxt "Operator"
+msgid "Context Scale Int"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﺤﻴﺤﺼﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠﺣ"
+
+
+msgid "Set a context value"
+msgstr "ﻕﺎﻴﺳ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Set Boolean"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﻘﻄﻨﻣ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Set Enum"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺩﺍﺪﻋ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Set Float"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻛ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Set Library ID"
+msgstr "ﺔﺒﺘﻜﻤﻟﺍ ﻑﺮﻌﻣ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Set"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻋﻮﻤﺠﻣ"
+
+
+msgctxt "Operator"
+msgid "Context Set String"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﺼﻧ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Set Value"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻤﻴﻗ ﻊﺿ"
+
+
+msgctxt "Operator"
+msgid "Context Toggle"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﺐﻠﻗﺍ"
+
+
+msgctxt "Operator"
+msgid "Context Toggle Values"
+msgstr "ﻕﺎﻴﺴﻟﺍ ﻢﻴﻗ ﺐﻠﻗﺍ"
+
+
+msgctxt "Operator"
+msgid "View Documentation"
+msgstr "ﻖﻴﺛﻮﺘﻟﺍ ﺮﻬﻇﺍ"
+
+
+msgctxt "Operator"
+msgid "View Manual"
+msgstr "ﺎﻳﻭﺪﻳ ﺮﻬﻇﺍ"
+
+
+msgctxt "Operator"
+msgid "Operator Cheat Sheet"
+msgstr "ﻞﻣﺎﻌﻟﺍ ﺎﻳﺎﺒﺧ ﺔﻗﺭﻭ"
+
+
+msgid "Add or remove an Operator Preset"
+msgstr "ﻞﻣﺎﻌﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Operator Preset"
+msgstr "ﻞﻣﺎﻌﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ"
+
+
+msgctxt "Operator"
+msgid "Add Property"
+msgstr "ﺔﻤﺳ ﻒﺿﺃ"
+
+
+msgctxt "Operator"
+msgid "Edit Property"
+msgstr "ﺔﻤﺴﻟﺍ ﻝﺪﻋ"
+
+
+msgid "Internal use (edit a property data_path)"
+msgstr "(ﺕﺎﻧﺎﻴﺑ ﺭﺎﺴﻣ ﺔﻤﺳ ﻝﺪﻋ) ﻲﻠﺧﺍﺩ ﻝﺎﻤﻌﺘﺳﺍ"
+
+
+msgctxt "Operator"
+msgid "Remove Property"
+msgstr "ﺔﻤﺴﻟﺍ ﻑﺬﺣﺍ"
+
+
 msgid "Operator Options"
 msgstr "ﻞﻣﺎﻌﻟﺍ ﺕﺍﺭﺎﻴﺧ"
 
@@ -21015,11 +21463,6 @@ msgstr "ﺓﺎﻨﻘﻟﺍ ﺩﺍﺪﻋﺍ ﺐﻠﻗﺍ"
 
 
 msgctxt "Operator"
-msgid "Clear Useless Actions"
-msgstr "ﺔﻣﺪﺨﺘﺴﻣ ﺮﻴﻐﻟﺍ ﺕﺎﻛﺮﺤﻟﺍ ﻒﻈﻧ"
-
-
-msgctxt "Operator"
 msgid "Copy Driver"
 msgstr "ﻙﺮّﺤﻤﻟﺍ ﺦﺴﻧﺍ"
 
@@ -21111,11 +21554,6 @@ msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺩﺪ
 msgctxt "Operator"
 msgid "Add Empty Keying Set"
 msgstr "ﺔﻏﺭﺎﻓ ﺢﻴﺗﺎﻔﻣ ﺔﻋﻮﻤﺠﻣ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Export Keying Set..."
-msgstr "...ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﻳﺪﺼﺗ"
 
 
 msgid "Filter folders"
@@ -21226,11 +21664,6 @@ msgid "Global -Z Axis"
 msgstr "ﻲﻤﻟﺎﻋ Z- ﺭﻮﺤﻣ"
 
 
-msgctxt "Operator"
-msgid "Show All"
-msgstr "ﻞﻜﻟﺍ ﺮﻬﻇﺍ"
-
-
 msgid "Pose Bone"
 msgstr "ﺔﻔﻗﻮﻟﺍ ﻢﻈﻋ"
 
@@ -21304,11 +21737,6 @@ msgstr "(ﻖﺛﻮﻣ ﺮﻴﻏ ﻞﻣﺎﻌﻣ)"
 msgctxt "Operator"
 msgid "(De)select All"
 msgstr "ءﻲﺷﻻ﻿/ﻞﻜﻟﺍ ﺭﺎﺘﺧﺍ"
-
-
-msgctxt "Operator"
-msgid "Select Hierarchy"
-msgstr "ﺔﻴﻠﻜﻴﻬﻟﺍ ﺭﺎﺘﺧﺇ"
 
 
 msgctxt "Operator"
@@ -21444,11 +21872,6 @@ msgstr "ﺪﻳﻮﺒﻟﺍ ﺔﻟﺎﺣ ﻰﻠﻋﻼ﻿ﻟ ﻙﺮﺣ"
 
 
 msgctxt "Operator"
-msgid "Add Brush"
-msgstr "ﺓﺎﺷﺮﻓ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
 msgid "Preset"
 msgstr "ﺔﻘﺒﺴﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ"
 
@@ -21473,21 +21896,8 @@ msgid "Round"
 msgstr "ﺓﺭﻭﺪﻟﺍ"
 
 
-msgctxt "Operator"
-msgid "Reset Brush"
-msgstr "ﺓﺎﺷﺮﻔﻟﺍ ﻊﺿﻭ ﺪﻋﺍ"
-
-
 msgid "Factor to scale brush size by"
 msgstr "ﺓﺎﺷﺮﻔﻟﺍ ﻢﺠﺣ ﻢﻴﺠﺤﺗ ﻞﻣﺎﻌﻣ"
-
-
-msgid "Translation"
-msgstr "ﺔﺣﺍﺯﻹ﻿ﺍ"
-
-
-msgid "Secondary"
-msgstr "ﻱﻮﻧﺎﺛ"
 
 
 msgctxt "Operator"
@@ -21512,30 +21922,12 @@ msgid "Directory of the file"
 msgstr "ﻒﻠﻤﻟﺍ ﺪﻠّﺠﻣ"
 
 
-msgctxt "Operator"
-msgid "Add Camera Preset"
-msgstr "ﺍﺮﻴﻤﻜﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
-
-
-msgid "Add or remove a Camera Preset"
-msgstr "ﺍﺮﻴﻣﺎﻜﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
-
-
 msgid "Name of the preset, used to make the path name"
 msgstr "ﺭﺎﺴﻤﻟﺍ ﻢﺳﺇ ﻞﻤﻌﻟ ﻡﺪﺨﺘﺴﻳ ,ﺎﻘﺒﺴﻣ ﺪﻌﻤﻟﺍ ﻒﻠﻤﻟﺍ ﻢﺳﺇ"
 
 
 msgid "Include Focal Length"
 msgstr "ﻱﺭﺆﺒﻟﺍ ﻝﻮﻄﻟﺍ ﻦﻤﺿ"
-
-
-msgctxt "Operator"
-msgid "Add Safe Area Preset"
-msgstr "ﺔﻨﻣﺁ ﺔﻘﻄﻨﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
-
-
-msgid "Add or remove a Safe Areas Preset"
-msgstr "ﺔﻨﻣﺁ ﺔﻘﻄﻨﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣﺇ ﻭﺃ ﻒﺿﺍ"
 
 
 msgctxt "Operator"
@@ -21584,15 +21976,6 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺍﺭﺎﺴﻤﻟﺍ ﻦﻴﺑ ﺔﻓﺎﺴ
 
 
 msgctxt "Operator"
-msgid "3D Markers to Mesh"
-msgstr "ﻢﺴﺠﻤﻠﻟ 3D ـﻟﺍ ﺕﺎﻣﻼ﻿ﻋ"
-
-
-msgid "Add or remove a Tracking Camera Intrinsics Preset"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺍﺮﻴﻣﺎﻛ ﺕﺎﻳﺮﻫﻮﺠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ"
-
-
-msgctxt "Operator"
 msgid "Clean Tracks"
 msgstr "ﺕﺍﺭﺎﺴﻤﻟﺍ ﻒﻈﻧ"
 
@@ -21624,11 +22007,6 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺍﺭﺎﺴﻤﻟﺍ ﻞﻛ ﻦﻣ ﻝﺪ�
 
 
 msgctxt "Operator"
-msgid "Constraint to F-Curve"
-msgstr "ﻞﻤﻌﻟﺍ ﻰﻨﺤﻨﻤﻟ ﺪﻴﻗ"
-
-
-msgctxt "Operator"
 msgid "Copy Tracks"
 msgstr "ﺕﺍﺭﺎﺴﻤﻟﺍ ﺦﺴﻧﺍ"
 
@@ -21649,11 +22027,6 @@ msgstr "ﺔﻣﻼ﻿ﻌﻟﺍ ﻑﺬﺣﺍ"
 
 msgid "Delete marker for current frame from selected tracks"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺍﺭﺎﺴﻤﻟﺍ ﻦﻣ ﻲﻟﺎﺤﻟﺍ ﺭﺎﻃﻹ﻿ﺍ ﺔﻣﻼ﻿ﻋ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Delete Proxy"
-msgstr "ﺏﻭﺪﻨﻤﻟﺍ ﻑﺬﺣﺍ"
 
 
 msgctxt "Operator"
@@ -21717,11 +22090,6 @@ msgstr "ﻢﻠﻔﻟﺍ ﺔﻘﺣﻼ﻿ﻣ ﺓﺎﻨﻗ ﺮﺘﺧﺍ"
 
 msgid "Mouse location to select channel"
 msgstr "ﺓﺎﻨﻘﻟﺍ ﺭﺎﻴﺘﺧﻻ﻿ ﺓﺭﺄﻔﻟﺍ ﻊﻗﻮﻣ"
-
-
-msgctxt "Operator"
-msgid "Filter Tracks"
-msgstr "ﺕﺍﺭﺎﺴﻤﻟﺍ ﻲﻔّﺻ"
 
 
 msgid "Track Threshold"
@@ -21914,11 +22282,6 @@ msgstr "  ﻞﺒﺤﻟﺎﺑ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻝﺎﻤﻌﺘﺳﺎﺑ �
 
 
 msgctxt "Operator"
-msgid "Set Active Clip"
-msgstr "ﺔﻟﺎﻌّﻔﻟﺍ ﺔﺻﺎﺼﻘﻟﺍ ﺩﺪﺣ"
-
-
-msgctxt "Operator"
 msgid "Set Axis"
 msgstr "ﺭﻮﺤﻤﻟﺍ ﻊﺿ"
 
@@ -21986,16 +22349,6 @@ msgstr "ﺡﺎﺘﻔﻤﻟﺍ ﻊﺿ "
 
 
 msgctxt "Operator"
-msgid "Set as Background"
-msgstr "ﺔﻴﻔﻠﺨﻛ ﻊﺿ"
-
-
-msgctxt "Operator"
-msgid "Setup Tracking Scene"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺪﻬﺸﻣ ﺕﺍﺩﺍﺪﻋﺇ"
-
-
-msgctxt "Operator"
 msgid "Slide Marker"
 msgstr "ﺔﻣﻼ﻿ﻋ ﻙﺮّﺣ"
 
@@ -22026,15 +22379,6 @@ msgstr "ﺖﻴﺒﺜﺗ ﺕﺍﺭﺎﺴﻣ ﺮﺘﺧﺍ"
 
 
 msgctxt "Operator"
-msgid "Add Track Color Preset"
-msgstr "ﺭﺎﺴﻤﻟﺍ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
-
-
-msgid "Add or remove a Clip Track Color Preset"
-msgstr "ﺔﺻﺎﺼﻘﻟﺍ ﺭﺎﺴﻣ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ"
-
-
-msgctxt "Operator"
 msgid "Copy Color"
 msgstr "ﻥﻮﻠﻟﺍ ﺦﺴﻧﺍ"
 
@@ -22057,11 +22401,6 @@ msgstr "ﻞﺴﻠﺴﺘﻟﺍ ﻖﺣﻻ﻿"
 
 
 msgctxt "Operator"
-msgid "Copy Track Settings"
-msgstr "ﺭﺎﺴﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺦﺴﻧﺍ"
-
-
-msgctxt "Operator"
 msgid "Add Tracking Object"
 msgstr "ﺔﻘﺣﻼ﻿ﻣ ﻦﺋﺎﻛ ﻒﺿﺍ"
 
@@ -22077,15 +22416,6 @@ msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﻦﺋﺎﻛ ﻑﺬﺣﺍ"
 
 msgid "Remove object for tracking"
 msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﻦﺋﺎﻛ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Tracking Settings Preset"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
-
-
-msgid "Add or remove a motion tracking settings preset"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺔﻛﺮﺣ ﺕﺍﺩﺪﻋﻹ﻿ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
 
 
 msgid "Fit View"
@@ -22144,27 +22474,8 @@ msgstr "ﺮﻈﻨﻤﻟﺍ ﻢﻴﺠﺤﺗ ﻝﺪﻌﻣ"
 
 
 msgctxt "Operator"
-msgid "Add Cloth Preset"
-msgstr "ﺲﺑﻼ﻿ﻤﻟﺍ ﻲﻛﺎﺤﻤﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
-
-
-msgctxt "Operator"
 msgid "Export"
 msgstr "ﺭﺪّﺻ"
-
-
-msgctxt "Operator"
-msgid "Console Autocomplete"
-msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﻲﻓ ﻲﺋﺎﻘﻠﺘﻟﺍ ﻞﻴﻤﻜﺘﻟﺍ"
-
-
-msgid "Evaluate the namespace up until the cursor and give a list of options or complete the name if there is only one"
-msgstr "ﺪﺣﺍﻭ ﻂﻘﻓ ﻙﺎﻨﻫ ﻥﺎﻛ ﺍﺫﺇ ﻢﺳﻻ﻿ﺍ ﻞﻤﻛﺃ ﻭﺃ ﺕﺍﺭﺎﻴﺧ ﺔﻤﺋﺎﻗ ﻂﻋﺃ ﻭ ﺮﺷﺆﻤﻟﺍ ﺪﻨﻌﻟ ﻢﺳﻻ﻿ﺍ ﺔﺣﺎﺴﻣ ﻢﻴﻗ"
-
-
-msgctxt "Operator"
-msgid "Console Banner"
-msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﻂﻳﺮﺷ"
 
 
 msgid "Clear the scrollback history"
@@ -22184,11 +22495,6 @@ msgstr "ﺓﺮﻛﺍﺬﻟﺍ ﻰﻟﺍ ﺦﺴﻧﺍ"
 msgctxt "Operator"
 msgid "Delete"
 msgstr "ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Console Execute"
-msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﺢﺘﻓﺃ"
 
 
 msgctxt "Operator"
@@ -22221,15 +22527,6 @@ msgstr "ﺮﻄﺴﻟﺍ ﻝﻭﺃ ﻲﻓ ﺕﺎﻓﺎﺴﻣ 4 ﻒﺿﺃ"
 msgctxt "Operator"
 msgid "Insert"
 msgstr "Insert"
-
-
-msgctxt "Operator"
-msgid "Console Language"
-msgstr "ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻟ ﺔﻐﻟ"
-
-
-msgid "Set the current language for this console"
-msgstr " ﻩﺬﻫ ﺮﻣﺍﻭﻷ﻿ﺍ ﺔﺣﻮﻠﻟ ﺔﻴﻟﺎﺤﻟﺍ ﺔﻐﻠﻟﺍ ﺩﺪﺣ"
 
 
 msgctxt "Operator"
@@ -22578,11 +22875,6 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻠﻟ ﻦﻴﻠﻟﺍ ﻢﺴﺠﻟﺍ
 
 
 msgctxt "Operator"
-msgid "Use Nodes"
-msgstr "ﺪﻘﻌﻟﺍ ﻡﺪﺨﺘﺳﺇ"
-
-
-msgctxt "Operator"
 msgid "Dynamic Paint Bake"
 msgstr "ﻱﻮﻴﺤﻟﺍ ﻢﺳﺮﻟﺍ ﻥﺰﺧ"
 
@@ -22651,11 +22943,6 @@ msgid "Undo Message"
 msgstr "ﻊﺟﺍﺮﺗ ﺔﻟﺎﺳﺭ"
 
 
-msgctxt "Operator"
-msgid "Export BVH"
-msgstr "BVH ﺭﺪّﺻ"
-
-
 msgid "Use the rotation order defined in the BVH file"
 msgstr "BVH ﻒﻠﻣ ﻲﻓ ﻑﺮّﻌﻤﻟﺍ ﻥﺍﺭﻭﺪﻟﺍ ﺐﻴﺗﺮﺗ ﻡﺪﺨﺘﺳﺍ"
 
@@ -22670,11 +22957,6 @@ msgstr "ﺮﻟﻮﻳ YZX ﻰﻟﺇ ﺮﻳﻭﺍﺪﺘﻟﺍ ﻝﻮﺣ"
 
 msgid "Euler (ZYX)"
 msgstr "(ZYX) ﺮﻟﻮﻳ"
-
-
-msgctxt "Operator"
-msgid "Export FBX"
-msgstr "FBX ﺭﺪّﺻ"
 
 
 msgid "Apply Unit"
@@ -22911,15 +23193,6 @@ msgstr "(ﺓﺩﻮﺟﻮﻤﻟﺍ ﺕﺎﻔﻠﻤﻟﺍ ﻝﺪﺒﺘﺳﺍ) ﻲ�
 
 
 msgctxt "Operator"
-msgid "Add Fluid Preset"
-msgstr "ﻞﺋﺎﺴﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
-
-
-msgid "Add or remove a Fluid Preset"
-msgstr "ﻞﺋﺎﺴﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
 msgid "Set Case"
 msgstr "ﺔﻟﺎﺤﻟﺍ ﻊﺿ"
 
@@ -23025,11 +23298,6 @@ msgid "Generic"
 msgstr "NLA ﻡﺎﻋ"
 
 
-msgctxt "Operator"
-msgid "Delete Active Frame"
-msgstr "ﻲﻟﺎﺤﻟﺍ ﺭﺎﻃﻻ﻿ﺍ ﻑﺬﺣﺍ"
-
-
 msgid "Way to interpret mouse movements"
 msgstr "ﺓﺭﺄﻔﻟﺍ ﺔﻛﺮﺣ ﺮﻴﺴﻔﺘﻟ ﺔﻘﻳﺮﻄﻟﺍ"
 
@@ -23047,278 +23315,8 @@ msgstr "ﺓﺎﺤﻤﻣ"
 
 
 msgctxt "Operator"
-msgid "Convert Grease Pencil"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﻝﻮﺣ"
-
-
-msgid "The duration of evaluation of the path control curve"
-msgstr "ﺕﺎﻴﺋﺰﺠﻟﺍ ﺔﻜﺒﺷ ﺔﻗﺩ"
-
-
-msgid "Gap Duration"
-msgstr "ﺓﺪﻤﻟﺍ"
-
-
-msgid "Gap Randomness"
-msgstr "ﺔﻴﺋﺍﻮﺸﻋ ﺕﺎﻨﺒﻟ"
-
-
-msgid "Multiplier for the points' radii (set from stroke width)"
-msgstr "ﺩﺍﻮﻤﻟﺍ ﺔﻓﺎﺜﻜﻟ ﻒﻋﺎﻀﻣ"
-
-
-msgid "The start frame of the path control curve"
-msgstr "ﻝﺎﻤﻌﺘﺳﻼ﻿ﻟ ﺔﻛﺮﺤﻟﺍ ﻦﻣ ﻰﻟﺇ ﺮﺧﺁ"
-
-
-msgid "Timing Mode"
-msgstr "ﺪﺤﻟﺍ ﻂﻤﻧ"
-
-
-msgid "No Timing"
-msgstr ":ﻦﻣﺍﺰﺗ"
-
-
-msgid "Ignore timing"
-msgstr "ﻲﺗﻵ﻿ﺍ"
-
-
-msgid "Simple linear timing"
-msgstr ":ﻰﻨﺤﻨﻤﻟﺍ ﺔﻤﺋﻼ﻿ﻣ"
-
-
-msgid "Use the original timing, gaps included"
-msgstr "ﻡﺎﻈﻌﻠﻟ ﻲﻠﺻﻻ﻿ﺍ ﻢﻴﺠﺤﺘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Custom Gaps"
-msgstr ": ﺺﺼﺨﻣ ﻞﻜﺷ"
-
-
-msgid "Which type of curve to convert to"
-msgstr "ﺬﻔﻨﻤﻟﺍ ﻢﻴﺠﺤﺘﻟ ﻞﻤﻌﺘﺴﻣ ﺏﻮﻠﺳﺃ ﻱﺃ"
-
-
-msgid "Link Strokes"
-msgstr "ﺔﺒﻄﺷ ﻢﺳﺭﺍ"
-
-
-msgid "Normalize Weight"
-msgstr "ﻢﻇﺎﻨﻟﺍ ﻉﺎﻔﺗﺭﺍ"
-
-
-msgid "Has Valid Timing"
-msgstr "ﻦﻣﺍﺰﺘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Copy selected Grease Pencil points and strokes"
-msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﺒﻄﺷ ﻭ  ﻂﻘﻧ ﺦﺴﻧﺍ"
-
-
-msgid "Method used for deleting Grease Pencil data"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ ﻑﺬﺤﻟ ﺔﻣﺪﺨﺘﺴﻤﻟﺍ ﺔﻘﻳﺮﻄﻟﺍ"
-
-
-msgid "Delete selected strokes"
-msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺎﺒﻄﺸﻟﺍ ﻑﺬﺣﺇ"
-
-
-msgid "Delete active frame"
-msgstr "ﻝﺎﻌّﻔﻟﺍ ﺭﺎﻃﻹ﻿ﺍ ﻑﺬﺣﺇ"
-
-
-msgctxt "Operator"
-msgid "Dissolve"
-msgstr "ﻞﻠّﺣ"
-
-
-msgctxt "Operator"
-msgid "Grease Pencil Draw"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﻢﺳﺭﺍ"
-
-
-msgid "Erase Grease Pencil strokes"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﺒﻄﺷ"
-
-
-msgctxt "Operator"
-msgid "Duplicate Strokes"
-msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﺭﺮّﻛ"
-
-
-msgid "Duplicate Strokes"
-msgstr "ﺓﺭﺮّﻜﻤﻟﺍ ﺕﺎﺒﻄﺸﻟﺍ"
-
-
-msgid "Only Selected"
-msgstr "ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻂﻘﻓ"
-
-
-msgid "Limit"
-msgstr "ﺩﻭﺪﺣ"
-
-
-msgid "Hide unselected rather than selected layers"
-msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻝﺪﺑ ﺓﺭﺎﺘﺨﻣ ﺮﻴﻐﻟﺍ ﺕﺎﻘﺒﻄﻟﺍ ﻲﻔﺧﺍ"
-
-
-msgctxt "Operator"
-msgid "Add New Layer"
-msgstr "ﺓﺪﻳﺪﺟ ﺔﻘﺒﻃ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Duplicate Layer"
-msgstr "ﺔﻘﺒﻄﻟﺍ ﺭﺮﻛ"
-
-
-msgctxt "Operator"
-msgid "Remove Mask Layer"
-msgstr "ﻉﺎﻨﻘﻟﺍ ﺔﻘﺒﻃ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Move Grease Pencil Layer"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﻘﺒﻃ ﻙﺮّﺣ"
-
-
-msgid "Move the active Grease Pencil layer up/down in the list"
-msgstr "ﺔﻤﺋﺎﻘﻟﺍ ﻲﻓ ﺖﺤﺗ/ﻕﻮﻔﻟ ﺔﻟﺎﻌّﻔﻟﺍ ﺔﻘﺒﻄﻟﺍ ﻞﻘﻧﺍ"
-
-
-msgctxt "Operator"
-msgid "Remove Layer"
-msgstr "ﺔﻘﺒﻄﻟﺍ ﻑﺬﺣﺇ"
-
-
-msgctxt "Operator"
-msgid "Lock All Layers"
-msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﻞﻛ ﻞﻔﻗﺍ"
-
-
-msgctxt "Operator"
-msgid "Paste Strokes"
-msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﻖﺼﻟﺍ"
-
-
-msgctxt "Operator"
-msgid "All"
-msgstr "ﻞﻜﻟﺍ"
-
-
-msgctxt "Operator"
-msgid "Rotate"
-msgstr "ﺭﻭﺩ"
-
-
-msgctxt "Operator"
-msgid "Scale"
-msgstr "ﻢﺠّﺣ"
-
-
-msgctxt "Operator"
-msgid "Show All Layers"
-msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﻞﻛ ﺮﻬﻇﺍ"
-
-
-msgid "Show all Grease Pencil layers"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻣ ﻢﻠﻗ ﺕﺎﻘﺒﻃ ﻞﻛ ﺮﻬﻇﺃ"
-
-
-msgid "Entire Strokes"
-msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﻞﻛ"
-
-
-msgid "Mouse location"
-msgstr "ﺓﺭﺄﻔﻟﺍ ﻊﻗﻮﻣ"
-
-
-msgctxt "Operator"
-msgid "(De)select All Strokes"
-msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﻞﻛ ﺮﺘﺨﺗ ﻻ﻿/ﺮﺘﺧﺇ"
-
-
-msgctxt "Operator"
-msgid "Lasso Select Strokes"
-msgstr "ﻞﺒﺤﻟﺎﺑ ﺕﺎﺒﻄﺸﻟﺍ ﺭﺎﺘﺧﺍ"
-
-
-msgid "Select Grease Pencil strokes using lasso selection"
-msgstr "ﺭﺎﻴﺘﺧﻹ﻿ﺍ ﻞﺒﺣ ﻡﺍﺪﺨﺘﺳﺈﺑ ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﺒﻄﺷ ﺮﺘﺧﺍ"
-
-
-msgctxt "Operator"
-msgid "Snap Selection to Cursor"
-msgstr "ﺮﺷﺆﻤﻠﻟ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻱﺫﺎﺣ"
-
-
-msgid "With Offset"
-msgstr "ﺔﺣﺍﺯﺈﺑ"
-
-
-msgctxt "Operator"
-msgid "Snap Selection to Grid"
-msgstr "ﺔﻜﺒﺸﻠﻟ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻱﺫﺎﺣ"
-
-
-msgid "Both"
-msgstr "ﺎﻤﻫﻼ﻿ﻛ"
-
-
-msgctxt "Operator"
-msgid "Unlock All Layers"
-msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﻞﻛ ﻖﻠﻃﺍ"
-
-
-msgctxt "Operator"
-msgid "Assign to Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺺﺼﺧ"
-
-
-msgid "Assign the selected vertices to the active vertex group"
-msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﺺﺼﺧ"
-
-
-msgctxt "Operator"
-msgid "Deselect Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﺖﻠﻓﺍ"
-
-
-msgctxt "Operator"
-msgid "Invert Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺲﻜﻋﺍ"
-
-
-msgctxt "Operator"
-msgid "Normalize Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻱﻭﺎﺳ"
-
-
-msgid "Normalize all weights of all vertex groups, so that for each vertex, the sum of all weights is 1.0"
-msgstr "1.0 ﻮﻫ ﻥﺍﺯﻭﻷ﻿ﺍ ﻉﻮﻤﺠﻣ ،ﺔﻄﻘﻧ ﻞﻜﻟ ﺚﻴﺤﺑ ،ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻥﺍﺯﻭﺃ ﻞﻛ ﻢﻈّﻧ"
-
-
-msgctxt "Operator"
-msgid "Remove from Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻦﻣ ﻑﺬﺣﺍ"
-
-
-msgid "Remove the selected vertices from active or all vertex group(s)"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻦﻣ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Select Vertex Group"
-msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﺮﺘﺧﺍ"
-
-
-msgid "Select all the vertices assigned to the active vertex group"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺔﺼﺼﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﻞﻛ ﺮﺘﺧﺍ"
-
-
-msgctxt "Operator"
-msgid "Weight Paint Sample Weight"
-msgstr "ﻥﺯﻮﻟﺍ ﻢﺳﺭ ﺔﻨﻴﻋ ﻥﺯﻭ"
+msgid "Delete Active Frame"
+msgstr "ﻲﻟﺎﺤﻟﺍ ﺭﺎﻃﻻ﻿ﺍ ﻑﺬﺣﺍ"
 
 
 msgctxt "Operator"
@@ -23345,6 +23343,10 @@ msgstr "ﺔﻟﺍﺯﺇ"
 
 msgid "Flatten"
 msgstr "ﺢﻄّﺳ"
+
+
+msgid "Both"
+msgstr "ﺎﻤﻫﻼ﻿ﻛ"
 
 
 msgctxt "Operator"
@@ -23417,6 +23419,11 @@ msgid "Smooth Keys"
 msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﻢﻌّﻧ"
 
 
+msgctxt "Operator"
+msgid "Grease Pencil Draw"
+msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﻢﺳﺭﺍ"
+
+
 msgid "Stroke Mode"
 msgstr "ﺐﻴﻄﺸﺘﻟﺍ ﻊﺿﻭ"
 
@@ -23429,13 +23436,125 @@ msgid "Flat"
 msgstr "ﺢﻄّﺴﻣ"
 
 
+msgid "Limit"
+msgstr "ﺩﻭﺪﺣ"
+
+
+msgctxt "Operator"
+msgid "Dissolve"
+msgstr "ﻞﻠّﺣ"
+
+
+msgctxt "Operator"
+msgid "Duplicate Strokes"
+msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﺭﺮّﻛ"
+
+
+msgctxt "Operator"
+msgid "Add New Layer"
+msgstr "ﺓﺪﻳﺪﺟ ﺔﻘﺒﻃ ﻒﺿﺍ"
+
+
+msgctxt "Operator"
+msgid "Duplicate Layer"
+msgstr "ﺔﻘﺒﻄﻟﺍ ﺭﺮﻛ"
+
+
+msgid "Hide unselected rather than selected layers"
+msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻝﺪﺑ ﺓﺭﺎﺘﺨﻣ ﺮﻴﻐﻟﺍ ﺕﺎﻘﺒﻄﻟﺍ ﻲﻔﺧﺍ"
+
+
+msgctxt "Operator"
+msgid "Lock All Layers"
+msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﻞﻛ ﻞﻔﻗﺍ"
+
+
+msgctxt "Operator"
+msgid "Remove Mask Layer"
+msgstr "ﻉﺎﻨﻘﻟﺍ ﺔﻘﺒﻃ ﻑﺬﺣﺍ"
+
+
+msgctxt "Operator"
+msgid "Merge"
+msgstr "ﺞﻣﺩﺇ"
+
+
+msgctxt "Operator"
+msgid "Remove Layer"
+msgstr "ﺔﻘﺒﻄﻟﺍ ﻑﺬﺣﺇ"
+
+
+msgctxt "Operator"
+msgid "Show All Layers"
+msgstr "ﺕﺎﻘﺒﻄﻟﺍ ﻞﻛ ﺮﻬﻇﺍ"
+
+
+msgid "Show all Grease Pencil layers"
+msgstr "ﺕﺎﻈﺣﻼ﻿ﻣ ﻢﻠﻗ ﺕﺎﻘﺒﻃ ﻞﻛ ﺮﻬﻇﺃ"
+
+
+msgctxt "Operator"
+msgid "Paste Strokes"
+msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﻖﺼﻟﺍ"
+
+
+msgctxt "Operator"
+msgid "(De)select All Strokes"
+msgstr "ﺕﺎﺒﻄﺸﻟﺍ ﻞﻛ ﺮﺘﺨﺗ ﻻ﻿/ﺮﺘﺧﺇ"
+
+
 msgctxt "Operator"
 msgid "Select Mode"
 msgstr "ﺭﺎﻴﺘﺧﺍ ﻂﻤﻧ"
 
 
-msgid "Blend Mode for Transparent Faces"
-msgstr "ﺔﻓﺎﻔﺸﻟﺍ ﻪﺟﻭﻸ﻿ﻟ ﺞﻣﺪﻟﺍ ﻂﻤﻧ"
+msgctxt "Operator"
+msgid "Snap Selection to Cursor"
+msgstr "ﺮﺷﺆﻤﻠﻟ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻱﺫﺎﺣ"
+
+
+msgid "With Offset"
+msgstr "ﺔﺣﺍﺯﺈﺑ"
+
+
+msgctxt "Operator"
+msgid "Snap Selection to Grid"
+msgstr "ﺔﻜﺒﺸﻠﻟ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻱﺫﺎﺣ"
+
+
+msgid "Mouse cursor style to use during the modal operator"
+msgstr "ﻂﺒﺗﺮﻤﻟﺍ ﻞﻣﺎﻌﻤﻟﺍ ﻝﻼ﻿ﺧ ﻝﺎﻤﻌﺘﺳﻼ﻿ﻟ ﺓﺭﺄﻔﻟﺍ ﺮﺷﺆﻣ ﻉﻮﻧ"
+
+
+msgid "X End"
+msgstr "ﻲﻘﻓﺃ ﺭﻮﺤﻣ ﺔﻳﺎﻬﻧ"
+
+
+msgid "X Start"
+msgstr "ﻲﻘﻓﺃ ﺭﻮﺤﻣ ﺔﻳﺍﺪﺑ"
+
+
+msgid "Y End"
+msgstr "ﻱﺩﻮﻣﺎﻋ ﺭﻮﺤﻣ ﺔﻳﺎﻬﻧ"
+
+
+msgid "Y Start"
+msgstr "ﻱﺩﻮﻣﺎﻋ ﺭﻮﺤﻣ ﺔﻳﺍﺪﺑ"
+
+
+msgctxt "Operator"
+msgid "Normalize Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻱﻭﺎﺳ"
+
+
+msgctxt "Operator"
+msgid "Normalize All Vertex Groups"
+msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻞﻛ ﻱﻭﺎﺳ"
+
+
+msgctxt "Operator"
+msgid "Weight Paint Sample Weight"
+msgstr "ﻥﺯﻮﻟﺍ ﻢﺳﺭ ﺔﻨﻴﻋ ﻥﺯﻭ"
 
 
 msgid "Relative Paths"
@@ -23458,11 +23577,6 @@ msgstr "ﺰﻠﻜﻳﺎﺴﻟ ﺮﻴﻴﺼﺗ ﺔﺤﺘﻓ"
 
 msgid "Cycle in Reverse"
 msgstr "ﺎﻴﺴﻜﻋ ﺭﻭّﺩ"
-
-
-msgctxt "Operator"
-msgid "Image Edit Externally"
-msgstr "ﺎﻴﺟﺭﺎﺧ ﺓﺭﻮﺼﻟﺍ ﺭﺮﺣ"
 
 
 msgctxt "Operator"
@@ -23503,16 +23617,6 @@ msgstr "ﺓﺭﻮﺼﻟﺍ ﻥﺰﺧ"
 
 
 msgctxt "Operator"
-msgid "Project Apply"
-msgstr "ﻁﺎﻘﺳﻻ﻿ﺍ ﻖﺒﻃ"
-
-
-msgctxt "Operator"
-msgid "Project Edit"
-msgstr "ﻁﺎﻘﺳﻹ﻿ﺍ ﺭﺮﺣ"
-
-
-msgctxt "Operator"
 msgid "Reload Image"
 msgstr "ﺓﺭﻮﺼﻟﺍ ﻞﻴﻤﺤﺗ ﺪﻋﺍ"
 
@@ -23534,26 +23638,6 @@ msgstr "ﻥﻮﻠﻟﺍ ﻦﻳﺎﻋ"
 msgctxt "Operator"
 msgid "Sample Line"
 msgstr "ﻂﺨﻟﺍ ﻦﻳﺎﻋ"
-
-
-msgid "Mouse cursor style to use during the modal operator"
-msgstr "ﻂﺒﺗﺮﻤﻟﺍ ﻞﻣﺎﻌﻤﻟﺍ ﻝﻼ﻿ﺧ ﻝﺎﻤﻌﺘﺳﻼ﻿ﻟ ﺓﺭﺄﻔﻟﺍ ﺮﺷﺆﻣ ﻉﻮﻧ"
-
-
-msgid "X End"
-msgstr "ﻲﻘﻓﺃ ﺭﻮﺤﻣ ﺔﻳﺎﻬﻧ"
-
-
-msgid "X Start"
-msgstr "ﻲﻘﻓﺃ ﺭﻮﺤﻣ ﺔﻳﺍﺪﺑ"
-
-
-msgid "Y End"
-msgstr "ﻱﺩﻮﻣﺎﻋ ﺭﻮﺤﻣ ﺔﻳﺎﻬﻧ"
-
-
-msgid "Y Start"
-msgstr "ﻱﺩﻮﻣﺎﻋ ﺭﻮﺤﻣ ﺔﻳﺍﺪﺑ"
 
 
 msgctxt "Operator"
@@ -23621,11 +23705,6 @@ msgstr "ﺮﻈﻨﻤﻠﻟ ﻢﻴﺠﺤﺘﻟﺍ ﻝﺪﻌﻣ ﻊﺿ"
 
 msgid "Scale FPS"
 msgstr "ﺔﻴﻧﺎﺛ ﻞﻜﻟ ﺮﻃﻷ﻿ﺍ ﻢﺠّﺣ"
-
-
-msgctxt "Operator"
-msgid "Import FBX"
-msgstr "FBX ﺩﺭﻮﺘﺳﺇ"
 
 
 msgid "Animation Offset"
@@ -24351,6 +24430,10 @@ msgid "Cut"
 msgstr "ﻊﻄّﻗ"
 
 
+msgid "Only Selected"
+msgstr "ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻂﻘﻓ"
+
+
 msgid "Only cut selected geometry"
 msgstr "ﻂﻘﻓ ﺭﺎﺘﺨﻤﻟﺍ ﻢﺴﺠﻟﺍ ﻊﻄﻗﺍ"
 
@@ -24408,11 +24491,6 @@ msgstr "ﺓﺯﺭﺪﻟﺍ ﻢﻠّﻋ"
 msgctxt "Operator"
 msgid "Mark Sharp"
 msgstr "ﺓﺪّﺤﺑ ﻢﻠّﻋ"
-
-
-msgctxt "Operator"
-msgid "Merge"
-msgstr "ﺞﻣﺩﺇ"
 
 
 msgid "Merge selected vertices"
@@ -24513,11 +24591,6 @@ msgstr "(: ﺩﺮﻗ ﻒﺿﺍ"
 msgctxt "Operator"
 msgid "Add Plane"
 msgstr "ﺢﻄﺳ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Torus"
-msgstr "ﺭﺎﻃﺍ ﻒﺿﺃ"
 
 
 msgid "Exterior Radius"
@@ -24658,11 +24731,6 @@ msgstr "ﻪﺟﻮﻟﺍ ﺭﺎﻴﺘﺧﺍ ﻊﺿﻭ"
 
 msgid "Multiple Faces"
 msgstr "ﺓﺩﺪﻌﺘﻣ ﻪﺟﻭﺃ"
-
-
-msgctxt "Operator"
-msgid "Select Previous Element"
-msgstr "ﻖﺑﺎﺴﻟﺍ ﺮﺼﻨﻌﻟﺍ ﺮﺘﺧﺍ"
 
 
 msgctxt "Operator"
@@ -24896,11 +24964,6 @@ msgid "Apply Scale"
 msgstr "ﻢﺠﺤﻟﺍ ﻖﺒﻃ"
 
 
-msgctxt "Operator"
-msgid "Bake Action"
-msgstr "ﺔﻛﺮﺤﻟﺍ ﻥﺰﺧ"
-
-
 msgid "Which data's transformations to bake"
 msgstr "ﻪﺗﺎﻧﺎﻴﺒﻟ ﻦﺋﺎﻜﻟﺍ ﺕﻻ﻿ﻮﺤﺗ ﻖﺒّﻃ"
 
@@ -25041,15 +25104,6 @@ msgid "Add Mask Node"
 msgstr "ﻉﺎﻨﻗ ﺓﺪﻘﻋ ﻒﺿﺃ"
 
 
-msgctxt "Operator"
-msgid "Add Node"
-msgstr "ﺪﻳﺪﺟ ﻒﺿﺃ"
-
-
-msgid "Add a node to the active tree"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺓﺮﺠﺸﻠﻟ ﺓﺪﻘﻋ ﻒﺿﺍ"
-
-
 msgid "Node Type"
 msgstr "ﺓﺪﻘﻌﻟﺍ ﻉﻮﻧ"
 
@@ -25102,11 +25156,6 @@ msgstr "ﺔﻴﻔﻠﺨﻟﺍ ﺓﺭﻮﺼﻟﺍ ﻢﻴﺠﺤﺗ"
 
 msgid "Zoom in/out the background image"
 msgstr "ﺮﻐﺻﻻ﻿/ﺮﺒﻛﻻ﻿ ﺔﻴﻔﻠﺨﻟﺍ ﺓﺭﻮﺼﻟﺍ ﻢﺠّﺣ"
-
-
-msgctxt "Operator"
-msgid "Collapse and Hide Unused Sockets"
-msgstr "ﺔﻣﺪﺨﺘﺴﻣ ﺮﻴﻐﻟﺍ ﺕﺎﺤﺘﻔﻟﺍ ﻲﻔﺧﺍ ﻭ ﻱﻮﻃﺍ"
 
 
 msgctxt "Operator"
@@ -25249,15 +25298,6 @@ msgid "Create a new node tree"
 msgstr "ﺓﺪﻳﺪﺟ ﺪﻘﻋ ﺓﺮﺠﺷ ﺊﺸﻧﺍ"
 
 
-msgctxt "Operator"
-msgid "Add Node Color Preset"
-msgstr "ﺓﺪﻘﻌﻠﻟ ﻖﺒﺴﻣ ﻥﻮﻟ ﺩﺍﺪﻋﺇ ﻒﺿﺃ "
-
-
-msgid "Add or remove a Node Color Preset"
-msgstr "ﺓﺪﻘﻌﻟﺍ ﻥﻮﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺃ "
-
-
 msgid "Copy color to all selected nodes"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺪﻘﻌﻟﺍ ﻞﻜﻟ ﻥﻮﻠﻟﺍ ﺦﺴﻧﺍ"
 
@@ -25329,6 +25369,10 @@ msgid "Resize a node"
 msgstr "ﺓﺪﻘﻌﻟﺍ ﻢﺠّﺣ"
 
 
+msgid "Mouse location"
+msgstr "ﺓﺭﺄﻔﻟﺍ ﻊﻗﻮﻣ"
+
+
 msgid "Select nodes using lasso selection"
 msgstr "ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻞﺒﺣ ﻡﺍﺪﺨﺘﺳﺎﺑ ﺪﻘﻌﻟﺍ ﺮﺘﺧﺍ"
 
@@ -25356,11 +25400,6 @@ msgid "Select nodes linked to the selected ones"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻊﻣ ﺔﻄﺒﺗﺮﻤﻟﺍ ﺪﻘﻌﻟﺍ ﺮﺘﺧﺍ"
 
 
-msgctxt "Operator"
-msgid "Parent Node Tree"
-msgstr "ﻞﺻﻻ﻿ﺍ ﺓﺪﻘﻌﻟﺍ ﺓﺮﺠﺷ"
-
-
 msgid "Resize view so you can see selected nodes"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺪﻘﻌﻟﺍ ﺮﻬﻈﺗ ﻰﺘﺣ ﺮﻈﻨﻤﻟﺍ ﻢﺠّﺣ"
 
@@ -25370,27 +25409,12 @@ msgid "Add Object"
 msgstr "ﻦﺋﺎﻛ ﻒﺿﺃ"
 
 
-msgctxt "Operator"
-msgid "Add Modifier"
-msgstr "ﺮﻴﻐﻣ ﻒﺿﺃ"
-
-
 msgid "Add named object"
 msgstr "ﻰﻤﺴﻣ ﻦﺋﺎﻛ ﻒﺿﺃ"
 
 
-msgctxt "Operator"
-msgid "Align Objects"
-msgstr "ﺕﺎﻨﺋﺎﻜﻟﺍ ﻱﺫﺎﺣ"
-
-
 msgid "Align to axis"
 msgstr "ﺭﻮﺤﻤﻟ ﻱﺫﺎﺣ"
-
-
-msgctxt "Operator"
-msgid "Animated Transforms to Deltas"
-msgstr "ﻕﺭﺍﻮﻔﻟﺍ ﻰﻟﺍ ﺔﻛﺮّﺤﻤﻟﺍ ﺕﻻ﻿ﻮﺤﺘﻟﺍ"
 
 
 msgctxt "Operator"
@@ -25500,35 +25524,6 @@ msgstr "ﺩﺮﻗ"
 
 
 msgctxt "Operator"
-msgid "Apply Modifier"
-msgstr "ﺮﻴﻐﻤﻟﺍ ﻖﺒﻃ"
-
-
-msgid "Object Data"
-msgstr "ﻦﺋﺎﻜﻟﺍ ﺕﺎﻧﺎﻴﺑ"
-
-
-msgctxt "Operator"
-msgid "Copy Modifier"
-msgstr "ﺮﻴﻐﻤﻟﺍ ﺦﺴﻧﺍ"
-
-
-msgctxt "Operator"
-msgid "Move Down Modifier"
-msgstr "ﻞﻔﺳﻸ﻿ﻟ ﺮﻴﻐﻤﻟﺍ ﻙﺮّﺣ"
-
-
-msgctxt "Operator"
-msgid "Move Up Modifier"
-msgstr "ﻰﻠﻋﻸ﻿ﻟ ﺮﻴﻐﻤﻟﺍ ﻙﺮّﺣ"
-
-
-msgctxt "Operator"
-msgid "Clear All Restrict Render"
-msgstr "ﺮﻴﻴﺼﺘﻟﺍ ﺩﻮﻴﻗ ﻞﻛ ﻎﻟﺃ"
-
-
-msgctxt "Operator"
 msgid "Hook to New Object"
 msgstr "ﻦﺋﺎﻜﻠﻟ ﺪﻳﺪﺟ ﻑﺎﻄﺧ"
 
@@ -25568,11 +25563,6 @@ msgstr "ﻑﺎﻄﺨﻟﺍ ﺮﺘﺧﺇ"
 
 
 msgctxt "Operator"
-msgid "Restrict Render Unselected"
-msgstr "ﺭﺎﺘﺨﻣ ﺮﻴﻐﻠﻟ ﺮﻴﻴﺼﺘﻟﺍ ﺪﻴﻗ"
-
-
-msgctxt "Operator"
 msgid "Join as Shapes"
 msgstr "ﻝﺎﻜﺷﺄﻛ ﺞﻣﺩﺇ"
 
@@ -25602,6 +25592,10 @@ msgstr "ﺕﺎﻧﺎﻴﺒﻟﺍ ﻭ ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺎﻨﺋﺎﻜ
 
 msgid "Selected Objects, Data and Materials"
 msgstr "ﺕﺎﻣﺎﺨﻟﺍ ﻭ ﺕﺎﻧﺎﻴﺒﻟﺍ ,ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺎﻨﺋﺎﻜﻟﺍ"
+
+
+msgid "Object Data"
+msgstr "ﻦﺋﺎﻜﻟﺍ ﺕﺎﻧﺎﻴﺑ"
 
 
 msgctxt "Operator"
@@ -25665,8 +25659,28 @@ msgid "Set Object Mode"
 msgstr "ﻦﺋﺎﻜﻟﺍ ﻊﺿﻭ ﻊﺿ"
 
 
+msgctxt "Operator"
+msgid "Apply Modifier"
+msgstr "ﺮﻴﻐﻤﻟﺍ ﻖﺒﻃ"
+
+
 msgid "Convert particles to a mesh object"
 msgstr "ﻢﺴﺠﻣ ﻦﺋﺎﻛ ﻰﻟﺍ ﺕﺎﺌﻳﺰﺠﻟﺍ ﻝﻮّﺣ"
+
+
+msgctxt "Operator"
+msgid "Copy Modifier"
+msgstr "ﺮﻴﻐﻤﻟﺍ ﺦﺴﻧﺍ"
+
+
+msgctxt "Operator"
+msgid "Move Down Modifier"
+msgstr "ﻞﻔﺳﻸ﻿ﻟ ﺮﻴﻐﻤﻟﺍ ﻙﺮّﺣ"
+
+
+msgctxt "Operator"
+msgid "Move Up Modifier"
+msgstr "ﻰﻠﻋﻸ﻿ﻟ ﺮﻴﻐﻤﻟﺍ ﻙﺮّﺣ"
 
 
 msgctxt "Operator"
@@ -25799,11 +25813,6 @@ msgid "Edge Length"
 msgstr "ﺔﻓﺎﺤﻟﺍ ﻝﻮﻃ"
 
 
-msgctxt "Operator"
-msgid "Quick Explode"
-msgstr "ﻊﻳﺮﺳ ﺭﺎﺠﻔﻧﺍ"
-
-
 msgid "Explode Style"
 msgstr "ﺭﺎﺠﻔﻧﻻ﻿ﺍ ﺏﻮﻠﺳﺃ"
 
@@ -25812,23 +25821,8 @@ msgid "Outwards Velocity"
 msgstr "ﺎﻴﺟﺭﺎﺧ ﻪﺠﺘﻤﻟﺍ ﺔﻋﺮﺴﻟﺍ"
 
 
-msgctxt "Operator"
-msgid "Quick Fur"
-msgstr "ﻊﻳﺮﺳ ﻭﺮﻓ"
-
-
-msgctxt "Operator"
-msgid "Quick Smoke"
-msgstr "ﻊﻳﺮﺳ ﻥﺎﺧﺩ"
-
-
 msgid "Render Smoke Objects"
 msgstr "ﻥﺎﺧﺪﻟﺍ ﺕﺎﻨﺋﺎﻛ ﺮﻴّﺻ"
-
-
-msgctxt "Operator"
-msgid "Randomize Transform"
-msgstr "ﺎﻴﺋﺍﻮﺸﻋ ﻝﻮﺤﺘﻟﺍ ﻉﻮّﻧ"
 
 
 msgid "Maximum distance the objects can spread over each axis"
@@ -25888,11 +25882,6 @@ msgstr "ﺎﻴﺋﺍﻮﺸﻋ ﻢﻴﺠﺤﺘﻟﺍ ﻢﻴﻗ ﻉﻮّﻧ"
 
 
 msgctxt "Operator"
-msgid "New"
-msgstr "ﺪﻳﺪﺟ"
-
-
-msgctxt "Operator"
 msgid "Clear Rotation"
 msgstr "ﻥﺍﺭﻭﺪﻟﺍ ﻂﺒﺿ ﺪﻋﺍ"
 
@@ -25901,30 +25890,12 @@ msgid "Clear the object's scale"
 msgstr "ﻦﺋﺎﻜﻟﺍ ﻢﻴﺠﺤﺗ ﻂﺒﺿ ﺪﻋﺍ"
 
 
-msgctxt "Operator"
-msgid "Select Camera"
-msgstr "ﺍﺮﻴﻣﺎﻜﻟﺍ ﺭﺎﺘﺧﺇ"
-
-
-msgid "Select the active camera"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺍﺮﻴﻤﻜﻟﺍ ﺮﺘﺧﺍ"
-
-
 msgid "Direction to select in the hierarchy"
 msgstr "ﺔﻴﻠﻜﻴﻬﻟﺍ ﻲﻓ ﺭﺎﻴﺘﺧﻹ﻿ﺍ ﻩﺎﺠﺗﺇ"
 
 
 msgid "Child"
 msgstr "ﻉﺮﻓ"
-
-
-msgctxt "Operator"
-msgid "Select Pattern"
-msgstr "ﻂﻤﻨﻟﺍ ﺭﺎﺘﺧﺇ"
-
-
-msgid "Select objects matching a naming pattern"
-msgstr "ﺔﻴﻤﺴﺗ ﻂﻤﻨﻟ ﺔﻘﺑﺎﻄﻤﻟﺍ ﺕﺎﻨﺋﺎﻜﻟﺍ ﺮﺘﺧﺍ"
 
 
 msgid "Case Sensitive"
@@ -25979,11 +25950,6 @@ msgstr "ﻞﻜﺸﻟﺍ ﺢﻴﺗﺎﻔﻣ ﻞﻛ ﻑﺬﺣﺍ"
 msgctxt "Operator"
 msgid "Re-Time Shape Keys"
 msgstr "ﻞﻜﺸﻟﺍ ﺢﻴﺗﺎﻔﻣ ﺔﻨﻣﺍﺰﻣ ﺪﻋﺍ"
-
-
-msgctxt "Operator"
-msgid "Transfer Shape Key"
-msgstr "ﻞﻜﺸﻟﺍ ﺡﺎﺘﻔﻣ ﻞﻘﻧﺇ"
 
 
 msgid "Transformation Mode"
@@ -26058,11 +26024,6 @@ msgstr "ﺔﻋﺎﻤﺳ ﻒﺿﺍ"
 
 
 msgctxt "Operator"
-msgid "Subdivision Set"
-msgstr "ﻢﻴﻌﻨﺗ ﺔﻋﻮﻤﺠﻣ"
-
-
-msgctxt "Operator"
 msgid "Add Text"
 msgstr "ﺺﻧ ﻒﺿﺍ"
 
@@ -26108,6 +26069,15 @@ msgstr "ﻝﺎﻌﻔﻟﺍ ﻦﺋﺎﻜﻠﻟ ﻂﻘﻧ ﺔﻋﻮﻤﺠﻣ ﻒ�
 
 
 msgctxt "Operator"
+msgid "Assign to Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺺﺼﺧ"
+
+
+msgid "Assign the selected vertices to the active vertex group"
+msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﺺﺼﺧ"
+
+
+msgctxt "Operator"
 msgid "Assign to New Group"
 msgstr "ﺓﺪﻳﺪﺟ ﺔﻋﻮﻤﺠﻣ ﻰﻟﺇ ﻦﻴﻋ"
 
@@ -26123,6 +26093,16 @@ msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺦﺴﻧﺍ"
 msgctxt "Operator"
 msgid "Copy Vertex Group to Selected"
 msgstr "ﺓﺭﺎﺘﺨﻤﻠﻟ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺦﺴﻧﺍ"
+
+
+msgctxt "Operator"
+msgid "Deselect Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﺖﻠﻓﺍ"
+
+
+msgctxt "Operator"
+msgid "Invert Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺲﻜﻋﺍ"
 
 
 msgid "Invert active vertex group's weights"
@@ -26186,9 +26166,8 @@ msgid "Normalize weights of the active vertex group, so that the highest ones ar
 msgstr "1.0 ﻥﻵ﻿ﺍ ﺎﻫﺮﺒﻛﺃ ﺚﻴﺤﺑ ،ﺔﻟﺎﻌّﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻥﺍﺯﻭﺃ ﻢﻈﻧ"
 
 
-msgctxt "Operator"
-msgid "Normalize All Vertex Groups"
-msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻞﻛ ﻱﻭﺎﺳ"
+msgid "Normalize all weights of all vertex groups, so that for each vertex, the sum of all weights is 1.0"
+msgstr "1.0 ﻮﻫ ﻥﺍﺯﻭﻷ﻿ﺍ ﻉﻮﻤﺠﻣ ،ﺔﻄﻘﻧ ﻞﻜﻟ ﺚﻴﺤﺑ ،ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻥﺍﺯﻭﺃ ﻞﻛ ﻢﻈّﻧ"
 
 
 msgctxt "Operator"
@@ -26209,12 +26188,30 @@ msgid "Remove all vertex groups"
 msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﻞﻛ ﻑﺬﺣﺍ"
 
 
+msgctxt "Operator"
+msgid "Remove from Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻦﻣ ﻑﺬﺣﺍ"
+
+
+msgid "Remove the selected vertices from active or all vertex group(s)"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻦﻣ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﻑﺬﺣﺍ"
+
+
 msgid "Remove from all groups"
 msgstr "ﺕﺎﻋﻮﻤﺠﻤﻟﺍ ﻞﻛ ﻑﺬﺣﺍ"
 
 
 msgid "Clear the active group"
 msgstr "ﺔﻟﺎﻌّﻔﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻒﻈّﻧ"
+
+
+msgctxt "Operator"
+msgid "Select Vertex Group"
+msgstr "ﻂﻘﻨﻟﺍ ﺕﺎﻋﻮﻤﺠﻣ ﺮﺘﺧﺍ"
+
+
+msgid "Select all the vertices assigned to the active vertex group"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺔﺼﺼﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﻞﻛ ﺮﺘﺧﺍ"
 
 
 msgctxt "Operator"
@@ -26465,27 +26462,6 @@ msgstr "ﺾﺑﺎﻘﻤﻟﺍ ﻱﺫﺎﺣ"
 
 
 msgctxt "Operator"
-msgid "Brush Select"
-msgstr "ﺓﺎﺷﺮﻔﻟﺎﺑ ﺭﺎﺘﺧﺍ"
-
-
-msgid "Create Missing"
-msgstr "ﺩﻮﻘﻔﻤﻟﺍ ﺊﺸﻧﺍ"
-
-
-msgid "Comb"
-msgstr "ﻂﺸﻣ"
-
-
-msgid "Puff"
-msgstr "ﺦﻔّﻧ"
-
-
-msgid "Clone"
-msgstr "ﺦﺴﻧﺍ"
-
-
-msgctxt "Operator"
 msgid "Face Select Hide"
 msgstr "ﻪﺟﻮﻟﺍ ﺭﺎﻴﺘﺧﺍ ﻲﻔﺧﺍ"
 
@@ -26572,11 +26548,6 @@ msgstr "ﺓﺭﻮﺼﻟﺍ ﻲﻓ ﻥﻮﻟ ﺔﻨﻳﺎﻌﻤﻟ ﺓﺭﺄﻔ�
 msgctxt "Operator"
 msgid "Texture Paint Toggle"
 msgstr "ﺞﻴﺴﻨﻟﺍ ﻦﻳﻮﻠﺗ ﺐﻠﻗ"
-
-
-msgctxt "Operator"
-msgid "Dirty Vertex Colors"
-msgstr "ﺔﺛﻮّﻠﻣ ﻂﻘﻨﻟﺍ ﻥﺍﻮﻟﺍ"
 
 
 msgid "Blur strength per iteration"
@@ -26703,10 +26674,6 @@ msgstr "ﺭﺮﺤﻤﻟﺍ ﻒﻈﻧ"
 
 msgid "Undo all edition performed on the particle system"
 msgstr "ﺕﺎﺌﻳﺰﺠﻟﺍ ﻡﺎﻈﻧ ﻰﻠﻋ ﺓﺬﻔﻨﻤﻟﺍ ﺕﻼ﻿ﻳﺪﻌﺘﻟﺍ ﻞﻛ ﻦﻋ ﻊﺟﺍﺮﺗ"
-
-
-msgid "Add or remove a Hair Dynamics Preset"
-msgstr "ﺮﻌﺸﻟﺍ ﺕﺎﻴﻣﺎﻨﻳﺪﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣﺇ ﻭﺃ ﻒﺿﺍ"
 
 
 msgid "Hide selected particles"
@@ -26955,73 +26922,13 @@ msgid "Apply Visual Transform to Pose"
 msgstr "ﺔﻔﻗﻮﻠﻟ ﻱﺮﻫﺎﻈﻟﺍ ﻝﻮﺤﺘﻟﺍ ﻖﺒﻃ"
 
 
-msgctxt "Operator"
-msgid "Refresh"
-msgstr "ﺙﺪّﺣ"
-
-
-msgctxt "Operator"
-msgid "Copy Previous Settings"
-msgstr "ﺔﻘﺑﺎﺴﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ ﺦﺴﻧ"
-
-
-msgctxt "Operator"
-msgid "Activate Keyconfig"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﺣﻮﻟ ﺭﺍﺭﺯﺃ ﻒﺋﺎﻇﻭ ﺕﺍﺭﺎﻴﺧ ﻞﻴﻌﻔﺗ"
-
-
-msgctxt "Operator"
-msgid "Export Key Configuration..."
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺭﺪّﺻ"
-
-
-msgctxt "Operator"
-msgid "Import Key Configuration..."
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺩﺭﻮﺘﺳﺍ"
-
-
 msgid "Keep original file after copying to configuration folder"
 msgstr "ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ ﺪﻠﺠﻣ ﻰﻟﺇ ﺦﺴﻨﻟﺍ ﺪﻌﺑ ﻲﻠﺻﻷ﻿ﺍ ﻒﻠﻤﻟﺍ ﻖﺑﺃ"
 
 
 msgctxt "Operator"
-msgid "Remove Key Config"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻑﺬﺣ"
-
-
-msgctxt "Operator"
-msgid "Test Key Configuration for Conflicts"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ ﺽﺭﺎﻌﺗ ﺺﺤﻓﺃ"
-
-
-msgctxt "Operator"
-msgid "Add Key Map Item"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺨﻟ ﺮﺼﻨﻋ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Remove Key Map Item"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺨﻟ ﺮﺼﻨﻋ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Restore Key Map Item"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺧ ﺮﺼﻨﻋ ﻊﺟﺮﺘﺳﺍ"
-
-
-msgctxt "Operator"
-msgid "Restore Key Map(s)"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻄﻳﺮﺧ ﻊﺟﺮﺘﺳﺍ"
-
-
-msgctxt "Operator"
 msgid "Reset to Default Theme"
 msgstr "ﺽﺮﺘﻔﻤﻟﺍ ﻂﻤﻨﻠﻟ ﻂﺒﻀﻟﺍ ﺪﻋﺍ"
-
-
-msgctxt "Operator"
-msgid "Install Theme..."
-msgstr "...ﻂﻤﻨﻟﺍ ﺐﺼّﻧ"
 
 
 msgctxt "Operator"
@@ -27044,24 +26951,6 @@ msgid "Delete Current Cache"
 msgstr "ﻲﻟﺎﺤﻟﺍ ﻖﺒﺴﻤﻟﺍ ﺏﺎﺴﺤﻟﺍ ﻑﺬﺣﺍ"
 
 
-msgctxt "Operator"
-msgid "Add Integrator Preset"
-msgstr "ﻞﻣﺎﻜﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
-
-
-msgid "Add an Integrator Preset"
-msgstr "ﻞﻣﺎﻜﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Sampling Preset"
-msgstr "ﺔﻨﻳﺎﻌﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
-
-
-msgid "Add a Sampling Preset"
-msgstr "ﺔﻨﻳﺎﻌﻤﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺍ ﻒﺿﺍ"
-
-
 msgid "View Context"
 msgstr "ﻕﺎﻴﺴﻟﺍ ﺮﻬﻇﺍ"
 
@@ -27072,20 +26961,6 @@ msgstr "ﺪﻬﺸﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﺍ ﻡﺪﺨﺘﺳﺍ ﻭﺃ ,ﺮ�
 
 msgid "Write Image"
 msgstr "ﺓﺭﻮﺼﻟﺍ ﺐﺘﻛﺃ"
-
-
-msgctxt "Operator"
-msgid "Play Rendered Animation"
-msgstr "ﺓﺮﻴّﺼﻤﻟﺍ ﺔﻛﺮﺤﻟﺍ ﺽﺮﻋﺍ"
-
-
-msgid "Play back rendered frames/movies using an external player"
-msgstr "ﻲﺟﺭﺎﺧ ﺽﺮﻋ ﻡﺍﺪﺨﺘﺳﺎﺑ ﺓﺮﻴّﺼﻤﻟﺍ ﻡﻼ﻿ﻓﻻ﻿ﺍ/ﺮﻃﻻ﻿ﺍ ﺽﺮﻋ ﺪﻋﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Render Preset"
-msgstr "ﺮﻴﻴﺼﺘﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻒﺿﺍ"
 
 
 msgctxt "Operator"
@@ -27175,16 +27050,6 @@ msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
 msgctxt "Operator"
 msgid "Delete Scene"
 msgstr "ﺪﻬﺸﻤﻟﺍ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Edge Marks to Keying Set"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺔﻓﺎﺣ ﺕﺎﻣﻼ﻿ﻋ ﻒﺿﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Face Marks to Keying Set"
-msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﻪﺟﻭ ﺕﺎﻣﻼ﻿ﻋ ﻒﺿﺍ"
 
 
 msgid "Name of the modifier to work on"
@@ -27389,11 +27254,6 @@ msgid "Experimental"
 msgstr "ﻲﺑﺮﺠﺗ"
 
 
-msgctxt "Operator"
-msgid "Execute a Python Preset"
-msgstr "ﺎﻘﺒﺴﻣ ﺪﻌﻣ ﻥﻮﺜﻳﺎﺑ ﻒﻠﻣ ﺬﻔﻧ"
-
-
 msgid "Menu ID Name"
 msgstr "ﺔﻤﺋﺎﻘﻠﻟ ﻑﺮﻌﻤﻟﺍ ﻢﺳﻹ﻿ﺍ"
 
@@ -27417,12 +27277,21 @@ msgstr "ﻢﺴﺠﻤﻟﺍ ﻲﻓ ﺔﺒﻄﺷ ﺖﺤﻧﺍ"
 
 
 msgctxt "Operator"
+msgid "Scale"
+msgstr "ﻢﺠّﺣ"
+
+
+msgctxt "Operator"
 msgid "Detail Flood Fill"
 msgstr "ﻥﺎﻀﻴﻔﺑ ﻞﻴﺻﺎﻔﺘﻟﺍ ﺊﺒّﻋ"
 
 
 msgid "Falloff Type"
 msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ ﻉﻮﻧ"
+
+
+msgid "Custom Curve"
+msgstr "ﺺﺼﺨﻣ ﻰﻨﺤﻨﻣ"
 
 
 msgctxt "Operator"
@@ -27565,15 +27434,6 @@ msgid "Copy"
 msgstr "ﺦﺴﻧ"
 
 
-msgid "Do cross-fading volume animation of two selected sound strips"
-msgstr "ﻦﻳﺭﺎﺘﺨﻣ ﺕﻮﺻ ﻲﻄﻳﺮﺸﻟ ﻞﺋﺎﻀﺘﻣ ﻞﺧﺍﺪﺘﻣ ﻲﻤﺠﺣ ﻙﺮﺤﺗ ﺊﺸﻧﺍ"
-
-
-msgctxt "Operator"
-msgid "Deinterlace Movies"
-msgstr "ﻡﻼ﻿ﻓﻷ﻿ﺍ ﻲﻓ ﻚﺑﺎﺸﺘﻟﺍ ﻞﻴﻠﻘﺗ"
-
-
 msgid "Duplicate selected strips and move them"
 msgstr "ﺎﻬﻛﺮّﺣﻭ ﺓﺭﺎﺘﺨﻤﻟﺍ ﺔﻃﺮﺷﻷ﻿ﺍ ﺭﺮﻛ"
 
@@ -27589,10 +27449,6 @@ msgstr "ﺕﺍﺮﺛﺆﻣ ﻂﻳﺮﺷ ﻒﺿﺍ"
 
 msgid "Allow Overlap"
 msgstr "ﻞﺧﺍﺪﺘﻟﺎﺑ ﺢﻤﺳﺍ"
-
-
-msgid "Replace the current selection"
-msgstr "ﻲﻟﺎﺤﻟﺍ ﺭﺎﻴﺘﺧﻹ﻿ﺍ ﻝﺪّﺑ"
 
 
 msgctxt "Operator"
@@ -27835,14 +27691,6 @@ msgstr "(ﻡﺎﺧ) ﺾﺒﻨﻟﺍ ﺓﺮﻔﻴﺷ ﻞﻳﺪﻌﺗ"
 
 msgid "Xiph.Org Vorbis Codec"
 msgstr "Xiph.org Vorbis ﺓﺮﻔﻴﺷ"
-
-
-msgid "mkv"
-msgstr "mkv"
-
-
-msgid "mp3"
-msgstr "mp3"
 
 
 msgid "Split channels"
@@ -28118,6 +27966,11 @@ msgstr "ﺞﻴﺴﻨﻟﺍ ﻝﺎﺠﻣ ﺭﺮﺣ"
 
 
 msgctxt "Operator"
+msgid "Rotate"
+msgstr "ﺭﻭﺩ"
+
+
+msgctxt "Operator"
 msgid "Select Orientation"
 msgstr "ﻪﺟّﻮﺘﻟﺍ ﺮﺘﺧﺍ "
 
@@ -28181,11 +28034,6 @@ msgstr "ﻂﻘﻨﻟﺍ ﺡﺯﺍ"
 
 msgid "Slide a vertex along a mesh"
 msgstr "ﻢﺴﺠﻤﻟﺍ ﻝﻮﻃ ﻰﻠﻋ ﺔﻓﺎﺤﻟﺍ ﻞﺴﻠﺴﺗ ﻖﻟﺯﺍ"
-
-
-msgctxt "Operator"
-msgid "Randomize"
-msgstr "ﻲﺋﺍﻮﺸﻋ ﻞﻌﺟﺇ"
 
 
 msgid "Distance to offset"
@@ -28314,11 +28162,6 @@ msgid "Radius of the sphere or cylinder"
 msgstr "ﺔﻧﺍﻮﻄﺳﻻ﻿ﺍ ﻭﺃ ﺓﺮﻜﻟﺍ ﺮﻄﻗ"
 
 
-msgctxt "Operator"
-msgid "Export UV Layout"
-msgstr "UV ﺝﺫﻮﻤﻧ ﺭﺪّﺻ"
-
-
 msgid "All UVs"
 msgstr "UV's ـﻟﺍ ﻞﻛ"
 
@@ -28331,22 +28174,12 @@ msgid "Fill Opacity"
 msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﺔﻣﻮﺘﻋ"
 
 
-msgctxt "Operator"
-msgid "Follow Active Quads"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺕﺎﻴﻋﺎﺑﺮﻟﺍ ﻊﺒﺗﺍ"
-
-
 msgid "Average space UVs edge length of each loop"
 msgstr "ﻞﺴﻠﺴﺗ ﻞﻜﻟ UV ﺔﻓﺎﺣ ﻝﻮﻃ ءﺎﻀﻓ ﻂﺳﻮﺘﻣ"
 
 
 msgid "Length Average"
 msgstr "ﻝﺪﻌﻤﻟﺍ"
-
-
-msgctxt "Operator"
-msgid "Lightmap Pack"
-msgstr "ءﻮﻀﻟﺍ ﺔﻄﻳﺮﺧ ﺔﻣﺰﺣ"
 
 
 msgid "Clear Seams"
@@ -28553,21 +28386,6 @@ msgstr "ﻲﺛﻼ﻿ﺜﻟﺍ ﺮﺷﺆﻣ ﻊﻗﻮﻣ ﻊﺿ"
 
 msgid "Dolly in/out in the view"
 msgstr "ﺮﻈﻨﻤﻟﺍ ﻲﻓ ﺝﺭﺎﺨﻠﻟ/ﻞﺧﺍﺪﻠﻟ ﺔﺤﺟﺭﺍ"
-
-
-msgctxt "Operator"
-msgid "Extrude Individual and Move"
-msgstr "ﻙﺮّﺣ ﻭ ﺎﻳﺩﺮﻓ ﻖﺜﺑﺍ"
-
-
-msgctxt "Operator"
-msgid "Extrude and Move on Normals"
-msgstr "ﻢﻇﺍﻮﻨﻟﺍ ﻰﻠﻋ ﻙﺮّﺣ ﻭ ﻖﺜﺑﺍ"
-
-
-msgctxt "Operator"
-msgid "Extrude and Move on Individual Normals"
-msgstr "ﻼ﻿ﺼﻔﻨﻣ ﻢﻇﺍﻮﻨﻟﺍ ﻰﻠﻋ ﻙﺮّﺣ ﻭ ﻖﺜﺑﺇ"
 
 
 msgctxt "Operator"
@@ -28785,46 +28603,12 @@ msgid "Minimum Chain Length"
 msgstr "ﺔﺴﻠﺴﻠﻟ ﻝﻮﻃ ﻞﻗﺃ"
 
 
-msgctxt "Operator"
-msgid "Context Collection Boolean Set"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﻘﻄﻨﻣ ﻢﻴﻗ ﺔﻋﻮﻤﺠﻣ"
-
-
-msgctxt "Operator"
-msgid "Context Array Cycle"
-msgstr "ﻕﺎﻴﺳ ﺔﻓﻮﻔﺼﻣ ﺓﺭﻭﺩ"
-
-
 msgid "Context Attributes"
 msgstr "ﻕﺎﻴﺴﻟﺍ ﺕﺎﻔﺻ"
 
 
 msgid "Cycle backwards"
 msgstr "ﺎﻴﺴﻜﻋ ﺭﻭَﺩ"
-
-
-msgctxt "Operator"
-msgid "Context Enum Cycle"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺩﺍﺪﻋ ﺓﺭﻭﺩ"
-
-
-msgid "Toggle a context value"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻤﻴﻗ ﺐﻠﻗﺍ"
-
-
-msgctxt "Operator"
-msgid "Context Int Cycle"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻢﻗﺭ ﺓﺭﻭﺩ"
-
-
-msgctxt "Operator"
-msgid "Context Enum Menu"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺩﺍﺪﻋ ﺔﻤﺋﺎﻗ"
-
-
-msgctxt "Operator"
-msgid "Context Modal Mouse"
-msgstr "ﻕﺎﻴﺴﻟﺎﺑ ﺔﻃﻭﺮﺸﻣ ﺓﺭﺄﻓ"
 
 
 msgid "Text to display in header during scale"
@@ -28839,27 +28623,8 @@ msgid "Invert the mouse input"
 msgstr "ﺓﺭﺄﻔﻟﺍ ﻞﺧﺩ ﺲﻜﻋﺍ"
 
 
-msgctxt "Operator"
-msgid "Context Enum Pie"
-msgstr "ﻊﻄﻘﻟﺍ ﻕﺎﻴﺳ ﺩﺪﻋ"
-
-
-msgctxt "Operator"
-msgid "Context Scale Float"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻜﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠﺣ"
-
-
-msgid "Scale a float context value"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻜﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠّﺣ"
-
-
 msgid "Assign value"
 msgstr "ﺔﻤﻴﻘﻟﺍ ﻦﻴﻋ"
-
-
-msgctxt "Operator"
-msgid "Context Scale Int"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﺤﻴﺤﺼﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻢﺠﺣ"
 
 
 msgid "Always Step"
@@ -28870,65 +28635,16 @@ msgid "Always adjust the value by a minimum of 1 when 'value' is not 1.0"
 msgstr "1.0 ﻱﻭﺎﺴﺗ ﻻ﻿ 'ﺔﻤﻴﻘﻟﺍ' ﻥﻮﻜﺗ ﺎﻣﺪﻨﻋ 1 ﺎﻴﻧﺩ ﺔﻤﻴﻘﻟ ﺔﻤﻴﻘﻟﺍ ﻝﺪّﻋ ﺎﻤﺋﺍﺩ"
 
 
-msgctxt "Operator"
-msgid "Context Set Boolean"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﻘﻄﻨﻣ ﺔﻤﻴﻗ ﻊﺿ"
-
-
-msgid "Set a context value"
-msgstr "ﻕﺎﻴﺳ ﺔﻤﻴﻗ ﻊﺿ"
-
-
 msgid "Assignment value"
 msgstr "ﺔﻨﻴﻌﻤﻟﺍ ﺔﻤﻴﻘﻟﺍ"
-
-
-msgctxt "Operator"
-msgid "Context Set Enum"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺩﺍﺪﻋ ﺔﻤﻴﻗ ﻊﺿ"
 
 
 msgid "Assignment value (as a string)"
 msgstr "(ﺺﻨﻛ) ﺔﻨﻴﻌﻤﻟﺍ ﺔﻤﻴﻘﻟﺍ"
 
 
-msgctxt "Operator"
-msgid "Context Set Float"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻳﺮﺴﻛ ﺔﻤﻴﻗ ﻊﺿ"
-
-
 msgid "Apply relative to the current value (delta)"
 msgstr "(ﻕﺮﻔﻟﺍ ﺕﺎﻋﺍﺮﻣ ﻊﻣ) ﺔﻴﺒﺴﻧ ﺔﻴﻟﺎﺤﻟﺍ ﺔﻤﻴﻘﻟﺍ ﻞﻌﺟﺍ"
-
-
-msgctxt "Operator"
-msgid "Set Library ID"
-msgstr "ﺔﺒﺘﻜﻤﻟﺍ ﻑﺮﻌﻣ ﻊﺿ"
-
-
-msgctxt "Operator"
-msgid "Context Set"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻋﻮﻤﺠﻣ"
-
-
-msgctxt "Operator"
-msgid "Context Set String"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻲﻓ ﺔﻴﺼﻧ ﺔﻤﻴﻗ ﻊﺿ"
-
-
-msgctxt "Operator"
-msgid "Context Set Value"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺔﻤﻴﻗ ﻊﺿ"
-
-
-msgctxt "Operator"
-msgid "Context Toggle"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﺐﻠﻗﺍ"
-
-
-msgctxt "Operator"
-msgid "Context Toggle Values"
-msgstr "ﻕﺎﻴﺴﻟﺍ ﻢﻴﻗ ﺐﻠﻗﺍ"
 
 
 msgid "Toggle enum"
@@ -28940,18 +28656,8 @@ msgid "Debug Menu"
 msgstr "ﺢﻴﺤﺼﺘﻟﺍ ﺔﻤﺋﺎﻗ"
 
 
-msgctxt "Operator"
-msgid "View Documentation"
-msgstr "ﻖﻴﺛﻮﺘﻟﺍ ﺮﻬﻇﺍ"
-
-
 msgid "Doc ID"
 msgstr "ﺔﻘﻴﺛﻮﻟﺍ ﻑﺮﻌﻣ"
-
-
-msgctxt "Operator"
-msgid "View Manual"
-msgstr "ﺎﻳﻭﺪﻳ ﺮﻬﻇﺍ"
 
 
 msgctxt "Operator"
@@ -28972,22 +28678,8 @@ msgid "Load UI"
 msgstr "ﺔﻬﺟﺍﻮﻟﺍ ﻞﻤّﺣ"
 
 
-msgctxt "Operator"
-msgid "Operator Cheat Sheet"
-msgstr "ﻞﻣﺎﻌﻟﺍ ﺎﻳﺎﺒﺧ ﺔﻗﺭﻭ"
-
-
 msgid "Set the active operator to its default values"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻡﺎﻈﻌﻠﻟ ﻞﺻﺄﻛ ﺔﻟﺎﻌﻔﻟﺍ ﺔﻤﻈﻌﻟﺍ ﻊﺿ"
-
-
-msgctxt "Operator"
-msgid "Operator Preset"
-msgstr "ﻞﻣﺎﻌﻠﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ"
-
-
-msgid "Add or remove an Operator Preset"
-msgstr "ﻞﻣﺎﻌﻟ ﻖﺒﺴﻣ ﺩﺍﺪﻋﺇ ﻎﻟﺍ ﻭﺃ ﻒﺿﺍ"
 
 
 msgctxt "Operator"
@@ -28998,11 +28690,6 @@ msgstr "PLY ﺭﺪّﺻ"
 msgctxt "Operator"
 msgid "Import PLY"
 msgstr "PLY ﺩﺭﻮﺘﺳﺍ"
-
-
-msgctxt "Operator"
-msgid "Add Property"
-msgstr "ﺔﻤﺳ ﻒﺿﺃ"
 
 
 msgid "Property Edit"
@@ -29017,22 +28704,8 @@ msgid "Context"
 msgstr "ﻕﺎﻴﺳ"
 
 
-msgctxt "Operator"
-msgid "Edit Property"
-msgstr "ﺔﻤﺴﻟﺍ ﻝﺪﻋ"
-
-
 msgid "Property name edit"
 msgstr "ﺔﻤﺴﻟﺍ ﻢﺳﺇ ﻞﻳﺪﻌﺗ"
-
-
-msgctxt "Operator"
-msgid "Remove Property"
-msgstr "ﺔﻤﺴﻟﺍ ﻑﺬﺣﺍ"
-
-
-msgid "Internal use (edit a property data_path)"
-msgstr "(ﺕﺎﻧﺎﻴﺑ ﺭﺎﺴﻣ ﺔﻤﺳ ﻝﺪﻋ) ﻲﻠﺧﺍﺩ ﻝﺎﻤﻌﺘﺳﺍ"
 
 
 msgctxt "Operator"
@@ -29196,10 +28869,6 @@ msgid "Size of packed file in bytes"
 msgstr "ﺖﺒﻟﺎﺑ ﻡﺰﺤﻤﻟﺍ ﻒﻠﻤﻟﺍ ﻢﺠﺣ"
 
 
-msgid "Active Brush"
-msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺓﺎﺷﺮﻔﻟﺍ"
-
-
 msgid "Show Brush"
 msgstr "ﺓﺎﺷﺮﻔﻟﺍ ﺮﻬﻇﺃ"
 
@@ -29340,6 +29009,22 @@ msgid "Palette Color"
 msgstr "ﻥﻮﻠﻟﺍ ﺔﺣﻮﻟ"
 
 
+msgid "Transform Orientations"
+msgstr "ﻝﻮﺤﺘﻟﺍ ﺕﺎﻫﺎﺠﺗﺍ"
+
+
+msgid "Wire Color"
+msgstr "ﻂﺑﺍﺮﻟﺍ ﻥﻮﻟ"
+
+
+msgid "Render Pass"
+msgstr "ﺮﻴﻴﺼﺗ ﺮﻤﻣ"
+
+
+msgid "Motion Tracking"
+msgstr "ﺔﻛﺮﺤﻟﺍ ﺔﻘﺣﻼ﻿ﻣ"
+
+
 msgid "Bone Constraints"
 msgstr "ﻢﻈﻌﻟﺍ ﺩﻮﻴﻗ"
 
@@ -29444,10 +29129,6 @@ msgid "Threads"
 msgstr "ﺐﻌﺷ"
 
 
-msgid "Render Pass"
-msgstr "ﺮﻴﻴﺼﺗ ﺮﻤﻣ"
-
-
 msgid "Composition Guides"
 msgstr "ﺐﻴﻛﺮﺘﻟﺍ ﺕﺍﺪﺷﺮﻣ"
 
@@ -29472,6 +29153,10 @@ msgid "Text Boxes"
 msgstr "ﺔﺑﺎﺘﻜﻟﺍ ﺕﺎﻧﺎﺧ"
 
 
+msgid "Slot"
+msgstr "ﺔﺤﺘﻓ"
+
+
 msgid "Filters"
 msgstr "ﺕﺎﻴﻔﺼﻣ"
 
@@ -29482,11 +29167,6 @@ msgstr "ﺔﺼﺼﺨﻣ ﻂﺑﺍﻭﺭ"
 
 msgid "Fluid Presets"
 msgstr "ﻞﺋﺍﻮﺴﻠﻟ ﺔﻘﺒﺴﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻹ﻿ﺍ"
-
-
-msgctxt "Operator"
-msgid "Draw"
-msgstr "ﻢﺳﺭﺍ"
 
 
 msgid "Tiling"
@@ -29507,10 +29187,6 @@ msgstr "ﻲﺟﻮﻤﻟﺍ ﻞﻜﺸﺘﻟﺍ"
 
 msgid "Freestyle Line"
 msgstr "ﻞﻳﺎﺘﺴﻳﺮﻓ ﻂﺧ"
-
-
-msgid "Slot"
-msgstr "ﺔﺤﺘﻓ"
 
 
 msgid "Delta Transform"
@@ -29575,10 +29251,6 @@ msgstr "ﺕﺎﻴﻜﻴﻣﺎﻨﻳﺪﻟﺍ"
 
 msgid "Self Collision"
 msgstr "ﻲﺗﺍﺬﻟﺍ ﻞﻋﺎﻔﺘﻟﺍ"
-
-
-msgid "Indirect Lighting"
-msgstr "ﺓﺮﺷﺎﺒﻣ ﺮﻴﻏ ﺓءﺎﺿﺇ"
 
 
 msgid "Shadows"
@@ -29649,16 +29321,9 @@ msgid "Gradient Colors"
 msgstr "ﻥﻮﻠﻟﺍ ﻢﺳﺭﺍ"
 
 
-msgid "Motion Tracking"
-msgstr "ﺔﻛﺮﺤﻟﺍ ﺔﻘﺣﻼ﻿ﻣ"
-
-
-msgid "Pose Library"
-msgstr "ﺕﺎﻔﻗﻮﻟﺍ ﺔﺒﺘﻜﻣ"
-
-
-msgid "Wire Color"
-msgstr "ﻂﺑﺍﺮﻟﺍ ﻥﻮﻟ"
+msgctxt "Operator"
+msgid "Draw"
+msgstr "ﻢﺳﺭﺍ"
 
 
 msgid "Comb hairs"
@@ -29695,18 +29360,8 @@ msgstr "ﻕﻭﺪﻨﺼﺑ ﻊﻨّﻗ"
 
 
 msgctxt "Operator"
-msgid "Thickness"
-msgstr "ﺔﻛﺎﻤﺴﻟﺍ"
-
-
-msgctxt "Operator"
 msgid "Erase"
 msgstr "ﺢﺴﻣﺇ"
-
-
-msgctxt "Operator"
-msgid "Line"
-msgstr "ﻂﺧ"
 
 
 msgctxt "Operator"
@@ -29715,16 +29370,12 @@ msgstr "ﺓﺮﺋﺍﺩ ﻒﺿﺍ"
 
 
 msgctxt "Operator"
-msgid "Slide"
-msgstr "ﺡﺯﺃ"
+msgid "Line"
+msgstr "ﻂﺧ"
 
 
 msgid "Pose Options"
 msgstr "ﺔﻔﻗﻮﻟﺍ ﺕﺍﺭﺎﻴﺧ"
-
-
-msgid "Transform Orientations"
-msgstr "ﻝﻮﺤﺘﻟﺍ ﺕﺎﻫﺎﺠﺗﺍ"
 
 
 msgid "Face Marks"
@@ -29897,6 +29548,14 @@ msgstr "ﺱﻭﺅﺮﻟﺍ ﺭﺎﻴﺘﺧﺇ ﻊﺿﻭ"
 
 msgid "Shape Object"
 msgstr "ﻞﻜﺸﻟﺍ ﻦﺋﺎﻛ"
+
+
+msgid "Comb"
+msgstr "ﻂﺸﻣ"
+
+
+msgid "Puff"
+msgstr "ﺦﻔّﻧ"
 
 
 msgid "Auto Velocity"
@@ -31639,10 +31298,6 @@ msgid "Base"
 msgstr "ﺱﺎﺳﻷ﻿ﺍ"
 
 
-msgid "Temperature"
-msgstr "ﺓﺭﺍﺮﺤﻟﺍ"
-
-
 msgid "ID Property Group"
 msgstr "ﻑﺮﻌﻣ ﺹﺍﻮﺧ ﺔﻋﻮﻤﺠﻣ"
 
@@ -32775,10 +32430,6 @@ msgid "Number of samples"
 msgstr "ﺕﺎﻨﻴﻌﻟﺍ ﺩﺪﻋ"
 
 
-msgid "Factor for ambient occlusion blending"
-msgstr "ﻂﻴﺤﻤﻟﺍ ﺱﺎﺒﺤﻧﻻ﻿ﺍ ﺝﺰﻣ ﻞﻣﺎﻋ"
-
-
 msgid "Scene Render View"
 msgstr "ﺪﻬﺸﻤﻠﻟ ﺮﻴﻴﺼﺘﻟﺍ ﺮﻈﻨﻣ"
 
@@ -32993,6 +32644,10 @@ msgstr "ﺺﻨﻟﺍ ﻊﻗﻮﻣ"
 
 msgid "Outline Width"
 msgstr "ﻂﻴﺤﻤﻟﺍ ﻂﺨﻟﺍ ﺽﺮﻋ"
+
+
+msgid "Shadow Color"
+msgstr "ﻞﻈﻟﺍ ﻥﻮﻟ"
 
 
 msgid "Transform Sequence"
@@ -33376,15 +33031,6 @@ msgid "View"
 msgstr "ﺮﻈﻨﻤﻟﺍ"
 
 
-msgctxt "MovieClip"
-msgid "Dopesheet"
-msgstr "ﻂﻴﻄﺨﺘﻟﺍ ﺔﻗﺭﻭ"
-
-
-msgid "Dopesheet view for tracking data"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ ﺕﺎﻧﺎﻴﺒﻟ ﻂﻴﻄﺨﺘﻟﺍ ﺭﺮﺤﻣ ﺮﻈﻨﻣ"
-
-
 msgid "Command line prompt language"
 msgstr "ﺮﻣﺍﻭﻻ﻿ﺍ ﺔﺣﻮﻟ ﺓﺬﻓﺎﻧ ﺔﻐﻟ"
 
@@ -33541,10 +33187,6 @@ msgid "Type of data to take texture from"
 msgstr "ﺞﻴﺴﻨﻟﺍ ﺎﻬﻨﻣ ﺫﻮﺧﺄﻤﻟﺍ ﺕﺎﻧﺎﻴﺒﻟﺍ ﻉﻮﻧ"
 
 
-msgid "Re-render and composite changed layers on 3D edits"
-msgstr "ﺔﻴﺛﻼ﻿ﺜﻟﺍ ﺕﺍﺮﻳﺮﺤﺘﻟﺍ ﺪﻨﻋ ﺓﺮﻴﻐﺘﻤﻟﺍ ﺕﺎﻘﺒﻄﻟﺍ ﺐﻴﻛﺮﺗ ﻭ ﺮﻴﻴﺼﺗ ﺪﻋﺃ"
-
-
 msgid "Blender File"
 msgstr "ﺭﺪﻨﻠﺑ ﻒﻠﻣ ﺮﻬﻇﺃ"
 
@@ -33563,10 +33205,6 @@ msgstr "ﺖﺒّﺜﻤﻟﺍ ﻕﺎﻴﺴﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 msgid "Overlay Type"
 msgstr "ءﺎﻄﻐﻟﺍ ﻉﻮﻧ"
-
-
-msgid "Reference"
-msgstr "ﻊﺟﺮﻣ"
 
 
 msgid "Show reference frame only"
@@ -34869,6 +34507,18 @@ msgid "Maintain the relative weights for the group"
 msgstr "ﺔﻋﻮﻤﺠﻤﻠﻟ ﻲﺒﺴﻨﻟﺍ ﻥﺯﻮﻟﺍ ﻰﻠﻋ ﻆﻓﺎﺣ"
 
 
+msgid "Vertex Group Element"
+msgstr "ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﺼﻨﻋ"
+
+
+msgid "Weight value of a vertex in a vertex group"
+msgstr "ﻂﻘﻧ ﺔﻋﻮﻤﺠﻣ ﻲﻓ ﺔﻄﻘﻨﻟ ﻥﺯﻮﻟﺍ ﺔﻤﻴﻗ"
+
+
+msgid "Group Index"
+msgstr "ﺔﻋﻮﻤﺠﻣ ﺮﺷﺆﻣ"
+
+
 msgid "Grid Scale Unit"
 msgstr "ﻲﻨﻜﺳ ﺝﺭﺪﺗ"
 
@@ -34995,6 +34645,10 @@ msgstr "ﺮﻈﻨﻤﻟﺍ ﻉﺎﻔﺗﺭﺇ"
 
 msgid "Lighting for a World data-block"
 msgstr "ﻢﻟﺎﻋ ﺕﺎﻧﺎﻴﺑ ﺔﻠﺘﻜﻟ ﺓءﺎﺿﻹ﻿ﺍ"
+
+
+msgid "Factor for ambient occlusion blending"
+msgstr "ﻂﻴﺤﻤﻟﺍ ﺱﺎﺒﺤﻧﻻ﻿ﺍ ﺝﺰﻣ ﻞﻣﺎﻋ"
 
 
 msgid "Length of rays, defines how far away other faces give occlusion effect"
@@ -35237,11 +34891,6 @@ msgstr "NLA ﻡﺎﻋ"
 
 
 msgctxt "WindowManager"
-msgid "Timeline"
-msgstr "ﺖﻗﻮﻟﺍ ﻂﺧ"
-
-
-msgctxt "WindowManager"
 msgid "Image"
 msgstr "ﺓﺭﻮﺻ"
 
@@ -35347,11 +34996,6 @@ msgstr "ﺔﺻﺎﺼﻘﻠﻟ ﻂﻴﻄﺨﺘﻟﺍ ﺔﻗﺭﻭ ﺭﺮﺤﻣ"
 
 
 msgctxt "WindowManager"
-msgid "Grease Pencil Stroke Edit Mode"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺔﺒﻄﺷ ﺮﻳﺮﺤﺗ ﻊﺿﻭ"
-
-
-msgctxt "WindowManager"
 msgid "Mask Editing"
 msgstr "ﻉﺎﻨﻘﻟﺍ ﺮﻳﺮﺤﺗ"
 
@@ -35396,8 +35040,9 @@ msgid "Transform Modal Map"
 msgstr "ﺔﻃﻭﺮﺸﻣ ﺔﻟﻮّﺤﺘﻣ ﺔﻄﻳﺮﺧ"
 
 
-msgid "Warning"
-msgstr ":ﺮﻳﺬﺤﺗ"
+msgctxt "Operator"
+msgid "All"
+msgstr "ﻞﻜﻟﺍ"
 
 
 msgctxt "Operator"
@@ -35467,14 +35112,6 @@ msgstr "ﻖﺒﻃ"
 
 msgid "Options:"
 msgstr ":ﺕﺍﺭﺎﻴﺨﻟﺍ"
-
-
-msgid "Labels:"
-msgstr "ﻖﺼﻠﻣ"
-
-
-msgid "Tool Tips:"
-msgstr ":ﺓﺍﺩﻷ﻿ﺍ ﺡﺮﺷ"
 
 
 msgctxt "Operator"
@@ -35641,31 +35278,6 @@ msgid "Lock All"
 msgstr "ﻞﻜﻟﺍ ﻞﻔﻗ"
 
 
-msgctxt "Operator"
-msgid "New Layer"
-msgstr "New Layer"
-
-
-msgctxt "Operator"
-msgid "Assign to Active Group"
-msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻰﻟﺇ ﻦﻴﻋ"
-
-
-msgctxt "Operator"
-msgid "Remove from Active Group"
-msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻦﻣ ﻑﺬﺣﺇ"
-
-
-msgctxt "Operator"
-msgid "Remove Active Group"
-msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻑﺬﺣﺇ"
-
-
-msgctxt "Operator"
-msgid "Remove All Groups"
-msgstr "ﺕﺎﻋﻮﻤﺠﻤﻟﺍ ﻊﻴﻤﺟ ﻑﺬﺣﺇ"
-
-
 msgid "Bleed Bias"
 msgstr "ﻊﻴﻣﺪﺘﻟﺍ ﻑﺍﺮﺤﻧﺇ"
 
@@ -35713,6 +35325,11 @@ msgstr ":ﻢﺳﺭﺃ"
 
 
 msgctxt "Operator"
+msgid "New Layer"
+msgstr "New Layer"
+
+
+msgctxt "Operator"
 msgid "Selection to Grid"
 msgstr "ﺔﻜﺒﺸﻟﺍ ﻰﻟﺇ ﺭﺎﻴﺘﺧﺍ"
 
@@ -35732,13 +35349,13 @@ msgid "Poly"
 msgstr "ﺽﺮﻋﺍ"
 
 
+msgid "Data Source:"
+msgstr ":ﻢﺳﺮﻟﺍ ﺭﺪﺼﻣ"
+
+
 msgctxt "Operator"
 msgid "Selection to Cursor"
 msgstr "ﺮﺷﺆﻤﻟﺍ ﻰﻟﺇ ﺭﺎﻴﺘﺧﺍ"
-
-
-msgid "Data Source:"
-msgstr ":ﻢﺳﺮﻟﺍ ﺭﺪﺼﻣ"
 
 
 msgid "Parent:"
@@ -35895,16 +35512,17 @@ msgid "Color Layer"
 msgstr "ﻥﻮﻟ ﺔﻘﺒﻃ"
 
 
+msgctxt "Operator"
+msgid "Add Brush"
+msgstr "ﺓﺎﺷﺮﻓ ﻒﺿﺍ"
+
+
 msgid "Wave Clamp"
 msgstr "ﺔﺟﻮﻤﻟﺍ ﺪﺣ"
 
 
 msgid "Auto-Step"
 msgstr "ﻲﺋﺎﻘﻠﺗ ﻡﺪﻘﺗ"
-
-
-msgid "Refraction"
-msgstr "ﺭﺎﺴﻜﻧﻻ﻿ﺍ"
 
 
 msgid "Paths:"
@@ -36137,6 +35755,11 @@ msgstr "ﺪﻣُ"
 
 
 msgctxt "Operator"
+msgid "Slide"
+msgstr "ﺡﺯﺃ"
+
+
+msgctxt "Operator"
 msgid "Hide Selected Curves"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺎﻴﻨﺤﻨﻤﻟﺍ ﻒﺧﺇ"
 
@@ -36169,11 +35792,6 @@ msgstr "ﻂﺑﺭﺍ"
 msgctxt "Operator"
 msgid "Shortest Path"
 msgstr "ﺭﺎﺴﻣ ﺮﺼﻗﺃ"
-
-
-msgctxt "Image"
-msgid "New"
-msgstr "ﺪﻳﺪﺟ"
 
 
 msgctxt "Operator"
@@ -36344,18 +35962,6 @@ msgid "Make"
 msgstr "ﻞﻌﺟﺇ"
 
 
-msgid "Lift:"
-msgstr ":ﻢﻋﺪﻟﺍ"
-
-
-msgid "Gamma:"
-msgstr ":ﺓﺭﺎﻧﻻ﻿ﺍ"
-
-
-msgid "Gain:"
-msgstr ":ﺮﻴﺛﺄﺘﻟﺍ"
-
-
 msgctxt "Operator"
 msgid "Jump to Next Strip"
 msgstr "ﻲﻟﺎﺘﻟﺍ ﻂﻳﺮﺸﻟﺍ ﻰﻟﺍ ﺰﻔﻗﺍ"
@@ -36368,10 +35974,6 @@ msgstr "ﻢﻠﻔﻟﺍ"
 
 msgid "Storage"
 msgstr "ﺔﻴﻄﻐﺘﻟﺍ"
-
-
-msgid "Offset:"
-msgstr ":ﺔﺣﺍﺯﺇ"
 
 
 msgctxt "Operator"
@@ -37020,6 +36622,21 @@ msgid "Set Roll"
 msgstr "ﺔﻔﻠﻟﺍ ﺩﺪﺣ"
 
 
+msgctxt "Operator"
+msgid "Assign to Active Group"
+msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻰﻟﺇ ﻦﻴﻋ"
+
+
+msgctxt "Operator"
+msgid "Remove Active Group"
+msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻑﺬﺣﺇ"
+
+
+msgctxt "Operator"
+msgid "Remove All Groups"
+msgstr "ﺕﺎﻋﻮﻤﺠﻤﻟﺍ ﻊﻴﻤﺟ ﻑﺬﺣﺇ"
+
+
 msgid "Sharpen"
 msgstr "ﺩﺎﺣ"
 
@@ -37027,6 +36644,11 @@ msgstr "ﺩﺎﺣ"
 msgctxt "Operator"
 msgid "Camera Lens Scale"
 msgstr "ﺍﺮﻤﻜﻟﺍ ﺔﺳﺪﻋ ﻢﻴﺠﺤﺗ"
+
+
+msgctxt "Operator"
+msgid "Remove from Active Group"
+msgstr "ﺔﻴﻟﺎﺤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟﺍ ﻦﻣ ﻑﺬﺣﺇ"
 
 
 msgctxt "Operator"
@@ -37042,10 +36664,6 @@ msgstr "ﺮﻄﻘﻟﺍ ﻒﺼﻧ ﺮﺒّﻛ"
 msgctxt "Operator"
 msgid "DOF Distance (Pick)"
 msgstr "(ﻂﻘﺘﻟﺍ) ﻞﻘﺤﻟﺍ ﻖﻤﻋ ﺪﻌﺑ"
-
-
-msgid "Layer:"
-msgstr ":ﺔﻘﺒﻃ"
 
 
 msgid "Parents"
@@ -37084,10 +36702,6 @@ msgstr "ﺎﻬﻨﻳﺰﺨﺗ ﺐﺠﻳ ﻦﻳﺰﺨﺘﻟﺍ ﻂﻘﻧ"
 
 msgid "in memory to enable editing!"
 msgstr "!ﻞﻳﺪﻌﺘﻟﺍ ﻞﻴﻌﻔﺘﻟ ﺓﺮﻛﺍﺬﻟﺍ ﻲﻓ"
-
-
-msgid "No AnimData to set action on"
-msgstr "ﺙﺪﺤﻟﺍ ﺎﻬﻴﻠﻋ ﺽﻭﺮﻌﻤﻟﺍ ﺔﻛﺮﺤﻟﺍ ﺔﻘﺒﻃ"
 
 
 msgid "KeyingSet"
@@ -37226,6 +36840,10 @@ msgstr ".%s‬\", ‪%s‬‪\" :ﻒﻠﻤﻟﺍ ﺓءﺍﺮﻗ ﻦﻜﻤﻳ ﻻ
 
 msgid "Could not connect vertices"
 msgstr "ﺔﻠﺼﺘﻤﻟﺍ UV ـﻟﺍ ﻂﻘﻧ ﻦﻣ ﻞﺴﻠﺴﺗ ﺮﺘﺧﺇ"
+
+
+msgid "No active object"
+msgstr "ﻝﺎﻌﻔﻟﺍ ﻦﺋﺎﻜﻟﺍ ﻞﻴﻟﺩ"
 
 
 msgid "<invalid>"
@@ -37379,32 +36997,12 @@ msgid "Cannot paint stroke"
 msgstr "ﺔﺒﻄﺷ ﻢﺳﺭﺍ"
 
 
-msgid "No Grease Pencil data to work on"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ ﺔﻠﺘﻛ"
-
-
-msgid "Nowhere for grease pencil data to go"
-msgstr " ﺔﻄﺒﺗﺮﻣ ﻥﻮﻜﺘﻟ ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ ﺢﻔﺼﺗ"
-
-
-msgid "No Grease Pencil data"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻣ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ ﺪﺟﻮﺗ ﻻ﻿"
-
-
-msgid "No grease pencil data"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻣ ﻢﻠﻗ ﺕﺎﻧﺎﻴﺑ"
-
-
 msgid "No active frame to delete"
 msgstr "ﻲﻧﺎﻴﺒﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ ﻰﻠﻋ ﻝﺎﻌﻓ ﺭﺎﻃﺇ ﺪﺟﻮﻳ ﻻ﻿"
 
 
 msgid "Nothing selected"
 msgstr "ﺭﺎﺘﺨﻣ ءﻲﺷ ﻻ﻿"
-
-
-msgid "No active area"
-msgstr "ﺔﻟﺎﻌّﻓ ﺔﻘﻄﻨﻣ ﺪﺟﻮﺗ ﻻ﻿"
 
 
 msgid "Pin"
@@ -37508,16 +37106,16 @@ msgid "Lightness"
 msgstr "ﻉﻮﻄﺴﻟﺍ"
 
 
-msgid "Hex triplet for color (#RRGGBB)"
-msgstr "(RRGGBB#) ﻥﻮﻠﻟ ﺔﻴﻧﺎﻤﺛ ﺔﻴﺛﻼ﻿ﺛ"
-
-
 msgid "OK"
 msgstr "ﺎﻨﺴﺣ"
 
 
 msgid "Cancel"
 msgstr "ﻎﻟﺃ"
+
+
+msgid "Movie"
+msgstr "ﻢﻠﻔﻟﺍ"
 
 
 msgid "ID-Block:"
@@ -37743,6 +37341,11 @@ msgid "New"
 msgstr "ﺪﻳﺪﺟ"
 
 
+msgctxt "Image"
+msgid "New"
+msgstr "ﺪﻳﺪﺟ"
+
+
 msgctxt "Lattice"
 msgid "New"
 msgstr "ﺪﻳﺪﺟ"
@@ -37854,20 +37457,12 @@ msgid "Cannot rip selected faces"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻪﺟﻭﻷ﻿ﺍ ﻒﺧﺃ"
 
 
-msgid "Does not work in face selection mode"
-msgstr "ﻪﺟﻮﻟﺍ ﺭﺎﻴﺘﺧﺍ ﻊﺿﻭ"
-
-
 msgid "Must be in vertex selection mode"
 msgstr "ﺔﻄﻘﻨﻟﺍ ﺭﺎﻴﺘﺧﺍ ﻊﺿﻭ ﻲﻓ ﻥﻮﻜﺗ ﻥﺍ ﺐﺠﻳ"
 
 
 msgid "Invalid selection order"
 msgstr "ﺭﺎﻴﺘﺧﻺ﻿ﻟ ﺊﻃﺎﺧ ﺐﻴﺗﺮﺗ"
-
-
-msgid "Mouse path too short"
-msgstr "ﺓﺎﺷﺮﻔﻟﺍ ﺔﻧﻮﻘﻳﺍ ﻒﻠﻣ ﺭﺎﺴﻣ"
 
 
 msgid "Selection not supported in object mode"
@@ -37980,10 +37575,6 @@ msgid "Bone already has an IK constraint"
 msgstr "ﻢﻈﻌﻟﺍ ﺩﻮﻴﻗ"
 
 
-msgid "Cannot apply modifier for this object type"
-msgstr "ﻦﺋﺎﻜﻟﺍ ﺍﺬﻫ ﻦﻣ ﺦﺴﻧﺍ"
-
-
 msgid "Requires selected vertices or active vertex group"
 msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ ﻦﻣ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﻑﺬﺣﺍ"
 
@@ -38010,6 +37601,10 @@ msgstr "ﻰﻨﺤﻨﻤﻟﺍ ﻊﻳﻮﻄﺗ ﺮﻴﻐﻣ"
 
 msgid "Only deforming modifiers can be applied to shapes"
 msgstr "ﺕﺎﻴﻨﺤﻨﻤﻟﺍ ﻂﻘﻧ ﻰﻠﻋ ﻂﻘﻓ ﻖﺒﻄﻳ ﻥﺃ ﻦﻜﻤﻳ ﺮﻴﻐﻤﻟﺍ ﺍﺬﻫ"
+
+
+msgid "Cannot apply modifier for this object type"
+msgstr "ﻦﺋﺎﻜﻟﺍ ﺍﺬﻫ ﻦﻣ ﺦﺴﻧﺍ"
 
 
 msgid "Modifier cannot be applied to a mesh with shape keys"
@@ -38058,10 +37653,6 @@ msgstr "ﻂﺋﺍﺮﺸﻟﺍ ﺭﺮﺤﻤﻠﻟ ﻢﻠﻓ ﺔﺻﺎﺼﻗ ﻂ�
 
 msgid "Cannot link objects into a linked scene"
 msgstr "ﺪﻬﺸﻣ ﻲﻓ ﻦﺋﺎﻛ ﺝﺫﻮﻤﻧ"
-
-
-msgid "No active object"
-msgstr "ﻝﺎﻌﻔﻟﺍ ﻦﺋﺎﻜﻟﺍ ﻞﻴﻟﺩ"
 
 
 msgid "Cannot apply to a multi user armature"
@@ -38202,6 +37793,10 @@ msgstr "ﻞﻔﻘﻣ ﺔﻛﺮﺤﻟﺍ ﺭﺎﺴﻣ"
 
 msgid "Position:"
 msgstr ":ﻊﻗﻮﻤﻟﺍ"
+
+
+msgid "Offset:"
+msgstr ":ﺔﺣﺍﺯﺇ"
 
 
 msgid "Width:"
@@ -38406,14 +38001,6 @@ msgstr "ﺭﻮﺻ ﻊﻄﻗ ﻞﺴﻠﺴﺗ ﻦﻣ ﺕﻼ﻿ﺴﻛﻮﻓ ﺪﻴ�
 
 msgid "Cannot save multilayer sequences"
 msgstr "ﺭﻮﺻ ﻊﻄﻗ ﻞﺴﻠﺴﺗ ﻦﻣ ﺕﻼ﻿ﺴﻛﻮﻓ ﺪﻴﻟﻮﺗ"
-
-
-msgid "Unpack 1 File"
-msgstr "ﺪﺣﺍﻭ ﻒﻠﻣ ﻍﺮّﻓ"
-
-
-msgid "Unpack %d Files"
-msgstr "ﺕﺎﻔﻠﻣ %d‬‪ ﻰﻟﺇ ﻍﺮﻓ"
 
 
 msgid "Sync Length"
@@ -38677,15 +38264,6 @@ msgid "UV Vertex"
 msgstr "ﺔﻄﻘﻨﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 
-msgid "Bone Envelopes"
-msgstr "ﻢﻈﻌﻟﺍ ﺔﻔﻠﻏﺃ"
-
-
-msgctxt "Action"
-msgid "Group"
-msgstr "ﺔﻋﻮﻤﺠﻣ"
-
-
 msgid "Keying set path could not be added"
 msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺭﺎﺴﻣ"
 
@@ -38722,14 +38300,6 @@ msgid "Control point not in Envelope F-Modifier"
 msgstr "ﻲﻧﺎﻴﺒﻟﺍ ﻂﺨﻠﻟ ﺮﻴﻐﻤﻟﺍ ﻒﻠﻐﻤﻟﺎﺑ ﻢﻜﺤﺘﻟﺍ ﺔﻄﻘﻧ"
 
 
-msgid "Stroke not found in grease pencil frame"
-msgstr "ﺕﺎﻈﺣﻼ﻿ﻤﻟﺍ ﻢﻠﻗ ﻲﺗﺄﻳ ﻦﻳﺍ ﻦﻣ"
-
-
-msgid "Modify"
-msgstr "ﻝﺪﻋ"
-
-
 msgid "Image not packed"
 msgstr "ﺓﺭﻮﺼﻟﺍ ﻢﺳﺍ"
 
@@ -38749,6 +38319,10 @@ msgstr "ﻪﻨﻣ ﺕﺎﻧﺎﻴﺒﻟﺍ ﺔﻄﻘﻧ ﺬﺧﺃ ﺐﺠﻳ ﻱ�
 
 msgid "Mtex not found for this type"
 msgstr "ﺔﻘﺒﻄﻟﺍ ﻩﺬﻬﻟ ﻞﻴﺻﺎﺘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
+
+
+msgid "Modify"
+msgstr "ﻝﺪﻋ"
 
 
 msgid "Unable to create new strip"
@@ -38787,10 +38361,6 @@ msgid "Bad vertex index in list"
 msgstr "ﺎﻬﻛﺮّﺣ ﻭ ﺓﺪﻳﺪﺟ ﺔﻄﻘﻧ ﻒﺿﺃ"
 
 
-msgid "Movie"
-msgstr "ﻢﻠﻔﻟﺍ"
-
-
 msgid "Keying set could not be added"
 msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻤﻟ ﺭﺎﺘﺨﻤﻟﺍ ﻒﺿﺍ"
 
@@ -38809,6 +38379,10 @@ msgstr "ﺔﻄﺒﺗﺮﻣ ﺢﻴﺗﺎﻔﻣ ﺔﻄﻳﺮﺧ"
 
 msgid "Property value not in enumeration"
 msgstr "ﺔﻤﺴﻟﺍ ﺔﻤﻴﻗ ﻞﻳﺪﻌﺗ"
+
+
+msgid "Bone Envelopes"
+msgstr "ﻢﻈﻌﻟﺍ ﺔﻔﻠﻏﺃ"
 
 
 msgid "Settings are inside the Physics tab"
@@ -38837,6 +38411,10 @@ msgstr "ﻞﻣﺎﻌﻤﻟﺍ"
 
 msgid "Bright"
 msgstr "ﺮﻴﻨﻣ"
+
+
+msgid "Layer:"
+msgstr ":ﺔﻘﺒﻃ"
 
 
 msgid "Dot"
@@ -39145,6 +38723,10 @@ msgstr "‬%s‬ '‪%s‬': ‪%s‪ ﺓءﺍﺮﻗ ﻦﻜﻤﻳ ﻻ﻿"
 
 msgid "%s '%s' not found"
 msgstr "‪%s‬ '‪%s‬' ﺩﻮﺟﻮﻣ ﺮﻴﻏ"
+
+
+msgid "Pose Library"
+msgstr "ﺕﺎﻔﻗﻮﻟﺍ ﺔﺒﺘﻜﻣ"
 
 
 msgid "All Add-ons"

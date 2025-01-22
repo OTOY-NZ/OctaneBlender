@@ -14,7 +14,7 @@
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
@@ -354,7 +354,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeIndexSwitch &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeIndexSwitch>(__func__, src_storage);
+  auto *dst_storage = MEM_cnew<NodeIndexSwitch>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<IndexSwitchItemsAccessor>(*src_node, *dst_node);
@@ -379,7 +379,7 @@ static void register_node()
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

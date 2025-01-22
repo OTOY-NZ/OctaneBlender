@@ -43,7 +43,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h" /* For `intptr_t` support. */
@@ -602,7 +602,7 @@ int BLI_access(const char *filepath, int mode)
   return uaccess(filepath, mode);
 }
 
-static bool delete_soft(const wchar_t *path_16, const char **error_message)
+static bool delete_soft(const wchar_t *path_16, const char **r_error_message)
 {
   /* Deletes file or directory to recycling bin. The latter moves all contained files and
    * directories recursively to the recycling bin as well. */
@@ -635,30 +635,30 @@ static bool delete_soft(const wchar_t *path_16, const char **error_message)
             hr = pfo->PerformOperations();
 
             if (FAILED(hr)) {
-              *error_message = "Failed to prepare delete operation";
+              *r_error_message = "Failed to prepare delete operation";
             }
           }
           else {
-            *error_message = "Failed to prepare delete operation";
+            *r_error_message = "Failed to prepare delete operation";
           }
           psi->Release();
         }
         else {
-          *error_message = "Failed to parse path";
+          *r_error_message = "Failed to parse path";
         }
       }
       else {
-        *error_message = "Failed to set operation flags";
+        *r_error_message = "Failed to set operation flags";
       }
       pfo->Release();
     }
     else {
-      *error_message = "Failed to create FileOperation instance";
+      *r_error_message = "Failed to create FileOperation instance";
     }
     CoUninitialize();
   }
   else {
-    *error_message = "Failed to initialize COM";
+    *r_error_message = "Failed to initialize COM";
   }
 
   return FAILED(hr);
@@ -750,7 +750,7 @@ int BLI_delete(const char *path, bool dir, bool recursive)
 /**
  * Moves the files or directories to the recycling bin.
  */
-int BLI_delete_soft(const char *file, const char **error_message)
+int BLI_delete_soft(const char *file, const char **r_error_message)
 {
   int err;
 
@@ -758,7 +758,7 @@ int BLI_delete_soft(const char *file, const char **error_message)
 
   UTF16_ENCODE(file);
 
-  err = delete_soft(file_16, error_message);
+  err = delete_soft(file_16, r_error_message);
 
   UTF16_UN_ENCODE(file);
 
@@ -1158,117 +1158,6 @@ static int delete_single_file(const char *from, const char * /*to*/)
   return RecursiveOp_Callback_OK;
 }
 
-#  ifdef __APPLE__
-static int delete_soft(const char *filepath, const char **error_message)
-{
-  int ret = -1;
-
-  Class NSAutoreleasePoolClass = objc_getClass("NSAutoreleasePool");
-  SEL allocSel = sel_registerName("alloc");
-  SEL initSel = sel_registerName("init");
-  id poolAlloc = ((id(*)(Class, SEL))objc_msgSend)(NSAutoreleasePoolClass, allocSel);
-  id pool = ((id(*)(id, SEL))objc_msgSend)(poolAlloc, initSel);
-
-  Class NSStringClass = objc_getClass("NSString");
-  SEL stringWithUTF8StringSel = sel_registerName("stringWithUTF8String:");
-  id pathString = ((id(*)(Class, SEL, const char *))objc_msgSend)(
-      NSStringClass, stringWithUTF8StringSel, filepath);
-
-  Class NSFileManagerClass = objc_getClass("NSFileManager");
-  SEL defaultManagerSel = sel_registerName("defaultManager");
-  id fileManager = ((id(*)(Class, SEL))objc_msgSend)(NSFileManagerClass, defaultManagerSel);
-
-  Class NSURLClass = objc_getClass("NSURL");
-  SEL fileURLWithPathSel = sel_registerName("fileURLWithPath:");
-  id nsurl = ((id(*)(Class, SEL, id))objc_msgSend)(NSURLClass, fileURLWithPathSel, pathString);
-
-  SEL trashItemAtURLSel = sel_registerName("trashItemAtURL:resultingItemURL:error:");
-  BOOL deleteSuccessful = ((BOOL(*)(id, SEL, id, id, id))objc_msgSend)(
-      fileManager, trashItemAtURLSel, nsurl, nil, nil);
-
-  if (deleteSuccessful) {
-    ret = 0;
-  }
-  else {
-    *error_message = "The Cocoa API call to delete file or directory failed";
-  }
-
-  SEL drainSel = sel_registerName("drain");
-  ((void (*)(id, SEL))objc_msgSend)(pool, drainSel);
-
-  return ret;
-}
-#  else
-static int delete_soft(const char *filepath, const char **error_message)
-{
-  const char *args[5];
-  const char *process_failed;
-
-  /* May contain `:` delimiter characters according to version 1.5 of the spec:
-   * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
-  const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP");
-  const char *xdg_session_desktop = getenv("XDG_SESSION_DESKTOP");
-
-  if ((xdg_current_desktop && BLI_string_elem_split_by_delim(xdg_current_desktop, ':', "KDE")) ||
-      (xdg_session_desktop && STREQ(xdg_session_desktop, "KDE")))
-  {
-    args[0] = "kioclient5";
-    args[1] = "move";
-    args[2] = filepath;
-    args[3] = "trash:/";
-    args[4] = nullptr;
-    process_failed = "kioclient5 reported failure";
-  }
-  else {
-    args[0] = "gio";
-    args[1] = "trash";
-    args[2] = filepath;
-    args[3] = nullptr;
-    process_failed = "gio reported failure";
-  }
-
-  errno = 0;
-  int pid = fork();
-  if (UNLIKELY(pid == -1)) {
-    *error_message = errno ? strerror(errno) : "unable to fork process";
-    return -1;
-  }
-
-  if (pid != 0) {
-    /* Parent process. */
-    int wstatus = 0;
-
-    waitpid(pid, &wstatus, 0);
-
-    if (!WIFEXITED(wstatus)) {
-      *error_message =
-          "Blender may not support moving files or directories to trash on your system.";
-      return -1;
-    }
-    if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus)) {
-      *error_message = process_failed;
-      return -1;
-    }
-
-    return 0;
-  }
-
-  const int status = execvp(args[0], (char **)args);
-
-  /* Ensure outputs are flushed as `_exit` doesn't flush. */
-  fflush(stdout);
-  fflush(stderr);
-
-  /* This should only be reached if `execvp` fails and stack isn't replaced. */
-  /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
-  _exit(status);
-
-  BLI_assert_unreachable();
-
-  return -1;
-}
-#  endif
-
 FILE *BLI_fopen(const char *filepath, const char *mode)
 {
   BLI_assert(!BLI_path_is_rel(filepath));
@@ -1312,12 +1201,92 @@ int BLI_delete(const char *path, bool dir, bool recursive)
   return remove(path);
 }
 
-int BLI_delete_soft(const char *filepath, const char **error_message)
+/* Apple version is defined in fileops_apple.mm */
+#  ifndef __APPLE__
+int BLI_delete_soft(const char *filepath, const char **r_error_message)
 {
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  return delete_soft(filepath, error_message);
+  const char *args[5];
+  const char *process_failed;
+
+  /* May contain `:` delimiter characters according to version 1.5 of the spec:
+   * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
+  const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP");
+  const char *xdg_session_desktop = getenv("XDG_SESSION_DESKTOP");
+
+  if ((xdg_current_desktop && BLI_string_elem_split_by_delim(xdg_current_desktop, ':', "KDE")) ||
+      (xdg_session_desktop && STREQ(xdg_session_desktop, "KDE")))
+  {
+    args[0] = "kioclient5";
+    args[1] = "move";
+    args[2] = filepath;
+    args[3] = "trash:/";
+    args[4] = nullptr;
+    process_failed = "kioclient5 reported failure";
+  }
+  else {
+    args[0] = "gio";
+    args[1] = "trash";
+    args[2] = filepath;
+    args[3] = nullptr;
+    process_failed = "gio reported failure";
+  }
+
+  /* Restore when there are no errors. */
+  const int errno_prev = errno;
+  errno = 0;
+
+  int pid = fork();
+  if (UNLIKELY(pid == -1)) {
+    *r_error_message = errno ? strerror(errno) : "unable to fork process";
+    return -1;
+  }
+
+  if (pid == 0) {
+    /* Child process. */
+    execvp(args[0], (char **)args);
+    /* This should only be reached if `execvp` fails and stack isn't replaced. */
+
+    /* Ensure outputs are flushed as `_exit` doesn't flush. */
+    fflush(stdout);
+    fflush(stderr);
+
+    /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
+    _exit(errno);
+    BLI_assert_unreachable();
+    return -1;
+  }
+
+  /* Parent process. */
+  int wstatus = 0;
+  waitpid(pid, &wstatus, 0);
+
+  int result = 0; /* Success. */
+  if (WIFEXITED(wstatus)) {
+    const int errno_child = WEXITSTATUS(wstatus);
+    if (errno_child) {
+      *r_error_message = process_failed;
+      result = -1;
+
+      /* Forward to the error so the caller may set the message. */
+      errno = errno_child;
+    }
+  }
+  else {
+    *r_error_message =
+        "Blender may not support moving files or directories to trash on your system.";
+    result = -1;
+  }
+
+  if (result == 0) {
+    /* Only overwrite the value if there was an error. */
+    errno = errno_prev;
+  }
+
+  return result;
 }
+#  endif
 
 /**
  * Do the two paths denote the same file-system object?

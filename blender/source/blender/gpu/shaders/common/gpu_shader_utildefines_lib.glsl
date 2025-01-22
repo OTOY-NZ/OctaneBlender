@@ -77,29 +77,39 @@ void set_flag_from_test(inout int value, bool test, int flag)
 #define SET_FLAG_FROM_TEST(value, test, flag) set_flag_from_test(value, test, flag)
 
 /**
+ * Return true if the bit inside bitmask at bit_index is set high.
+ * Assume the lower bits are inside first component of bitmask,
+ */
+bool bitmask64_test(uvec2 bitmask, uint bit_index)
+{
+  uint bitmask32 = (bit_index >= 32u) ? bitmask.y : bitmask.x;
+  return flag_test(bitmask32, 1u << (bit_index & 0x1Fu));
+}
+
+/**
  * Pack two 16-bit uint into one 32-bit uint.
  */
-uint packUvec2x16(uvec2 data)
+uint packUvec2x16(uvec2 a)
 {
-  data = (data & 0xFFFFu) << uvec2(0u, 16u);
-  return data.x | data.y;
+  a = (a & 0xFFFFu) << uvec2(0u, 16u);
+  return a.x | a.y;
 }
-uvec2 unpackUvec2x16(uint data)
+uvec2 unpackUvec2x16(uint a)
 {
-  return (uvec2(data) >> uvec2(0u, 16u)) & uvec2(0xFFFFu);
+  return (uvec2(a) >> uvec2(0u, 16u)) & uvec2(0xFFFFu);
 }
 
 /**
  * Pack four 8-bit uint into one 32-bit uint.
  */
-uint packUvec4x8(uvec4 data)
+uint packUvec4x8(uvec4 a)
 {
-  data = (data & 0xFFu) << uvec4(0u, 8u, 16u, 24u);
-  return data.x | data.y | data.z | data.w;
+  a = (a & 0xFFu) << uvec4(0u, 8u, 16u, 24u);
+  return a.x | a.y | a.z | a.w;
 }
-uvec4 unpackUvec4x8(uint data)
+uvec4 unpackUvec4x8(uint a)
 {
-  return (uvec4(data) >> uvec4(0u, 8u, 16u, 24u)) & uvec4(0xFFu);
+  return (uvec4(a) >> uvec4(0u, 8u, 16u, 24u)) & uvec4(0xFFu);
 }
 
 /**

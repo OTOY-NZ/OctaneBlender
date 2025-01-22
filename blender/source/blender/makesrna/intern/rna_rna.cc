@@ -66,34 +66,36 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"}
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ITEMS \
-  {PROP_PIXEL, "PIXEL", 0, "Pixel", ""}, \
+  {PROP_PIXEL, "PIXEL", 0, "Pixel", "A distance on screen"}, \
   {PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""}, \
-  {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""}, \
-  {PROP_FACTOR, "FACTOR", 0, "Factor", ""}, \
-  {PROP_ANGLE, "ANGLE", 0, "Angle", ""}, \
+  {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", "A percentage between 0 and 100"}, \
+  {PROP_FACTOR, "FACTOR", 0, "Factor", "A factor between 0.0 and 1.0"}, \
+  {PROP_ANGLE, "ANGLE", 0, "Angle", "A rotational value specified in radians"}, \
   {PROP_TIME, "TIME", 0, "Time (Scene Relative)", \
    "Time specified in frames, converted to seconds based on scene frame rate"}, \
   {PROP_TIME_ABSOLUTE, "TIME_ABSOLUTE", 0, "Time (Absolute)", \
    "Time specified in seconds, independent of the scene"}, \
-  {PROP_DISTANCE, "DISTANCE", 0, "Distance", ""}, \
+  {PROP_DISTANCE, "DISTANCE", 0, "Distance", "A distance between two points"}, \
   {PROP_DISTANCE_CAMERA, "DISTANCE_CAMERA", 0, "Camera Distance", ""}, \
   {PROP_POWER, "POWER", 0, "Power", ""}, \
   {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""}, \
-  {PROP_WAVELENGTH, "WAVELENGTH", 0, "Wavelength", ""}
+  {PROP_WAVELENGTH, "WAVELENGTH", 0, "Wavelength", ""}, \
+  {PROP_COLOR_TEMPERATURE, "COLOR_TEMPERATURE", 0, "Color Temperature", ""}, \
+  {PROP_FREQUENCY, "FREQUENCY", 0, "Frequency", ""}
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ARRAY_ITEMS \
-  {PROP_COLOR, "COLOR", 0, "Color", ""}, \
-  {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", ""}, \
+  {PROP_COLOR, "COLOR", 0, "Linear Color", "Color in the linear space"}, \
+  {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", "Color in the gamma corrected space"}, \
   {PROP_DIRECTION, "DIRECTION", 0, "Direction", ""}, \
   {PROP_VELOCITY, "VELOCITY", 0, "Velocity", ""}, \
   {PROP_ACCELERATION, "ACCELERATION", 0, "Acceleration", ""}, \
   {PROP_MATRIX, "MATRIX", 0, "Matrix", ""}, \
-  {PROP_EULER, "EULER", 0, "Euler Angles", ""}, \
-  {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", ""}, \
-  {PROP_AXISANGLE, "AXISANGLE", 0, "Axis-Angle", ""}, \
+  {PROP_EULER, "EULER", 0, "Euler Angles", "Euler rotation angles in radians"}, \
+  {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Quaternion rotation (affects NLA blending)"}, \
+  {PROP_AXISANGLE, "AXISANGLE", 0, "Axis-Angle", "Angle and axis to rotate around"}, \
   {PROP_XYZ, "XYZ", 0, "XYZ", ""}, \
   {PROP_XYZ_LENGTH, "XYZ_LENGTH", 0, "XYZ Length", ""}, \
-  {PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Color", ""}, \
+  {PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Gamma-Corrected Color", ""}, \
   {PROP_COORDS, "COORDINATES", 0, "Coordinates", ""}, \
   /* Boolean. */ \
   {PROP_LAYER, "LAYER", 0, "Layer", ""}, \
@@ -152,22 +154,24 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
     {PROP_UNIT_POWER, "POWER", 0, "Power", ""},
     {PROP_UNIT_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {PROP_UNIT_WAVELENGTH, "WAVELENGTH", 0, "Wavelength", ""},
+    {PROP_UNIT_COLOR_TEMPERATURE, "COLOR_TEMPERATURE", 0, "Color Temperature", ""},
+    {PROP_UNIT_FREQUENCY, "FREQUENCY", 0, "Frequency", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 /* Descriptions for rna_enum_property_flag_items and rna_enum_property_flag_enum_items. */
 static constexpr auto PROP_HIDDEN_DESCR =
     "For operators: hide from places in the user interface where Blender would add the property "
-    "automatically, like Adjust Last Operation. Also this property is not written to presets";
+    "automatically, like Adjust Last Operation. Also this property is not written to presets.";
 static constexpr auto PROP_SKIP_SAVE_DESCR =
     "For operators: the value of this property will not be remembered between invocations of the "
     "operator; instead, each invocation will start by using the default value. Also this "
-    "property is not written to presets";
+    "property is not written to presets.";
 static constexpr auto PROP_SKIP_PRESET_DESCR = "Do not write in presets";
 static constexpr auto PROP_ANIMATABLE_DESCR = "";
 static constexpr auto PROP_LIB_EXCEPTION_DESCR =
     "This property can be edited, even when it is used on linked data (which normally is "
-    "read-only). Note that edits to the property will not be saved to the blend file";
+    "read-only). Note that edits to the property will not be saved to the blend file.";
 static constexpr auto PROP_PROPORTIONAL_DESCR = "";
 static constexpr auto PROP_TEXTEDIT_UPDATE_DESCR = "";
 static constexpr auto PROP_PATH_OUTPUT_DESCR = "";
@@ -203,21 +207,22 @@ const EnumPropertyItem rna_enum_property_flag_enum_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem rna_enum_property_item_library_overridable{
+    PROPOVERRIDE_OVERRIDABLE_LIBRARY,
+    "LIBRARY_OVERRIDABLE",
+    0,
+    "Library Overridable",
+    "Make that property editable in library overrides of linked data-blocks.\n"
+    "NOTE: For a property to be overridable, its whole chain of parent properties must also be "
+    "defined as overridable"};
+
 const EnumPropertyItem rna_enum_property_override_flag_items[] = {
-    {PROPOVERRIDE_OVERRIDABLE_LIBRARY,
-     "LIBRARY_OVERRIDABLE",
-     0,
-     "Library Overridable",
-     "Make that property editable in library overrides of linked data-blocks"},
+    rna_enum_property_item_library_overridable,
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_property_override_flag_collection_items[] = {
-    {PROPOVERRIDE_OVERRIDABLE_LIBRARY,
-     "LIBRARY_OVERRIDABLE",
-     0,
-     "Library Overridable",
-     "Make that property editable in library overrides of linked data-blocks"},
+    rna_enum_property_item_library_overridable,
     {PROPOVERRIDE_NO_PROP_NAME,
      "NO_PROPERTY_NAME",
      0,
@@ -328,13 +333,17 @@ static bool rna_idproperty_known(CollectionPropertyIterator *iter, void *data)
   PropertyRNA *prop;
   StructRNA *ptype = iter->builtin_parent.type;
 
-  /* function to skip any id properties that are already known by RNA,
-   * for the second loop where we go over unknown id properties */
+  /* Function to skip any id properties that are already known by RNA,
+   * for the second loop where we go over unknown id properties.
+   *
+   * Note that only dynamically-defined RNA properties (the ones actually using IDProperties as
+   * storage back-end) should be checked here. If a custom property is named the same as a 'normal'
+   * RNA property, they are different data. */
   do {
     for (prop = static_cast<PropertyRNA *>(ptype->cont.properties.first); prop; prop = prop->next)
     {
       if ((prop->flag_internal & PROP_INTERN_BUILTIN) == 0 &&
-          STREQ(prop->identifier, idprop->name))
+          (prop->flag & PROP_IDPROPERTY) != 0 && STREQ(prop->identifier, idprop->name))
       {
         return true;
       }
@@ -1582,8 +1591,8 @@ static void rna_property_override_diff_propptr(Main *bmain,
                * liboverride is not matching its reference anymore. */
               opop->flag &= ~LIBOVERRIDE_OP_FLAG_IDPOINTER_MATCH_REFERENCE;
             }
-            else if ((owner_id_a->tag & LIB_TAG_LIBOVERRIDE_NEED_RESYNC) != 0 ||
-                     (owner_id_b->tag & LIB_TAG_LIBOVERRIDE_NEED_RESYNC) != 0)
+            else if ((owner_id_a->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) != 0 ||
+                     (owner_id_b->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) != 0)
             {
               /* In case one of the owner of the checked property is tagged as needing resync, do
                * not change the 'match reference' status of its ID pointer properties overrides,
@@ -2110,7 +2119,7 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
       {
         CLOG_ERROR(&LOG_COMPARE_OVERRIDE,
                    "RNA collection '%s' defined as supporting liboverride insertion of items, but "
-                   "no liboverride apply callback defined for it. No insertion will hapen.",
+                   "no liboverride apply callback defined for it. No insertion will happen.",
                    rna_path);
       }
 
@@ -3489,7 +3498,7 @@ static void rna_def_number_property(StructRNA *srna, PropertyType type)
                              "Precision",
                              "Number of digits after the dot used by buttons. Fraction is "
                              "automatically hidden for exact integer values of fields with unit "
-                             "'NONE' or 'TIME' (frame count) and step divisible by 100");
+                             "'NONE' or 'TIME' (frame count) and step divisible by 100.");
   }
 }
 
@@ -3585,7 +3594,7 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
       prop,
       "Static Items with UI Elements",
       "Possible values for the property (never calls optional dynamic generation of those). "
-      "Includes UI elements (separators and section headings)");
+      "Includes UI elements (separators and section headings).");
 
   srna = RNA_def_struct(brna, "EnumPropertyItem", nullptr);
   RNA_def_struct_ui_text(

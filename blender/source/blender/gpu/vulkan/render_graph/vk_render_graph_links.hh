@@ -50,6 +50,16 @@ struct VKRenderGraphLink {
    * Which aspect of the image is being used.
    */
   VkImageAspectFlags vk_image_aspect = VK_IMAGE_ASPECT_NONE;
+
+  /**
+   * The layers to bind.
+   *
+   * Used when layer_tracking will be enabled to transit the layout of these layers only.
+   */
+  uint32_t layer_base = 0;
+  uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS;
+
+  void debug_print(std::ostream &ss, const VKResourceStateTracker &resources) const;
 };
 
 /**
@@ -60,6 +70,8 @@ struct VKRenderGraphNodeLinks {
   Vector<VKRenderGraphLink> inputs;
   /** All links to resources that a node writes to. */
   Vector<VKRenderGraphLink> outputs;
+
+  void debug_print(const VKResourceStateTracker &resources) const;
 };
 
 }  // namespace blender::gpu::render_graph

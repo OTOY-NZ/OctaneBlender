@@ -11,14 +11,17 @@ set(INC
   ../../blentranslation
   ../../bmesh
   ../../draw
+  ../../functions
   ../../gpu
   ../../imbuf
   ../../makesrna
+  ../../modifiers
+  ../../nodes
   ../../render
   ../../windowmanager
   ../../../../intern/mantaflow/extern
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -38,6 +41,7 @@ set(SRC
   view3d_gizmo_camera.cc
   view3d_gizmo_empty.cc
   view3d_gizmo_forcefield.cc
+  view3d_gizmo_geometry_nodes.cc
   view3d_gizmo_light.cc
   view3d_gizmo_navigate.cc
   view3d_gizmo_navigate_type.cc
@@ -104,5 +108,5 @@ endif()
 
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_space_view3d bf_rna)

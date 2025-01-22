@@ -31,7 +31,7 @@
 #  include "BLI_vector.hh"
 
 #  include "BKE_global.hh"
-#  include "BKE_image.h"
+#  include "BKE_image.hh"
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_sound.h"
@@ -63,7 +63,8 @@ struct StampData;
 constexpr int64_t swscale_cache_max_entries = 32;
 
 struct SwscaleContext {
-  int width = 0, height = 0;
+  int src_width = 0, src_height = 0;
+  int dst_width = 0, dst_height = 0;
   AVPixelFormat src_format = AV_PIX_FMT_NONE, dst_format = AV_PIX_FMT_NONE;
   int flags = 0;
 
@@ -699,8 +700,13 @@ static const AVCodec *get_av1_encoder(
   return codec;
 }
 
-static SwsContext *sws_create_context(
-    int width, int height, int av_src_format, int av_dst_format, int sws_flags)
+static SwsContext *sws_create_context(int src_width,
+                                      int src_height,
+                                      int av_src_format,
+                                      int dst_width,
+                                      int dst_height,
+                                      int av_dst_format,
+                                      int sws_flags)
 {
 #  if defined(FFMPEG_SWSCALE_THREADING)
   /* sws_getContext does not allow passing flags that ask for multi-threaded
@@ -709,11 +715,11 @@ static SwsContext *sws_create_context(
   if (c == nullptr) {
     return nullptr;
   }
-  av_opt_set_int(c, "srcw", width, 0);
-  av_opt_set_int(c, "srch", height, 0);
+  av_opt_set_int(c, "srcw", src_width, 0);
+  av_opt_set_int(c, "srch", src_height, 0);
   av_opt_set_int(c, "src_format", av_src_format, 0);
-  av_opt_set_int(c, "dstw", width, 0);
-  av_opt_set_int(c, "dsth", height, 0);
+  av_opt_set_int(c, "dstw", dst_width, 0);
+  av_opt_set_int(c, "dsth", dst_height, 0);
   av_opt_set_int(c, "dst_format", av_dst_format, 0);
   av_opt_set_int(c, "sws_flags", sws_flags, 0);
   av_opt_set_int(c, "threads", BLI_system_thread_count(), 0);
@@ -723,11 +729,11 @@ static SwsContext *sws_create_context(
     return nullptr;
   }
 #  else
-  SwsContext *c = sws_getContext(width,
-                                 height,
+  SwsContext *c = sws_getContext(src_width,
+                                 src_height,
                                  AVPixelFormat(av_src_format),
-                                 width,
-                                 height,
+                                 dst_width,
+                                 dst_height,
                                  AVPixelFormat(av_dst_format),
                                  sws_flags,
                                  nullptr,
@@ -782,8 +788,13 @@ static void maintain_swscale_cache_size()
   }
 }
 
-SwsContext *BKE_ffmpeg_sws_get_context(
-    int width, int height, int av_src_format, int av_dst_format, int sws_flags)
+SwsContext *BKE_ffmpeg_sws_get_context(int src_width,
+                                       int src_height,
+                                       int av_src_format,
+                                       int dst_width,
+                                       int dst_height,
+                                       int av_dst_format,
+                                       int sws_flags)
 {
   BLI_mutex_lock(&swscale_cache_lock);
 
@@ -794,7 +805,8 @@ SwsContext *BKE_ffmpeg_sws_get_context(
   /* Search for unused context that has suitable parameters. */
   SwsContext *ctx = nullptr;
   for (SwscaleContext &c : *swscale_cache) {
-    if (!c.is_used && c.width == width && c.height == height && c.src_format == av_src_format &&
+    if (!c.is_used && c.src_width == src_width && c.src_height == src_height &&
+        c.src_format == av_src_format && c.dst_width == dst_width && c.dst_height == dst_height &&
         c.dst_format == av_dst_format && c.flags == sws_flags)
     {
       ctx = c.context;
@@ -806,10 +818,13 @@ SwsContext *BKE_ffmpeg_sws_get_context(
   }
   if (ctx == nullptr) {
     /* No free matching context in cache: create a new one. */
-    ctx = sws_create_context(width, height, av_src_format, av_dst_format, sws_flags);
+    ctx = sws_create_context(
+        src_width, src_height, av_src_format, dst_width, dst_height, av_dst_format, sws_flags);
     SwscaleContext c;
-    c.width = width;
-    c.height = height;
+    c.src_width = src_width;
+    c.src_height = src_height;
+    c.dst_width = dst_width;
+    c.dst_height = dst_height;
     c.src_format = AVPixelFormat(av_src_format);
     c.dst_format = AVPixelFormat(av_dst_format);
     c.flags = sws_flags;
@@ -1107,7 +1122,7 @@ static AVStream *alloc_video_stream(FFMpegContext *context,
     /* Output pixel format is different, allocate frame for conversion. */
     context->img_convert_frame = alloc_picture(AV_PIX_FMT_RGBA, c->width, c->height);
     context->img_convert_ctx = BKE_ffmpeg_sws_get_context(
-        c->width, c->height, AV_PIX_FMT_RGBA, c->pix_fmt, SWS_BICUBIC);
+        c->width, c->height, AV_PIX_FMT_RGBA, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
   }
 
   avcodec_parameters_from_context(st->codecpar, c);

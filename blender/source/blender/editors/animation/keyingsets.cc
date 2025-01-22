@@ -1082,25 +1082,28 @@ static int insert_key_to_keying_set_path(bContext *C,
   CombinedKeyingResult combined_result;
   for (; array_index < array_length; array_index++) {
     if (mode == ModifyKeyMode::INSERT) {
-      CombinedKeyingResult result = insert_keyframe(bmain,
-                                                    *keyingset_path->id,
-                                                    groupname,
-                                                    keyingset_path->rna_path,
-                                                    array_index,
-                                                    &anim_eval_context,
-                                                    keytype,
-                                                    path_insert_key_flags);
+      const std::optional<blender::StringRefNull> group = groupname ? std::optional(groupname) :
+                                                                      std::nullopt;
+      const std::optional<int> index = array_index >= 0 ? std::optional(array_index) :
+                                                          std::nullopt;
+      PointerRNA id_rna_pointer = RNA_id_pointer_create(keyingset_path->id);
+      CombinedKeyingResult result = insert_keyframes(bmain,
+                                                     &id_rna_pointer,
+                                                     group,
+                                                     {{keyingset_path->rna_path, {}, index}},
+                                                     std::nullopt,
+                                                     anim_eval_context,
+                                                     keytype,
+                                                     path_insert_key_flags);
       keyed_channels += result.get_count(SingleKeyingResult::SUCCESS);
       combined_result.merge(result);
     }
     else if (mode == ModifyKeyMode::DELETE) {
-      keyed_channels += delete_keyframe(bmain,
-                                        reports,
-                                        keyingset_path->id,
-                                        nullptr,
-                                        keyingset_path->rna_path,
-                                        array_index,
-                                        frame);
+      RNAPath rna_path = {keyingset_path->rna_path, std::nullopt, array_index};
+      if (array_index < 0) {
+        rna_path.index = std::nullopt;
+      }
+      keyed_channels += delete_keyframe(bmain, reports, keyingset_path->id, rna_path, frame);
     }
   }
 

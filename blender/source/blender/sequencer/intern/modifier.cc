@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Authors
+/* SPDX-FileCopyrightText: 2012-2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,9 +11,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -37,6 +41,8 @@
 #include "BLO_read_write.hh"
 
 #include "render.hh"
+
+using namespace blender;
 
 static SequenceModifierTypeInfo *modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES];
 static bool modifierTypesInit = false;
@@ -202,7 +208,7 @@ static void modifier_apply_threaded(ImBuf *ibuf,
 /** \name Color Balance Modifier
  * \{ */
 
-static StripColorBalance calc_cb_lgg(StripColorBalance *cb_)
+static StripColorBalance calc_cb_lgg(const StripColorBalance *cb_)
 {
   StripColorBalance cb = *cb_;
   int c;
@@ -248,7 +254,7 @@ static StripColorBalance calc_cb_lgg(StripColorBalance *cb_)
   return cb;
 }
 
-static StripColorBalance calc_cb_sop(StripColorBalance *cb_)
+static StripColorBalance calc_cb_sop(const StripColorBalance *cb_)
 {
   StripColorBalance cb = *cb_;
   int c;
@@ -283,7 +289,7 @@ static StripColorBalance calc_cb_sop(StripColorBalance *cb_)
   return cb;
 }
 
-static StripColorBalance calc_cb(StripColorBalance *cb_)
+static StripColorBalance calc_cb(const StripColorBalance *cb_)
 {
   if (cb_->method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
     return calc_cb_lgg(cb_);
@@ -292,8 +298,8 @@ static StripColorBalance calc_cb(StripColorBalance *cb_)
   return calc_cb_sop(cb_);
 }
 
-/* NOTE: lift is actually 2-lift. */
-MINLINE float color_balance_fl_lgg(
+/* Lift-Gamma-Gain math. NOTE: lift is actually (2-lift). */
+static float color_balance_lgg(
     float in, const float lift, const float gain, const float gamma, const float mul)
 {
   float x = (((in - 1.0f) * lift) + 1.0f) * gain;
@@ -308,12 +314,9 @@ MINLINE float color_balance_fl_lgg(
   return x;
 }
 
-MINLINE float color_balance_fl_sop(float in,
-                                   const float slope,
-                                   const float offset,
-                                   const float power,
-                                   const float pivot,
-                                   float mul)
+/* Slope-Offset-Power (ASC CDL) math, see https://en.wikipedia.org/wiki/ASC_CDL */
+static float color_balance_sop(
+    float in, const float slope, const float offset, const float power, float mul)
 {
   float x = in * slope + offset;
 
@@ -322,265 +325,155 @@ MINLINE float color_balance_fl_sop(float in,
     x = 0.0f;
   }
 
-  x = powf(x / pivot, power) * pivot;
+  x = powf(x, power);
   x *= mul;
   CLAMP(x, FLT_MIN, FLT_MAX);
   return x;
 }
 
-static void make_cb_table_float_lgg(float lift, float gain, float gamma, float *table, float mul)
-{
-  for (int y = 0; y < 256; y++) {
-    float v = color_balance_fl_lgg(float(y) * (1.0f / 255.0f), lift, gain, gamma, mul);
+/**
+ * Use a larger lookup table than 256 possible byte values: due to alpha
+ * pre-multiplication, dark values with low alphas might need more precision.
+ */
+static constexpr int CB_TABLE_SIZE = 1024;
 
-    table[y] = v;
+static void make_cb_table_lgg(
+    float lift, float gain, float gamma, float mul, float r_table[CB_TABLE_SIZE])
+{
+  for (int i = 0; i < CB_TABLE_SIZE; i++) {
+    float x = float(i) * (1.0f / (CB_TABLE_SIZE - 1.0f));
+    r_table[i] = color_balance_lgg(x, lift, gain, gamma, mul);
   }
 }
 
-static void make_cb_table_float_sop(
-    float slope, float offset, float power, float pivot, float *table, float mul)
+static void make_cb_table_sop(
+    float slope, float offset, float power, float mul, float r_table[CB_TABLE_SIZE])
 {
-  for (int y = 0; y < 256; y++) {
-    float v = color_balance_fl_sop(float(y) * (1.0f / 255.0f), slope, offset, power, pivot, mul);
-
-    table[y] = v;
+  for (int i = 0; i < CB_TABLE_SIZE; i++) {
+    float x = float(i) * (1.0f / (CB_TABLE_SIZE - 1.0f));
+    r_table[i] = color_balance_sop(x, slope, offset, power, mul);
   }
 }
 
-static void color_balance_byte_byte(
-    StripColorBalance *cb_, uchar *rect, const uchar *mask_rect, int width, int height, float mul)
+static void color_balance_byte(const float cb_tab[3][CB_TABLE_SIZE],
+                               uchar *rect,
+                               const uchar *mask_rect,
+                               int width,
+                               int height)
 {
-  // uchar cb_tab[3][256];
-  uchar *cp = rect;
-  uchar *e = cp + width * 4 * height;
-  const uchar *m = mask_rect;
+  uchar *ptr = rect;
+  const uchar *ptr_end = ptr + int64_t(width) * height * 4;
+  const uchar *mask_ptr = mask_rect;
 
-  StripColorBalance cb = calc_cb(cb_);
+  if (mask_ptr != nullptr) {
+    /* Mask is used.*/
+    while (ptr < ptr_end) {
+      float pix[4];
+      straight_uchar_to_premul_float(pix, ptr);
 
-  while (cp < e) {
-    float p[4];
-    int c;
+      int p0 = int(pix[0] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      int p1 = int(pix[1] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      int p2 = int(pix[2] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      const float t[3] = {mask_ptr[0] / 255.0f, mask_ptr[1] / 255.0f, mask_ptr[2] / 255.0f};
 
-    straight_uchar_to_premul_float(p, cp);
+      pix[0] = pix[0] * (1.0f - t[0]) + t[0] * cb_tab[0][p0];
+      pix[1] = pix[1] * (1.0f - t[1]) + t[1] * cb_tab[1][p1];
+      pix[2] = pix[2] * (1.0f - t[2]) + t[2] * cb_tab[2][p2];
 
-    for (c = 0; c < 3; c++) {
-      float t;
-      if (cb.method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
-        t = color_balance_fl_lgg(p[c], cb.lift[c], cb.gain[c], cb.gamma[c], mul);
-      }
-      else {
-        t = color_balance_fl_sop(p[c], cb.slope[c], cb.offset[c], cb.power[c], 1.0, mul);
-      }
-
-      if (m) {
-        float m_normal = float(m[c]) / 255.0f;
-
-        p[c] = p[c] * (1.0f - m_normal) + t * m_normal;
-      }
-      else {
-        p[c] = t;
-      }
-    }
-
-    premul_float_to_straight_uchar(cp, p);
-
-    cp += 4;
-    if (m) {
-      m += 4;
-    }
-  }
-}
-
-static void color_balance_byte_float(StripColorBalance *cb_,
-                                     uchar *rect,
-                                     float *rect_float,
-                                     const uchar *mask_rect,
-                                     int width,
-                                     int height,
-                                     float mul)
-{
-  float cb_tab[4][256];
-  int c, i;
-  uchar *p = rect;
-  uchar *e = p + width * 4 * height;
-  const uchar *m = mask_rect;
-  float *o;
-  StripColorBalance cb;
-
-  o = rect_float;
-
-  cb = calc_cb(cb_);
-
-  for (c = 0; c < 3; c++) {
-    if (cb.method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
-      make_cb_table_float_lgg(cb.lift[c], cb.gain[c], cb.gamma[c], cb_tab[c], mul);
-    }
-    else {
-      make_cb_table_float_sop(cb.slope[c], cb.offset[c], cb.power[c], 1.0, cb_tab[c], mul);
-    }
-  }
-
-  for (i = 0; i < 256; i++) {
-    cb_tab[3][i] = float(i) * (1.0f / 255.0f);
-  }
-
-  while (p < e) {
-    if (m) {
-      const float t[3] = {m[0] / 255.0f, m[1] / 255.0f, m[2] / 255.0f};
-
-      p[0] = p[0] * (1.0f - t[0]) + t[0] * cb_tab[0][p[0]];
-      p[1] = p[1] * (1.0f - t[1]) + t[1] * cb_tab[1][p[1]];
-      p[2] = p[2] * (1.0f - t[2]) + t[2] * cb_tab[2][p[2]];
-
-      m += 4;
-    }
-    else {
-      o[0] = cb_tab[0][p[0]];
-      o[1] = cb_tab[1][p[1]];
-      o[2] = cb_tab[2][p[2]];
-    }
-
-    o[3] = cb_tab[3][p[3]];
-
-    p += 4;
-    o += 4;
-  }
-}
-
-static void color_balance_float_float(StripColorBalance *cb_,
-                                      float *rect_float,
-                                      const float *mask_rect_float,
-                                      int width,
-                                      int height,
-                                      float mul)
-{
-  float *p = rect_float;
-  const float *e = rect_float + width * 4 * height;
-  const float *m = mask_rect_float;
-  StripColorBalance cb = calc_cb(cb_);
-
-  while (p < e) {
-    int c;
-    for (c = 0; c < 3; c++) {
-      float t;
-      if (cb_->method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
-        t = color_balance_fl_lgg(p[c], cb.lift[c], cb.gain[c], cb.gamma[c], mul);
-      }
-      else {
-        t = color_balance_fl_sop(p[c], cb.slope[c], cb.offset[c], cb.power[c], 1.0, mul);
-      }
-
-      if (m) {
-        p[c] = p[c] * (1.0f - m[c]) + t * m[c];
-      }
-      else {
-        p[c] = t;
-      }
-    }
-
-    p += 4;
-    if (m) {
-      m += 4;
-    }
-  }
-}
-
-struct ColorBalanceInitData {
-  StripColorBalance *cb;
-  ImBuf *ibuf;
-  float mul;
-  ImBuf *mask;
-  bool make_float;
-};
-
-struct ColorBalanceThread {
-  StripColorBalance *cb;
-  float mul;
-
-  int width, height;
-
-  uchar *rect, *mask_rect;
-  float *rect_float, *mask_rect_float;
-
-  bool make_float;
-};
-
-static void color_balance_init_handle(void *handle_v,
-                                      int start_line,
-                                      int tot_line,
-                                      void *init_data_v)
-{
-  ColorBalanceThread *handle = (ColorBalanceThread *)handle_v;
-  ColorBalanceInitData *init_data = (ColorBalanceInitData *)init_data_v;
-  ImBuf *ibuf = init_data->ibuf;
-  ImBuf *mask = init_data->mask;
-
-  int offset = 4 * start_line * ibuf->x;
-
-  memset(handle, 0, sizeof(ColorBalanceThread));
-
-  handle->cb = init_data->cb;
-  handle->mul = init_data->mul;
-  handle->width = ibuf->x;
-  handle->height = tot_line;
-  handle->make_float = init_data->make_float;
-
-  if (ibuf->byte_buffer.data) {
-    handle->rect = ibuf->byte_buffer.data + offset;
-  }
-
-  if (ibuf->float_buffer.data) {
-    handle->rect_float = ibuf->float_buffer.data + offset;
-  }
-
-  if (mask) {
-    if (mask->byte_buffer.data) {
-      handle->mask_rect = mask->byte_buffer.data + offset;
-    }
-
-    if (mask->float_buffer.data) {
-      handle->mask_rect_float = mask->float_buffer.data + offset;
+      premul_float_to_straight_uchar(ptr, pix);
+      ptr += 4;
+      mask_ptr += 4;
     }
   }
   else {
-    handle->mask_rect = nullptr;
-    handle->mask_rect_float = nullptr;
+    /* No mask. */
+    while (ptr < ptr_end) {
+      float pix[4];
+      straight_uchar_to_premul_float(pix, ptr);
+
+      int p0 = int(pix[0] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      int p1 = int(pix[1] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      int p2 = int(pix[2] * (CB_TABLE_SIZE - 1.0f) + 0.5f);
+      pix[0] = cb_tab[0][p0];
+      pix[1] = cb_tab[1][p1];
+      pix[2] = cb_tab[2][p2];
+      premul_float_to_straight_uchar(ptr, pix);
+      ptr += 4;
+    }
   }
 }
 
-static void *color_balance_do_thread(void *thread_data_v)
+static void color_balance_float(const StripColorBalance *cb,
+                                float *rect_float,
+                                const float *mask_rect_float,
+                                int width,
+                                int height,
+                                float mul)
 {
-  ColorBalanceThread *thread_data = (ColorBalanceThread *)thread_data_v;
-  StripColorBalance *cb = thread_data->cb;
-  int width = thread_data->width, height = thread_data->height;
-  uchar *rect = thread_data->rect;
-  const uchar *mask_rect = thread_data->mask_rect;
-  float *rect_float = thread_data->rect_float;
-  const float *mask_rect_float = thread_data->mask_rect_float;
-  float mul = thread_data->mul;
+  float *ptr = rect_float;
+  const float *ptr_end = rect_float + int64_t(width) * height * 4;
+  const float *mask_ptr = mask_rect_float;
 
-  if (rect_float) {
-    color_balance_float_float(cb, rect_float, mask_rect_float, width, height, mul);
-  }
-  else if (thread_data->make_float) {
-    color_balance_byte_float(cb, rect, rect_float, mask_rect, width, height, mul);
+  if (cb->method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
+    /* Lift/Gamma/Gain */
+    const float3 lift = cb->lift;
+    const float3 gain = cb->gain;
+    const float3 gamma = cb->gamma;
+    while (ptr < ptr_end) {
+      float t0 = color_balance_lgg(ptr[0], lift.x, gain.x, gamma.x, mul);
+      float t1 = color_balance_lgg(ptr[1], lift.y, gain.y, gamma.y, mul);
+      float t2 = color_balance_lgg(ptr[2], lift.z, gain.z, gamma.z, mul);
+      if (mask_ptr) {
+        ptr[0] = ptr[0] * (1.0f - mask_ptr[0]) + t0 * mask_ptr[0];
+        ptr[1] = ptr[1] * (1.0f - mask_ptr[1]) + t1 * mask_ptr[1];
+        ptr[2] = ptr[2] * (1.0f - mask_ptr[2]) + t2 * mask_ptr[2];
+      }
+      else {
+        ptr[0] = t0;
+        ptr[1] = t1;
+        ptr[2] = t2;
+      }
+      ptr += 4;
+      if (mask_ptr) {
+        mask_ptr += 4;
+      }
+    }
   }
   else {
-    color_balance_byte_byte(cb, rect, mask_rect, width, height, mul);
+    /* Slope/Offset/Power */
+    const float3 slope = cb->slope;
+    const float3 offset = cb->offset;
+    const float3 power = cb->power;
+    while (ptr < ptr_end) {
+      float t0 = color_balance_sop(ptr[0], slope.x, offset.x, power.x, mul);
+      float t1 = color_balance_sop(ptr[1], slope.y, offset.y, power.y, mul);
+      float t2 = color_balance_sop(ptr[2], slope.z, offset.z, power.z, mul);
+      if (mask_ptr) {
+        ptr[0] = ptr[0] * (1.0f - mask_ptr[0]) + t0 * mask_ptr[0];
+        ptr[1] = ptr[1] * (1.0f - mask_ptr[1]) + t1 * mask_ptr[1];
+        ptr[2] = ptr[2] * (1.0f - mask_ptr[2]) + t2 * mask_ptr[2];
+      }
+      else {
+        ptr[0] = t0;
+        ptr[1] = t1;
+        ptr[2] = t2;
+      }
+      ptr += 4;
+      if (mask_ptr) {
+        mask_ptr += 4;
+      }
+    }
   }
-
-  return nullptr;
 }
 
 static void colorBalance_init_data(SequenceModifierData *smd)
 {
   ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
-  int c;
 
   cbmd->color_multiply = 1.0f;
   cbmd->color_balance.method = 0;
 
-  for (c = 0; c < 3; c++) {
+  for (int c = 0; c < 3; c++) {
     cbmd->color_balance.lift[c] = 1.0f;
     cbmd->color_balance.gamma[c] = 1.0f;
     cbmd->color_balance.gain[c] = 1.0f;
@@ -590,41 +483,50 @@ static void colorBalance_init_data(SequenceModifierData *smd)
   }
 }
 
-static void modifier_color_balance_apply(
-    StripColorBalance *cb, ImBuf *ibuf, float mul, bool make_float, ImBuf *mask_input)
+static void colorBalance_apply(const StripScreenQuad & /*quad*/,
+                               SequenceModifierData *smd,
+                               ImBuf *ibuf,
+                               ImBuf *mask)
 {
-  ColorBalanceInitData init_data;
+  const ColorBalanceModifierData *cbmd = (const ColorBalanceModifierData *)smd;
 
-  if (!ibuf->float_buffer.data && make_float) {
-    imb_addrectfloatImBuf(ibuf, 4);
+  const StripColorBalance cb = calc_cb(&cbmd->color_balance);
+  const float mul = cbmd->color_multiply;
+
+  /* When working on non-float image, precalculate CB LUTs. */
+  float cb_tab[3][CB_TABLE_SIZE];
+  if (ibuf->float_buffer.data == nullptr) {
+    for (int c = 0; c < 3; c++) {
+      if (cb.method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
+        make_cb_table_lgg(cb.lift[c], cb.gain[c], cb.gamma[c], mul, cb_tab[c]);
+      }
+      else {
+        make_cb_table_sop(cb.slope[c], cb.offset[c], cb.power[c], mul, cb_tab[c]);
+      }
+    }
   }
 
-  init_data.cb = cb;
-  init_data.ibuf = ibuf;
-  init_data.mul = mul;
-  init_data.make_float = make_float;
-  init_data.mask = mask_input;
-
-  IMB_processor_apply_threaded(ibuf->y,
-                               sizeof(ColorBalanceThread),
-                               &init_data,
-                               color_balance_init_handle,
-                               color_balance_do_thread);
-
-  /* color balance either happens on float buffer or byte buffer, but never on both,
-   * free byte buffer if there's float buffer since float buffer would be used for
-   * color balance in favor of byte buffer
-   */
-  if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
-    imb_freerectImBuf(ibuf);
-  }
-}
-
-static void colorBalance_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
-{
-  ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
-
-  modifier_color_balance_apply(&cbmd->color_balance, ibuf, cbmd->color_multiply, false, mask);
+  threading::parallel_for(IndexRange(ibuf->y), 32, [&](const IndexRange y_range) {
+    const int64_t offset = y_range.first() * ibuf->x * 4;
+    const int y_size = int(y_range.size());
+    if (ibuf->float_buffer.data != nullptr) {
+      /* Float pixels. */
+      color_balance_float(&cb,
+                          ibuf->float_buffer.data + offset,
+                          mask ? mask->float_buffer.data + offset : nullptr,
+                          ibuf->x,
+                          y_size,
+                          mul);
+    }
+    else {
+      /* Byte pixels. */
+      color_balance_byte(cb_tab,
+                         ibuf->byte_buffer.data + offset,
+                         mask ? mask->byte_buffer.data + offset : nullptr,
+                         ibuf->x,
+                         y_size);
+    }
+  });
 }
 
 static SequenceModifierTypeInfo seqModifier_ColorBalance = {
@@ -713,7 +615,10 @@ static void whiteBalance_apply_threaded(int width,
   }
 }
 
-static void whiteBalance_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
+                               SequenceModifierData *smd,
+                               ImBuf *ibuf,
+                               ImBuf *mask)
 {
   WhiteBalanceThreadData data;
   WhiteBalanceModifierData *wbmd = (WhiteBalanceModifierData *)smd;
@@ -824,7 +729,10 @@ static void curves_apply_threaded(int width,
   }
 }
 
-static void curves_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void curves_apply(const StripScreenQuad & /*quad*/,
+                         SequenceModifierData *smd,
+                         ImBuf *ibuf,
+                         ImBuf *mask)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
 
@@ -956,7 +864,10 @@ static void hue_correct_apply_threaded(int width,
   }
 }
 
-static void hue_correct_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void hue_correct_apply(const StripScreenQuad & /*quad*/,
+                              SequenceModifierData *smd,
+                              ImBuf *ibuf,
+                              ImBuf *mask)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
 
@@ -1000,8 +911,8 @@ static void brightcontrast_apply_threaded(int width,
   float i;
   int c;
   float a, b, v;
-  float brightness = data->bright / 100.0f;
-  float contrast = data->contrast;
+  const float brightness = data->bright / 100.0f;
+  const float contrast = data->contrast;
   float delta = contrast / 200.0f;
   /*
    * The algorithm is by Werner D. Streidt
@@ -1031,8 +942,8 @@ static void brightcontrast_apply_threaded(int width,
           v = a * i + b;
 
           if (mask_rect) {
-            uchar *m = mask_rect + pixel_index;
-            float t = float(m[c]) / 255.0f;
+            const uchar *m = mask_rect + pixel_index;
+            const float t = float(m[c]) / 255.0f;
 
             v = float(pixel[c]) / 255.0f * (1.0f - t) + v * t;
           }
@@ -1061,9 +972,12 @@ static void brightcontrast_apply_threaded(int width,
   }
 }
 
-static void brightcontrast_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
+                                 SequenceModifierData *smd,
+                                 ImBuf *ibuf,
+                                 ImBuf *mask)
 {
-  BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
+  const BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
   BrightContrastThreadData data;
 
   data.bright = bcmd->bright;
@@ -1108,12 +1022,12 @@ static void maskmodifier_apply_threaded(int width,
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++) {
-      int pixel_index = (y * width + x) * 4;
+      const int pixel_index = (y * width + x) * 4;
 
       if (rect) {
+        const uchar *mask_pixel = mask_rect + pixel_index;
+        const uchar mask = min_iii(mask_pixel[0], mask_pixel[1], mask_pixel[2]);
         uchar *pixel = rect + pixel_index;
-        uchar *mask_pixel = mask_rect + pixel_index;
-        uchar mask = min_iii(mask_pixel[0], mask_pixel[1], mask_pixel[2]);
 
         /* byte buffer is straight, so only affect on alpha itself,
          * this is the only way to alpha-over byte strip after
@@ -1122,15 +1036,14 @@ static void maskmodifier_apply_threaded(int width,
         pixel[3] = float(pixel[3] * mask) / 255.0f;
       }
       else if (rect_float) {
-        int c;
-        float *pixel = rect_float + pixel_index;
         const float *mask_pixel = mask_rect_float + pixel_index;
-        float mask = min_fff(mask_pixel[0], mask_pixel[1], mask_pixel[2]);
+        const float mask = min_fff(mask_pixel[0], mask_pixel[1], mask_pixel[2]);
+        float *pixel = rect_float + pixel_index;
 
         /* float buffers are premultiplied, so need to premul color
          * as well to make it easy to alpha-over masted strip.
          */
-        for (c = 0; c < 4; c++) {
+        for (int c = 0; c < 4; c++) {
           pixel[c] = pixel[c] * mask;
         }
       }
@@ -1138,7 +1051,10 @@ static void maskmodifier_apply_threaded(int width,
   }
 }
 
-static void maskmodifier_apply(SequenceModifierData * /*smd*/, ImBuf *ibuf, ImBuf *mask)
+static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
+                               SequenceModifierData * /*smd*/,
+                               ImBuf *ibuf,
+                               ImBuf *mask)
 {
   // SequencerMaskModifierData *bcmd = (SequencerMaskModifierData *)smd;
 
@@ -1163,12 +1079,11 @@ static SequenceModifierTypeInfo seqModifier_Mask = {
  * \{ */
 
 struct AvgLogLum {
-  SequencerTonemapModifierData *tmmd;
-  ColorSpace *colorspace;
+  const SequencerTonemapModifierData *tmmd;
   float al;
   float auto_key;
   float lav;
-  float cav[4];
+  float3 cav;
   float igm;
 };
 
@@ -1186,181 +1101,292 @@ static void tonemapmodifier_init_data(SequenceModifierData *smd)
   tmmd->correction = 0.0f;
 }
 
-static void tonemapmodifier_apply_threaded_simple(int width,
-                                                  int height,
-                                                  uchar *rect,
-                                                  float *rect_float,
-                                                  uchar *mask_rect,
-                                                  const float *mask_rect_float,
-                                                  void *data_v)
+/* Convert chunk of float image pixels to scene linear space, in-place. */
+static void pixels_to_scene_linear_float(ColorSpace *colorspace, float4 *pixels, int64_t count)
 {
-  AvgLogLum *avg = (AvgLogLum *)data_v;
-  for (int y = 0; y < height; y++) {
+  IMB_colormanagement_colorspace_to_scene_linear(
+      (float *)(pixels), int(count), 1, 4, colorspace, false);
+}
+
+/* Convert chunk of byte image pixels to scene linear space, into a destination array. */
+static void pixels_to_scene_linear_byte(ColorSpace *colorspace,
+                                        const uchar *pixels,
+                                        float4 *dst,
+                                        int64_t count)
+{
+  const uchar *bptr = pixels;
+  float4 *dst_ptr = dst;
+  for (int64_t i = 0; i < count; i++) {
+    straight_uchar_to_premul_float(*dst_ptr, bptr);
+    bptr += 4;
+    dst_ptr++;
+  }
+  IMB_colormanagement_colorspace_to_scene_linear(
+      (float *)dst, int(count), 1, 4, colorspace, false);
+}
+
+static void scene_linear_to_image_chunk_float(ImBuf *ibuf, IndexRange range)
+{
+  ColorSpace *colorspace = ibuf->float_buffer.colorspace;
+  float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
+  IMB_colormanagement_scene_linear_to_colorspace(
+      (float *)(fptr + range.first()), int(range.size()), 1, 4, colorspace);
+}
+
+static void scene_linear_to_image_chunk_byte(float4 *src, ImBuf *ibuf, IndexRange range)
+{
+  ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
+  IMB_colormanagement_scene_linear_to_colorspace(
+      (float *)src, int(range.size()), 1, 4, colorspace);
+  const float4 *src_ptr = src;
+  uchar *bptr = ibuf->byte_buffer.data;
+  for (const int64_t idx : range) {
+    premul_float_to_straight_uchar(bptr + idx * 4, *src_ptr);
+    src_ptr++;
+  }
+}
+
+static void tonemap_simple(float4 *scene_linear,
+                           ImBuf *mask,
+                           IndexRange range,
+                           const AvgLogLum &avg)
+{
+  const float4 *mask_float = mask != nullptr ? (const float4 *)mask->float_buffer.data : nullptr;
+  const uchar4 *mask_byte = mask != nullptr ? (const uchar4 *)mask->byte_buffer.data : nullptr;
+
+  int64_t index = 0;
+  for (const int64_t pixel_index : range) {
+    float4 input = scene_linear[index];
+
+    /* Apply correction. */
+    float3 pixel = input.xyz() * avg.al;
+    float3 d = pixel + avg.tmmd->offset;
+    pixel.x /= (d.x == 0.0f) ? 1.0f : d.x;
+    pixel.y /= (d.y == 0.0f) ? 1.0f : d.y;
+    pixel.z /= (d.z == 0.0f) ? 1.0f : d.z;
+    const float igm = avg.igm;
+    if (igm != 0.0f) {
+      pixel.x = powf(math::max(pixel.x, 0.0f), igm);
+      pixel.y = powf(math::max(pixel.y, 0.0f), igm);
+      pixel.z = powf(math::max(pixel.z, 0.0f), igm);
+    }
+
+    /* Apply mask. */
+    if (mask != nullptr) {
+      float3 msk(1.0f);
+      if (mask_float != nullptr) {
+        msk = mask_float[pixel_index].xyz();
+      }
+      else if (mask_byte != nullptr) {
+        rgb_uchar_to_float(msk, mask_byte[pixel_index]);
+      }
+      pixel = math::interpolate(input.xyz(), pixel, msk);
+    }
+
+    scene_linear[index] = float4(pixel.x, pixel.y, pixel.z, input.w);
+    index++;
+  }
+}
+
+static void tonemap_rd_photoreceptor(float4 *scene_linear,
+                                     ImBuf *mask,
+                                     IndexRange range,
+                                     const AvgLogLum &avg)
+{
+  const float4 *mask_float = mask != nullptr ? (const float4 *)mask->float_buffer.data : nullptr;
+  const uchar4 *mask_byte = mask != nullptr ? (const uchar4 *)mask->byte_buffer.data : nullptr;
+
+  const float f = expf(-avg.tmmd->intensity);
+  const float m = (avg.tmmd->contrast > 0.0f) ? avg.tmmd->contrast :
+                                                (0.3f + 0.7f * powf(avg.auto_key, 1.4f));
+  const float ic = 1.0f - avg.tmmd->correction, ia = 1.0f - avg.tmmd->adaptation;
+
+  int64_t index = 0;
+  for (const int64_t pixel_index : range) {
+    float4 input = scene_linear[index];
+
+    /* Apply correction. */
+    float3 pixel = input.xyz();
+    const float L = IMB_colormanagement_get_luminance(pixel);
+    float I_l = pixel.x + ic * (L - pixel.x);
+    float I_g = avg.cav.x + ic * (avg.lav - avg.cav.x);
+    float I_a = I_l + ia * (I_g - I_l);
+    pixel.x /= std::max(pixel.x + powf(f * I_a, m), 1.0e-30f);
+    I_l = pixel.y + ic * (L - pixel.y);
+    I_g = avg.cav.y + ic * (avg.lav - avg.cav.y);
+    I_a = I_l + ia * (I_g - I_l);
+    pixel.y /= std::max(pixel.y + powf(f * I_a, m), 1.0e-30f);
+    I_l = pixel.z + ic * (L - pixel.z);
+    I_g = avg.cav.z + ic * (avg.lav - avg.cav.z);
+    I_a = I_l + ia * (I_g - I_l);
+    pixel.z /= std::max(pixel.z + powf(f * I_a, m), 1.0e-30f);
+
+    /* Apply mask. */
+    if (mask != nullptr) {
+      float3 msk(1.0f);
+      if (mask_float != nullptr) {
+        msk = mask_float[pixel_index].xyz();
+      }
+      else if (mask_byte != nullptr) {
+        rgb_uchar_to_float(msk, mask_byte[pixel_index]);
+      }
+      pixel = math::interpolate(input.xyz(), pixel, msk);
+    }
+
+    scene_linear[index] = float4(pixel.x, pixel.y, pixel.z, input.w);
+    index++;
+  }
+}
+
+static bool is_point_inside_quad(const StripScreenQuad &quad, int x, int y)
+{
+  float2 pt(x + 0.5f, y + 0.5f);
+  return isect_point_quad_v2(pt, quad.v0, quad.v1, quad.v2, quad.v3);
+}
+
+struct AreaLuminance {
+  int64_t pixel_count = 0;
+  double sum = 0.0f;
+  float3 color_sum = {0, 0, 0};
+  double log_sum = 0.0;
+  float min = FLT_MAX;
+  float max = -FLT_MAX;
+};
+
+static void tonemap_calc_chunk_luminance(const StripScreenQuad &quad,
+                                         const bool all_pixels_inside_quad,
+                                         const int width,
+                                         const IndexRange y_range,
+                                         const float4 *scene_linear,
+                                         AreaLuminance &r_lum)
+{
+  for (const int y : y_range) {
     for (int x = 0; x < width; x++) {
-      int pixel_index = (y * width + x) * 4;
-      float input[4], output[4], mask[3] = {1.0f, 1.0f, 1.0f};
-      /* Get input value. */
-      if (rect_float) {
-        copy_v4_v4(input, &rect_float[pixel_index]);
+      if (all_pixels_inside_quad || is_point_inside_quad(quad, x, y)) {
+        float4 pixel = *scene_linear;
+        r_lum.pixel_count++;
+        float L = IMB_colormanagement_get_luminance(pixel);
+        r_lum.sum += L;
+        r_lum.color_sum.x += pixel.x;
+        r_lum.color_sum.y += pixel.y;
+        r_lum.color_sum.z += pixel.z;
+        r_lum.log_sum += logf(math::max(L, 0.0f) + 1e-5f);
+        r_lum.max = math::max(r_lum.max, L);
+        r_lum.min = math::min(r_lum.min, L);
       }
-      else {
-        straight_uchar_to_premul_float(input, &rect[pixel_index]);
-      }
-      IMB_colormanagement_colorspace_to_scene_linear_v3(input, avg->colorspace);
-      copy_v4_v4(output, input);
-      /* Get mask value. */
-      if (mask_rect_float) {
-        copy_v3_v3(mask, mask_rect_float + pixel_index);
-      }
-      else if (mask_rect) {
-        rgb_uchar_to_float(mask, mask_rect + pixel_index);
-      }
-      /* Apply correction. */
-      mul_v3_fl(output, avg->al);
-      float dr = output[0] + avg->tmmd->offset;
-      float dg = output[1] + avg->tmmd->offset;
-      float db = output[2] + avg->tmmd->offset;
-      output[0] /= ((dr == 0.0f) ? 1.0f : dr);
-      output[1] /= ((dg == 0.0f) ? 1.0f : dg);
-      output[2] /= ((db == 0.0f) ? 1.0f : db);
-      const float igm = avg->igm;
-      if (igm != 0.0f) {
-        output[0] = powf(max_ff(output[0], 0.0f), igm);
-        output[1] = powf(max_ff(output[1], 0.0f), igm);
-        output[2] = powf(max_ff(output[2], 0.0f), igm);
-      }
-      /* Apply mask. */
-      output[0] = input[0] * (1.0f - mask[0]) + output[0] * mask[0];
-      output[1] = input[1] * (1.0f - mask[1]) + output[1] * mask[1];
-      output[2] = input[2] * (1.0f - mask[2]) + output[2] * mask[2];
-      /* Copy result back. */
-      IMB_colormanagement_scene_linear_to_colorspace_v3(output, avg->colorspace);
-      if (rect_float) {
-        copy_v4_v4(&rect_float[pixel_index], output);
-      }
-      else {
-        premul_float_to_straight_uchar(&rect[pixel_index], output);
-      }
+      scene_linear++;
     }
   }
 }
 
-static void tonemapmodifier_apply_threaded_photoreceptor(int width,
-                                                         int height,
-                                                         uchar *rect,
-                                                         float *rect_float,
-                                                         uchar *mask_rect,
-                                                         const float *mask_rect_float,
-                                                         void *data_v)
+static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, const ImBuf *ibuf)
 {
-  AvgLogLum *avg = (AvgLogLum *)data_v;
-  const float f = expf(-avg->tmmd->intensity);
-  const float m = (avg->tmmd->contrast > 0.0f) ? avg->tmmd->contrast :
-                                                 (0.3f + 0.7f * powf(avg->auto_key, 1.4f));
-  const float ic = 1.0f - avg->tmmd->correction, ia = 1.0f - avg->tmmd->adaptation;
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      int pixel_index = (y * width + x) * 4;
-      float input[4], output[4], mask[3] = {1.0f, 1.0f, 1.0f};
-      /* Get input value. */
-      if (rect_float) {
-        copy_v4_v4(input, &rect_float[pixel_index]);
-      }
-      else {
-        straight_uchar_to_premul_float(input, &rect[pixel_index]);
-      }
-      IMB_colormanagement_colorspace_to_scene_linear_v3(input, avg->colorspace);
-      copy_v4_v4(output, input);
-      /* Get mask value. */
-      if (mask_rect_float) {
-        copy_v3_v3(mask, mask_rect_float + pixel_index);
-      }
-      else if (mask_rect) {
-        rgb_uchar_to_float(mask, mask_rect + pixel_index);
-      }
-      /* Apply correction. */
-      const float L = IMB_colormanagement_get_luminance(output);
-      float I_l = output[0] + ic * (L - output[0]);
-      float I_g = avg->cav[0] + ic * (avg->lav - avg->cav[0]);
-      float I_a = I_l + ia * (I_g - I_l);
-      output[0] /= (output[0] + powf(f * I_a, m));
-      I_l = output[1] + ic * (L - output[1]);
-      I_g = avg->cav[1] + ic * (avg->lav - avg->cav[1]);
-      I_a = I_l + ia * (I_g - I_l);
-      output[1] /= (output[1] + powf(f * I_a, m));
-      I_l = output[2] + ic * (L - output[2]);
-      I_g = avg->cav[2] + ic * (avg->lav - avg->cav[2]);
-      I_a = I_l + ia * (I_g - I_l);
-      output[2] /= (output[2] + powf(f * I_a, m));
-      /* Apply mask. */
-      output[0] = input[0] * (1.0f - mask[0]) + output[0] * mask[0];
-      output[1] = input[1] * (1.0f - mask[1]) + output[1] * mask[1];
-      output[2] = input[2] * (1.0f - mask[2]) + output[2] * mask[2];
-      /* Copy result back. */
-      IMB_colormanagement_scene_linear_to_colorspace_v3(output, avg->colorspace);
-      if (rect_float) {
-        copy_v4_v4(&rect_float[pixel_index], output);
-      }
-      else {
-        premul_float_to_straight_uchar(&rect[pixel_index], output);
-      }
-    }
-  }
+  /* Pixels outside the pre-transform strip area are ignored for luminance calculations.
+   * If strip area covers whole image, we can trivially accept all pixels. */
+  const bool all_pixels_inside_quad = is_point_inside_quad(quad, 0, 0) &&
+                                      is_point_inside_quad(quad, ibuf->x - 1, 0) &&
+                                      is_point_inside_quad(quad, 0, ibuf->y - 1) &&
+                                      is_point_inside_quad(quad, ibuf->x - 1, ibuf->y - 1);
+
+  AreaLuminance lum;
+  lum = threading::parallel_reduce(
+      IndexRange(ibuf->y),
+      32,
+      lum,
+      /* Calculate luminance for a chunk. */
+      [&](const IndexRange y_range, const AreaLuminance &init) {
+        AreaLuminance lum = init;
+        const int64_t chunk_size = y_range.size() * ibuf->x;
+        /* For float images, convert to scene-linear in place. The rest
+         * of tone-mapper can then continue with scene-linear values. */
+        if (ibuf->float_buffer.data != nullptr) {
+          float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
+          fptr += y_range.first() * ibuf->x;
+          pixels_to_scene_linear_float(ibuf->float_buffer.colorspace, fptr, chunk_size);
+          tonemap_calc_chunk_luminance(quad, all_pixels_inside_quad, ibuf->x, y_range, fptr, lum);
+        }
+        else {
+          const uchar *bptr = ibuf->byte_buffer.data + y_range.first() * ibuf->x * 4;
+          Array<float4> scene_linear(chunk_size);
+          pixels_to_scene_linear_byte(
+              ibuf->byte_buffer.colorspace, bptr, scene_linear.data(), chunk_size);
+          tonemap_calc_chunk_luminance(
+              quad, all_pixels_inside_quad, ibuf->x, y_range, scene_linear.data(), lum);
+        }
+        return lum;
+      },
+      /* Reduce luminance results. */
+      [&](const AreaLuminance &a, const AreaLuminance &b) {
+        AreaLuminance res;
+        res.pixel_count = a.pixel_count + b.pixel_count;
+        res.sum = a.sum + b.sum;
+        res.color_sum = a.color_sum + b.color_sum;
+        res.log_sum = a.log_sum + b.log_sum;
+        res.min = math::min(a.min, b.min);
+        res.max = math::max(a.max, b.max);
+        return res;
+      });
+  return lum;
 }
 
-static void tonemapmodifier_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void tonemapmodifier_apply(const StripScreenQuad &quad,
+                                  SequenceModifierData *smd,
+                                  ImBuf *ibuf,
+                                  ImBuf *mask)
 {
-  SequencerTonemapModifierData *tmmd = (SequencerTonemapModifierData *)smd;
+  const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
+
+  AreaLuminance lum = tonemap_calc_input_luminance(quad, ibuf);
+  if (lum.pixel_count == 0) {
+    return; /* Strip is zero size or off-screen. */
+  }
+
   AvgLogLum data;
   data.tmmd = tmmd;
-  data.colorspace = (ibuf->float_buffer.data != nullptr) ? ibuf->float_buffer.colorspace :
-                                                           ibuf->byte_buffer.colorspace;
-  float lsum = 0.0f;
-  int p = ibuf->x * ibuf->y;
-  float *fp = ibuf->float_buffer.data;
-  uchar *cp = ibuf->byte_buffer.data;
-  float avl, maxl = -FLT_MAX, minl = FLT_MAX;
-  const float sc = 1.0f / p;
-  float Lav = 0.0f;
-  float cav[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  while (p--) {
-    float pixel[4];
-    if (fp != nullptr) {
-      copy_v4_v4(pixel, fp);
-    }
-    else {
-      straight_uchar_to_premul_float(pixel, cp);
-    }
-    IMB_colormanagement_colorspace_to_scene_linear_v3(pixel, data.colorspace);
-    float L = IMB_colormanagement_get_luminance(pixel);
-    Lav += L;
-    add_v3_v3(cav, pixel);
-    lsum += logf(max_ff(L, 0.0f) + 1e-5f);
-    maxl = (L > maxl) ? L : maxl;
-    minl = (L < minl) ? L : minl;
-    if (fp != nullptr) {
-      fp += 4;
-    }
-    else {
-      cp += 4;
-    }
-  }
-  data.lav = Lav * sc;
-  mul_v3_v3fl(data.cav, cav, sc);
-  maxl = logf(maxl + 1e-5f);
-  minl = logf(minl + 1e-5f);
-  avl = lsum * sc;
+  data.lav = lum.sum / lum.pixel_count;
+  data.cav.x = lum.color_sum.x / lum.pixel_count;
+  data.cav.y = lum.color_sum.y / lum.pixel_count;
+  data.cav.z = lum.color_sum.z / lum.pixel_count;
+  float maxl = log(double(lum.max) + 1e-5f);
+  float minl = log(double(lum.min) + 1e-5f);
+  float avl = lum.log_sum / lum.pixel_count;
   data.auto_key = (maxl > minl) ? ((maxl - avl) / (maxl - minl)) : 1.0f;
-  float al = expf(avl);
+  float al = exp(double(avl));
   data.al = (al == 0.0f) ? 0.0f : (tmmd->key / al);
   data.igm = (tmmd->gamma == 0.0f) ? 1.0f : (1.0f / tmmd->gamma);
 
-  if (tmmd->type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
-    modifier_apply_threaded(ibuf, mask, tonemapmodifier_apply_threaded_photoreceptor, &data);
-  }
-  else /* if (tmmd->type == SEQ_TONEMAP_RD_SIMPLE) */ {
-    modifier_apply_threaded(ibuf, mask, tonemapmodifier_apply_threaded_simple, &data);
-  }
+  threading::parallel_for(
+      IndexRange(int64_t(ibuf->x) * ibuf->y), 64 * 1024, [&](IndexRange range) {
+        if (ibuf->float_buffer.data != nullptr) {
+          /* Float pixels: no need for temporary storage. Luminance calculation already converted
+           * data to scene linear. */
+          float4 *pixels = (float4 *)(ibuf->float_buffer.data) + range.first();
+          if (tmmd->type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
+            tonemap_rd_photoreceptor(pixels, mask, range, data);
+          }
+          else {
+            BLI_assert(tmmd->type == SEQ_TONEMAP_RH_SIMPLE);
+            tonemap_simple(pixels, mask, range, data);
+          }
+          scene_linear_to_image_chunk_float(ibuf, range);
+        }
+        else {
+          /* Byte pixels: temporary storage for scene linear pixel values. */
+          Array<float4> scene_linear(range.size());
+          pixels_to_scene_linear_byte(ibuf->byte_buffer.colorspace,
+                                      ibuf->byte_buffer.data + range.first() * 4,
+                                      scene_linear.data(),
+                                      range.size());
+          if (tmmd->type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
+            tonemap_rd_photoreceptor(scene_linear.data(), mask, range, data);
+          }
+          else {
+            BLI_assert(tmmd->type == SEQ_TONEMAP_RH_SIMPLE);
+            tonemap_simple(scene_linear.data(), mask, range, data);
+          }
+          scene_linear_to_image_chunk_byte(scene_linear.data(), ibuf, range);
+        }
+      });
 }
 
 static SequenceModifierTypeInfo seqModifier_Tonemap = {
@@ -1374,13 +1400,13 @@ static SequenceModifierTypeInfo seqModifier_Tonemap = {
 };
 
 static SequenceModifierTypeInfo seqModifier_SoundEqualizer = {
-    CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"), /* name */
-    "SoundEqualizerModifierData",                     /* struct_name */
-    sizeof(SoundEqualizerModifierData),               /* struct_size */
-    SEQ_sound_equalizermodifier_init_data,            /* init_data */
-    SEQ_sound_equalizermodifier_free,                 /* free_data */
-    SEQ_sound_equalizermodifier_copy_data,            /* copy_data */
-    nullptr,                                          /* apply */
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
+    /*struct_name*/ "SoundEqualizerModifierData",
+    /*struct_size*/ sizeof(SoundEqualizerModifierData),
+    /*init_data*/ SEQ_sound_equalizermodifier_init_data,
+    /*free_data*/ SEQ_sound_equalizermodifier_free,
+    /*copy_data*/ SEQ_sound_equalizermodifier_copy_data,
+    /*apply*/ nullptr,
 };
 /** \} */
 
@@ -1512,16 +1538,15 @@ static bool skip_modifier(Scene *scene, const SequenceModifierData *smd, int tim
   return strip_has_ended_skip || missing_data_skip;
 }
 
-ImBuf *SEQ_modifier_apply_stack(const SeqRenderData *context,
-                                Sequence *seq,
-                                ImBuf *ibuf,
-                                int timeline_frame)
+void SEQ_modifier_apply_stack(const SeqRenderData *context,
+                              const Sequence *seq,
+                              ImBuf *ibuf,
+                              int timeline_frame)
 {
-  ImBuf *processed_ibuf = ibuf;
+  const StripScreenQuad quad = get_strip_screen_quad(context, seq);
 
   if (seq->modifiers.first && (seq->flag & SEQ_USE_LINEAR_MODIFIERS)) {
-    processed_ibuf = IMB_dupImBuf(ibuf);
-    SEQ_render_imbuf_from_sequencer_space(context->scene, processed_ibuf);
+    SEQ_render_imbuf_from_sequencer_space(context->scene, ibuf);
   }
 
   LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
@@ -1549,11 +1574,7 @@ ImBuf *SEQ_modifier_apply_stack(const SeqRenderData *context,
       ImBuf *mask = modifier_mask_get(
           smd, context, timeline_frame, frame_offset, ibuf->float_buffer.data != nullptr);
 
-      if (processed_ibuf == ibuf) {
-        processed_ibuf = IMB_dupImBuf(ibuf);
-      }
-
-      smti->apply(smd, processed_ibuf, mask);
+      smti->apply(quad, smd, ibuf, mask);
 
       if (mask) {
         IMB_freeImBuf(mask);
@@ -1562,10 +1583,8 @@ ImBuf *SEQ_modifier_apply_stack(const SeqRenderData *context,
   }
 
   if (seq->modifiers.first && (seq->flag & SEQ_USE_LINEAR_MODIFIERS)) {
-    seq_imbuf_to_sequencer_space(context->scene, processed_ibuf, false);
+    seq_imbuf_to_sequencer_space(context->scene, ibuf, false);
   }
-
-  return processed_ibuf;
 }
 
 void SEQ_modifier_list_copy(Sequence *seqn, Sequence *seq)

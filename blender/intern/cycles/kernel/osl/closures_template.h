@@ -19,10 +19,17 @@ OSL_CLOSURE_STRUCT_BEGIN(Diffuse, diffuse)
   OSL_CLOSURE_STRUCT_MEMBER(Diffuse, VECTOR, packed_float3, N, NULL)
 OSL_CLOSURE_STRUCT_END(Diffuse, diffuse)
 
+/* Deprecated form, will be removed in OSL 2.0. */
 OSL_CLOSURE_STRUCT_BEGIN(OrenNayar, oren_nayar)
   OSL_CLOSURE_STRUCT_MEMBER(OrenNayar, VECTOR, packed_float3, N, NULL)
   OSL_CLOSURE_STRUCT_MEMBER(OrenNayar, FLOAT, float, roughness, NULL)
 OSL_CLOSURE_STRUCT_END(OrenNayar, oren_nayar)
+
+OSL_CLOSURE_STRUCT_BEGIN(OrenNayarDiffuseBSDF, oren_nayar_diffuse_bsdf)
+  OSL_CLOSURE_STRUCT_MEMBER(OrenNayarDiffuseBSDF, VECTOR, packed_float3, N, NULL)
+  OSL_CLOSURE_STRUCT_MEMBER(OrenNayarDiffuseBSDF, VECTOR, packed_float3, albedo, NULL)
+  OSL_CLOSURE_STRUCT_MEMBER(OrenNayarDiffuseBSDF, FLOAT, float, roughness, NULL)
+OSL_CLOSURE_STRUCT_END(OrenNayarDiffuseBSDF, oren_nayar)
 
 OSL_CLOSURE_STRUCT_BEGIN(Translucent, translucent)
   OSL_CLOSURE_STRUCT_MEMBER(Translucent, VECTOR, packed_float3, N, NULL)
@@ -215,6 +222,19 @@ OSL_CLOSURE_STRUCT_END(VolumeAbsorption, absorption)
 OSL_CLOSURE_STRUCT_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein)
   OSL_CLOSURE_STRUCT_MEMBER(VolumeHenyeyGreenstein, FLOAT, float, g, NULL)
 OSL_CLOSURE_STRUCT_END(VolumeHenyeyGreenstein, henyey_greenstein)
+
+OSL_CLOSURE_STRUCT_BEGIN(VolumeFournierForand, fournier_forand)
+  OSL_CLOSURE_STRUCT_MEMBER(VolumeFournierForand, FLOAT, float, B, NULL)
+  OSL_CLOSURE_STRUCT_MEMBER(VolumeFournierForand, FLOAT, float, IOR, NULL)
+OSL_CLOSURE_STRUCT_END(VolumeFournierForand, fournier_forand)
+
+OSL_CLOSURE_STRUCT_BEGIN(VolumeDraine, draine)
+  OSL_CLOSURE_STRUCT_MEMBER(VolumeDraine, FLOAT, float, g, NULL)
+  OSL_CLOSURE_STRUCT_MEMBER(VolumeDraine, FLOAT, float, alpha, NULL)
+OSL_CLOSURE_STRUCT_END(VolumeDraine, draine)
+
+OSL_CLOSURE_STRUCT_BEGIN(VolumeRayleigh, rayleigh)
+OSL_CLOSURE_STRUCT_END(VolumeRayleigh, rayleigh)
 
 #undef OSL_CLOSURE_STRUCT_BEGIN
 #undef OSL_CLOSURE_STRUCT_END

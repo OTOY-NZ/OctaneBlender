@@ -8,6 +8,8 @@
  * Contains code specific to the `Library` ID type.
  */
 
+#include <optional>
+
 /* all types are needed here, in order to do memory operations */
 #include "DNA_ID.h"
 
@@ -25,10 +27,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
-#include "BKE_packedFile.h"
-
-/* Unused currently. */
-// static CLG_LogRef LOG = {.identifier = "bke.library"};
+#include "BKE_packedFile.hh"
 
 struct BlendDataReader;
 
@@ -46,6 +45,32 @@ static void library_free_data(ID *id)
   if (library->packedfile) {
     BKE_packedfile_free(library->packedfile);
   }
+}
+
+static void library_copy_data(Main *bmain,
+                              std::optional<Library *> owner_library,
+                              ID *id_dst,
+                              const ID *id_src,
+                              int /*flag*/)
+{
+  /* Libraries are always local IDs. */
+  BLI_assert(!owner_library || *owner_library == nullptr);
+  UNUSED_VARS_NDEBUG(bmain, owner_library);
+
+  const Library *library_src = reinterpret_cast<const Library *>(id_src);
+
+  /* Libraries are copyable now, but there should still be only one library ID for each linked
+   * blendfile (based on absolute filepath). */
+  BLI_assert(!bmain || BLI_findstring(&bmain->libraries,
+                                      library_src->runtime.filepath_abs,
+                                      offsetof(Library, runtime.filepath_abs)) == nullptr);
+
+  Library *library_dst = reinterpret_cast<Library *>(id_dst);
+  if (library_src->packedfile) {
+    library_dst->packedfile = BKE_packedfile_duplicate(library_src->packedfile);
+  }
+  library_dst->runtime.filedata = nullptr;
+  library_dst->runtime.name_map = nullptr;
 }
 
 static void library_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -86,12 +111,11 @@ IDTypeInfo IDType_ID_LI = {
     /*name*/ "Library",
     /*name_plural*/ N_("libraries"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_LIBRARY,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NEVER_UNUSED,
+    /*flags*/ IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*copy_data*/ library_copy_data,
     /*free_data*/ library_free_data,
     /*make_local*/ nullptr,
     /*foreach_id*/ library_foreach_id,
@@ -210,6 +234,12 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
 void BKE_library_main_rebuild_hierarchy(Main *bmain)
 {
   BKE_main_relations_create(bmain, 0);
+
+  /* Reset all values, they may have been set to irrelevant values by other processes (like the
+   * liboverride handling e.g., see #lib_override_libraries_index_define). */
+  LISTBASE_FOREACH (Library *, lib_iter, &bmain->libraries) {
+    lib_iter->runtime.temp_index = 0;
+  }
 
   /* Find all libraries with directly linked IDs (i.e. IDs used by local data). */
   blender::Set<Library *> directly_used_libs;

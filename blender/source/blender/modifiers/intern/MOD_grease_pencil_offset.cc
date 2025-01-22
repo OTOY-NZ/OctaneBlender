@@ -30,7 +30,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_modifiertypes.hh"
@@ -296,6 +296,8 @@ static void modify_drawing(const ModifierData &md,
 {
   const auto &omd = reinterpret_cast<const GreasePencilOffsetModifierData &>(md);
 
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
+
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
@@ -315,6 +317,8 @@ static void modify_drawing(const ModifierData &md,
       BLI_assert_unreachable();
       break;
   }
+
+  drawing.tag_positions_changed();
 }
 
 static void modify_drawing_by_layer(const ModifierData &md,
@@ -386,7 +390,8 @@ static void panel_draw(const bContext *C, Panel *panel)
   const auto offset_mode = GreasePencilOffsetModifierMode(RNA_enum_get(ptr, "offset_mode"));
 
   uiLayoutSetPropSep(layout, true);
-  if (uiLayout *general_panel = uiLayoutPanelProp(C, layout, ptr, "open_general_panel", "General"))
+  if (uiLayout *general_panel = uiLayoutPanelProp(
+          C, layout, ptr, "open_general_panel", IFACE_("General")))
   {
     uiLayoutSetPropSep(general_panel, true);
     uiItemR(general_panel, ptr, "location", UI_ITEM_NONE, nullptr, ICON_NONE);
@@ -399,7 +404,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA advanced_state_ptr = RNA_pointer_create(
       nullptr, &RNA_LayoutPanelState, advanced_panel_state);
   if (uiLayout *advanced_panel = uiLayoutPanelProp(
-          C, layout, &advanced_state_ptr, "is_open", "Advanced"))
+          C, layout, &advanced_state_ptr, "is_open", IFACE_("Advanced")))
   {
     uiItemR(advanced_panel, ptr, "offset_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
 
@@ -429,7 +434,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

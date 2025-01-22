@@ -102,5 +102,5 @@ void register_node_type_roundedges_oct_roundedges(void)
   ntype.updatefunc = (0);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_roundedges_oct_roundedges() */

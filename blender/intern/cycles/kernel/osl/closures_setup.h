@@ -97,6 +97,7 @@ ccl_device void osl_closure_diffuse_setup(KernelGlobals kg,
   sd->flag |= bsdf_diffuse_setup(bsdf);
 }
 
+/* Deprecated form, will be removed in OSL 2.0. */
 ccl_device void osl_closure_oren_nayar_setup(KernelGlobals kg,
                                              ccl_private ShaderData *sd,
                                              uint32_t path_flag,
@@ -117,7 +118,31 @@ ccl_device void osl_closure_oren_nayar_setup(KernelGlobals kg,
   bsdf->N = safe_normalize_fallback(closure->N, sd->N);
   bsdf->roughness = closure->roughness;
 
-  sd->flag |= bsdf_oren_nayar_setup(bsdf);
+  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(weight));
+}
+
+ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
+    KernelGlobals kg,
+    ccl_private ShaderData *sd,
+    uint32_t path_flag,
+    float3 weight,
+    ccl_private const OrenNayarDiffuseBSDFClosure *closure,
+    float3 *layer_albedo)
+{
+  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+    return;
+  }
+
+  ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
+      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight));
+  if (!bsdf) {
+    return;
+  }
+
+  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf->roughness = closure->roughness;
+
+  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(closure->albedo));
 }
 
 ccl_device void osl_closure_translucent_setup(KernelGlobals kg,
@@ -746,7 +771,7 @@ ccl_device void osl_closure_glossy_toon_setup(KernelGlobals kg,
  */
 ccl_device void osl_closure_emission_setup(KernelGlobals kg,
                                            ccl_private ShaderData *sd,
-                                           uint32_t /* path_flag */,
+                                           uint32_t /*path_flag*/,
                                            float3 weight,
                                            ccl_private const GenericEmissiveClosure *closure,
                                            float3 *layer_albedo)
@@ -764,7 +789,7 @@ ccl_device void osl_closure_emission_setup(KernelGlobals kg,
  */
 ccl_device void osl_closure_background_setup(KernelGlobals kg,
                                              ccl_private ShaderData *sd,
-                                             uint32_t /* path_flag */,
+                                             uint32_t /*path_flag*/,
                                              float3 weight,
                                              ccl_private const GenericBackgroundClosure *closure,
                                              float3 *layer_albedo)
@@ -779,7 +804,7 @@ ccl_device void osl_closure_background_setup(KernelGlobals kg,
  */
 ccl_device void osl_closure_holdout_setup(KernelGlobals kg,
                                           ccl_private ShaderData *sd,
-                                          uint32_t /* path_flag */,
+                                          uint32_t /*path_flag*/,
                                           float3 weight,
                                           ccl_private const HoldoutClosure *closure,
                                           float3 *layer_albedo)
@@ -790,7 +815,7 @@ ccl_device void osl_closure_holdout_setup(KernelGlobals kg,
 
 ccl_device void osl_closure_diffuse_ramp_setup(KernelGlobals kg,
                                                ccl_private ShaderData *sd,
-                                               uint32_t /* path_flag */,
+                                               uint32_t /*path_flag*/,
                                                float3 weight,
                                                ccl_private const DiffuseRampClosure *closure,
                                                float3 *layer_albedo)
@@ -818,7 +843,7 @@ ccl_device void osl_closure_diffuse_ramp_setup(KernelGlobals kg,
 
 ccl_device void osl_closure_phong_ramp_setup(KernelGlobals kg,
                                              ccl_private ShaderData *sd,
-                                             uint32_t /* path_flag */,
+                                             uint32_t /*path_flag*/,
                                              float3 weight,
                                              ccl_private const PhongRampClosure *closure,
                                              float3 *layer_albedo)
@@ -1059,6 +1084,64 @@ ccl_device void osl_closure_henyey_greenstein_setup(
   volume->g = closure->g;
 
   sd->flag |= volume_henyey_greenstein_setup(volume);
+}
+
+ccl_device void osl_closure_fournier_forand_setup(
+    KernelGlobals kg,
+    ccl_private ShaderData *sd,
+    uint32_t path_flag,
+    float3 weight,
+    ccl_private const VolumeFournierForandClosure *closure,
+    float3 *layer_albedo)
+{
+  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+
+  ccl_private FournierForandVolume *volume = (ccl_private FournierForandVolume *)bsdf_alloc(
+      sd, sizeof(FournierForandVolume), rgb_to_spectrum(weight));
+  if (!volume) {
+    return;
+  }
+
+  sd->flag |= volume_fournier_forand_setup(volume, closure->B, closure->IOR);
+}
+
+ccl_device void osl_closure_draine_setup(KernelGlobals kg,
+                                         ccl_private ShaderData *sd,
+                                         uint32_t path_flag,
+                                         float3 weight,
+                                         ccl_private const VolumeDraineClosure *closure,
+                                         float3 *layer_albedo)
+{
+  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+
+  ccl_private DraineVolume *volume = (ccl_private DraineVolume *)bsdf_alloc(
+      sd, sizeof(DraineVolume), rgb_to_spectrum(weight));
+  if (!volume) {
+    return;
+  }
+
+  volume->g = closure->g;
+  volume->alpha = closure->alpha;
+
+  sd->flag |= volume_draine_setup(volume);
+}
+
+ccl_device void osl_closure_rayleigh_setup(KernelGlobals kg,
+                                           ccl_private ShaderData *sd,
+                                           uint32_t path_flag,
+                                           float3 weight,
+                                           ccl_private const VolumeRayleighClosure *closure,
+                                           float3 *layer_albedo)
+{
+  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+
+  ccl_private RayleighVolume *volume = (ccl_private RayleighVolume *)bsdf_alloc(
+      sd, sizeof(RayleighVolume), rgb_to_spectrum(weight));
+  if (!volume) {
+    return;
+  }
+
+  sd->flag |= volume_rayleigh_setup(volume);
 }
 
 CCL_NAMESPACE_END

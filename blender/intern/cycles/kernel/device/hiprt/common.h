@@ -44,36 +44,38 @@ struct LocalPayload {
 
 #  if defined(HIPRT_SHARED_STACK)
 #    define GET_TRAVERSAL_STACK() \
-      Stack stack(&kg->global_stack_buffer[0], \
-                  HIPRT_THREAD_STACK_SIZE, \
-                  kg->shared_stack, \
-                  HIPRT_SHARED_STACK_SIZE);
+      Stack stack(kg->global_stack_buffer, kg->shared_stack); \
+      Instance_Stack instance_stack;
 #  else
 #    define GET_TRAVERSAL_STACK()
 #  endif
 
 #  ifdef HIPRT_SHARED_STACK
 #    define GET_TRAVERSAL_ANY_HIT(FUNCTION_TABLE, RAY_TYPE, RAY_TIME) \
-      hiprtSceneTraversalAnyHitCustomStack<Stack> traversal(kernel_data.device_bvh, \
-                                                            ray_hip, \
-                                                            stack, \
-                                                            visibility, \
-                                                            hiprtTraversalHintDefault, \
-                                                            &payload, \
-                                                            kernel_params.FUNCTION_TABLE, \
-                                                            RAY_TYPE, \
-                                                            RAY_TIME);
+      hiprtSceneTraversalAnyHitCustomStack<Stack, Instance_Stack> traversal( \
+          (hiprtScene)kernel_data.device_bvh, \
+          ray_hip, \
+          stack, \
+          instance_stack, \
+          visibility, \
+          hiprtTraversalHintDefault, \
+          &payload, \
+          kernel_params.FUNCTION_TABLE, \
+          RAY_TYPE, \
+          RAY_TIME);
 
 #    define GET_TRAVERSAL_CLOSEST_HIT(FUNCTION_TABLE, RAY_TYPE, RAY_TIME) \
-      hiprtSceneTraversalClosestCustomStack<Stack> traversal(kernel_data.device_bvh, \
-                                                             ray_hip, \
-                                                             stack, \
-                                                             visibility, \
-                                                             hiprtTraversalHintDefault, \
-                                                             &payload, \
-                                                             kernel_params.FUNCTION_TABLE, \
-                                                             RAY_TYPE, \
-                                                             RAY_TIME);
+      hiprtSceneTraversalClosestCustomStack<Stack, Instance_Stack> traversal( \
+          (hiprtScene)kernel_data.device_bvh, \
+          ray_hip, \
+          stack, \
+          instance_stack, \
+          visibility, \
+          hiprtTraversalHintDefault, \
+          &payload, \
+          kernel_params.FUNCTION_TABLE, \
+          RAY_TYPE, \
+          RAY_TIME);
 #  else
 #    define GET_TRAVERSAL_ANY_HIT(FUNCTION_TABLE) \
       hiprtSceneTraversalAnyHit traversal(kernel_data.device_bvh, \
@@ -225,7 +227,7 @@ ccl_device_inline bool motion_triangle_custom_local_intersect(const hiprtRay &ra
                                                               void *payload,
                                                               hiprtHit &hit)
 {
-#  ifdef MOTION_BLUR
+#  ifdef __OBJECT_MOTION__
   LocalPayload *local_payload = (LocalPayload *)payload;
   KernelGlobals kg = local_payload->kg;
   int object_id = local_payload->local_object;
@@ -268,8 +270,7 @@ ccl_device_inline bool motion_triangle_custom_volume_intersect(const hiprtRay &r
                                                                void *payload,
                                                                hiprtHit &hit)
 {
-#  ifdef MOTION_BLUR
-
+#  ifdef __OBJECT_MOTION__
   RayPayload *local_payload = (RayPayload *)payload;
   KernelGlobals kg = local_payload->kg;
   int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
@@ -319,7 +320,10 @@ ccl_device_inline bool point_custom_intersect(const hiprtRay &ray,
                                               void *payload,
                                               hiprtHit &hit)
 {
-#  ifdef POINT_CLOUD
+  /* Point cloud intersections are currently disabled to decrease register pressure in the ray
+   * tracing kernels. This increases the number of in-flight ray traversal waves, and fixes the
+   * performance regression reported in #127464 */
+#  if defined(__POINTCLOUD__) && 0
   RayPayload *local_payload = (RayPayload *)payload;
   KernelGlobals kg = local_payload->kg;
   int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
@@ -334,8 +338,6 @@ ccl_device_inline bool point_custom_intersect(const hiprtRay &ray,
   int type = prim_info.y;
 
 #    ifdef __SHADOW_LINKING__
-  /* TODO: Needs further testing as point clouds crash when using HIP-RT
-   * at the time this change was made. */
   if (intersection_skip_shadow_link(nullptr, local_payload->self, object_id)) {
     /* Ignore hit - continue traversal */
     return false;
@@ -347,7 +349,7 @@ ccl_device_inline bool point_custom_intersect(const hiprtRay &ray,
 
   float ray_time = local_payload->ray_time;
 
-  if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
+  if ((type & PRIMITIVE_MOTION_POINT) && kernel_data.bvh.use_bvh_steps) {
 
     int time_offset = kernel_data_fetch(prim_time_offset, object_id);
     float2 prims_time = kernel_data_fetch(prims_time, hit.primID + time_offset);
@@ -524,7 +526,7 @@ ccl_device_inline bool shadow_intersection_filter_curves(const hiprtRay &ray,
   float ray_tmax = hit.t;
 
 #  ifdef __SHADOW_LINKING__
-  /* It doesn't seem like this is neccesary. */
+  /* It doesn't seem like this is necessary. */
   if (intersection_skip_shadow_link(nullptr, self, object)) {
     /* Ignore hit - continue traversal */
     return true;
@@ -654,14 +656,14 @@ ccl_device_inline bool volume_intersection_filter(const hiprtRay &ray,
     return false;
 }
 
-HIPRT_DEVICE bool intersectFunc(u32 geomType,
-                                u32 rayType,
+HIPRT_DEVICE bool intersectFunc(uint geomType,
+                                uint rayType,
                                 const hiprtFuncTableHeader &tableHeader,
                                 const hiprtRay &ray,
                                 void *payload,
                                 hiprtHit &hit)
 {
-  const u32 index = tableHeader.numGeomTypes * rayType + geomType;
+  const uint index = tableHeader.numGeomTypes * rayType + geomType;
   const void *data = tableHeader.funcDataSets[index].filterFuncData;
   switch (index) {
     case Curve_Intersect_Function:
@@ -683,14 +685,14 @@ HIPRT_DEVICE bool intersectFunc(u32 geomType,
   return false;
 }
 
-HIPRT_DEVICE bool filterFunc(u32 geomType,
-                             u32 rayType,
+HIPRT_DEVICE bool filterFunc(uint geomType,
+                             uint rayType,
                              const hiprtFuncTableHeader &tableHeader,
                              const hiprtRay &ray,
                              void *payload,
                              const hiprtHit &hit)
 {
-  const u32 index = tableHeader.numGeomTypes * rayType + geomType;
+  const uint index = tableHeader.numGeomTypes * rayType + geomType;
   const void *data = tableHeader.funcDataSets[index].intersectFuncData;
   switch (index) {
     case Triangle_Filter_Closest:

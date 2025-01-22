@@ -14,11 +14,7 @@ VKRenderGraph::VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_b
                              VKResourceStateTracker &resources)
     : command_buffer_(std::move(command_buffer)), resources_(resources)
 {
-}
-
-void VKRenderGraph::free_data()
-{
-  command_buffer_.reset();
+  submission_id.reset();
 }
 
 void VKRenderGraph::remove_nodes(Span<NodeHandle> node_handles)
@@ -62,6 +58,7 @@ void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
    *
    * Currently using CPU synchronization for safety. */
   command_buffer_->submit_with_cpu_synchronization();
+  submission_id.next();
   remove_nodes(node_handles);
   command_buffer_->wait_for_cpu_synchronization();
 }
@@ -72,8 +69,31 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
   command_buffer_->submit_with_cpu_synchronization();
+  submission_id.next();
   remove_nodes(node_handles);
   command_buffer_->wait_for_cpu_synchronization();
+}
+
+void VKRenderGraph::submit()
+{
+  /* Using `VK_NULL_HANDLE` will select the default VkFence of the command buffer. */
+  submit_synchronization_event(VK_NULL_HANDLE);
+  wait_synchronization_event(VK_NULL_HANDLE);
+}
+
+void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
+{
+  std::scoped_lock lock(resources_.mutex);
+  Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
+  command_builder_.build_nodes(*this, *command_buffer_, node_handles);
+  command_buffer_->submit_with_cpu_synchronization(vk_fence);
+  submission_id.next();
+  remove_nodes(node_handles);
+}
+
+void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
+{
+  command_buffer_->wait_for_cpu_synchronization(vk_fence);
 }
 
 /** \} */
@@ -84,7 +104,8 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 
 void VKRenderGraph::debug_group_begin(const char *name)
 {
-  debug_.group_stack.append(name);
+  DebugGroupNameID name_id = debug_.group_names.index_of_or_add(std::string(name));
+  debug_.group_stack.append(name_id);
   debug_.group_used = false;
 }
 
@@ -92,6 +113,28 @@ void VKRenderGraph::debug_group_end()
 {
   debug_.group_stack.pop_last();
   debug_.group_used = false;
+}
+
+void VKRenderGraph::debug_print(NodeHandle node_handle) const
+{
+  std::ostream &os = std::cout;
+  os << "NODE:\n";
+  const VKRenderGraphNode &node = nodes_[node_handle];
+  os << "  type:" << node.type << "\n";
+
+  const VKRenderGraphNodeLinks &links = links_[node_handle];
+  os << " inputs:\n";
+  for (const VKRenderGraphLink &link : links.inputs) {
+    os << "  ";
+    link.debug_print(os, resources_);
+    os << "\n";
+  }
+  os << " outputs:\n";
+  for (const VKRenderGraphLink &link : links.outputs) {
+    os << "  ";
+    link.debug_print(os, resources_);
+    os << "\n";
+  }
 }
 
 /** \} */

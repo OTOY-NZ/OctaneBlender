@@ -78,14 +78,14 @@ static void node_update(bNodeTree *ntree, bNode *node)
                   (mode == GEO_NODE_MESH_LINE_MODE_END_POINTS) ? N_("End Location") :
                                                                  N_("Offset"));
 
-  bke::nodeSetSocketAvailability(ntree,
-                                 resolution_socket,
-                                 mode == GEO_NODE_MESH_LINE_MODE_END_POINTS &&
-                                     count_mode == GEO_NODE_MESH_LINE_COUNT_RESOLUTION);
-  bke::nodeSetSocketAvailability(ntree,
-                                 count_socket,
-                                 mode == GEO_NODE_MESH_LINE_MODE_OFFSET ||
-                                     count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL);
+  bke::node_set_socket_availability(ntree,
+                                    resolution_socket,
+                                    mode == GEO_NODE_MESH_LINE_MODE_END_POINTS &&
+                                        count_mode == GEO_NODE_MESH_LINE_COUNT_RESOLUTION);
+  bke::node_set_socket_availability(ntree,
+                                    count_socket,
+                                    mode == GEO_NODE_MESH_LINE_MODE_OFFSET ||
+                                        count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -225,13 +225,13 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_LINE, "Mesh Line", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.updatefunc = node_update;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryMeshLine", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
+  ntype.updatefunc = node_update;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

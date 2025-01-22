@@ -47,5 +47,5 @@ void register_node_type_tex_oct_surface_tangent_dpdv(void)
   // node_type_exec(&ntype, 0, 0, 0);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_surface_tangent_dpdv() */

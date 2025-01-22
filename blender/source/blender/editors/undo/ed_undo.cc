@@ -167,7 +167,6 @@ static void ed_undo_step_pre(bContext *C,
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
 
   /* undo during jobs are running can easily lead to freeing data using by jobs,
    * or they can just lead to freezing job in some other cases */
@@ -178,13 +177,6 @@ static void ed_undo_step_pre(bContext *C,
       BKE_report(
           reports, RPT_DEBUG, "Checking validity of current .blend file *BEFORE* undo step");
       BLO_main_validate_libraries(bmain, reports);
-    }
-  }
-
-  if (area && (area->spacetype == SPACE_VIEW3D)) {
-    Object *obact = CTX_data_active_object(C);
-    if (obact && (obact->type == OB_GPENCIL_LEGACY)) {
-      ED_gpencil_toggle_brush_cursor(C, false, nullptr);
     }
   }
 
@@ -213,24 +205,6 @@ static void ed_undo_step_post(bContext *C,
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
-
-  /* Set special modes for grease pencil */
-  if (area != nullptr && (area->spacetype == SPACE_VIEW3D)) {
-    Object *obact = CTX_data_active_object(C);
-    if (obact && (obact->type == OB_GPENCIL_LEGACY)) {
-      /* set cursor */
-      if (obact->mode & OB_MODE_ALL_PAINT_GPENCIL) {
-        ED_gpencil_toggle_brush_cursor(C, true, nullptr);
-      }
-      else {
-        ED_gpencil_toggle_brush_cursor(C, false, nullptr);
-      }
-      /* set workspace mode */
-      Base *basact = CTX_data_active_base(C);
-      object::base_activate(C, basact);
-    }
-  }
 
   /* App-Handlers (post). */
   {
@@ -861,7 +835,7 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
    * for that to be done on all objects we can't skip ones that share data. */
   Vector<Base *> bases = ED_undo_editmode_bases_from_view_layer(scene, view_layer);
   for (Base *base : bases) {
-    ((ID *)base->object->data)->tag |= LIB_TAG_DOIT;
+    ((ID *)base->object->data)->tag |= ID_TAG_DOIT;
   }
   Object **ob_p = object_array;
   for (uint i = 0; i < object_array_len;
@@ -869,11 +843,11 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
   {
     Object *obedit = *ob_p;
     object::editmode_enter_ex(bmain, scene, obedit, object::EM_NO_CONTEXT);
-    ((ID *)obedit->data)->tag &= ~LIB_TAG_DOIT;
+    ((ID *)obedit->data)->tag &= ~ID_TAG_DOIT;
   }
   for (Base *base : bases) {
-    ID *id = static_cast<ID *>(base->object->data);
-    if (id->tag & LIB_TAG_DOIT) {
+    const ID *id = static_cast<ID *>(base->object->data);
+    if (id->tag & ID_TAG_DOIT) {
       object::editmode_exit_ex(bmain, scene, base->object, object::EM_FREEDATA);
       /* Ideally we would know the selection state it was before entering edit-mode,
        * for now follow the convention of having them unselected when exiting the mode. */

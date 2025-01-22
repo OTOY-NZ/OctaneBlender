@@ -17,7 +17,7 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_hash_md5.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_system.h"
@@ -396,7 +396,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
         if (anim != nullptr) {
           img = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           if (img == nullptr) {
-            printf("not an anim; %s\n", file_path);
+            // printf("not an anim; %s\n", file_path);
           }
           else {
             IMB_freeImBuf(img);
@@ -424,7 +424,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
           }
           imb_freerectfloatImBuf(img);
         }
-        IMB_scaleImBuf(img, ex, ey);
+        IMB_scale(img, ex, ey, IMBScaleFilter::Box, false);
       }
     }
     SNPRINTF(desc, "Thumbnail for %s", uri);

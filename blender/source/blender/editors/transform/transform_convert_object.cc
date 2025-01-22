@@ -21,8 +21,11 @@
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
+
+#include "ED_anim_api.hh"
 #include "ED_object.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -296,7 +299,7 @@ static void trans_object_base_deps_flag_prepare(const Scene *scene, ViewLayer *v
 {
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->object->id.tag &= ~LIB_TAG_DOIT;
+    base->object->id.tag &= ~ID_TAG_DOIT;
   }
 }
 
@@ -309,12 +312,12 @@ static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType 
   if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_GEOMETRY)) {
     return;
   }
-  id->tag |= LIB_TAG_DOIT;
+  id->tag |= ID_TAG_DOIT;
 }
 
 static void flush_trans_object_base_deps_flag(Depsgraph *depsgraph, Object *object)
 {
-  object->id.tag |= LIB_TAG_DOIT;
+  object->id.tag |= ID_TAG_DOIT;
   DEG_foreach_dependent_ID_component(depsgraph,
                                      &object->id,
                                      DEG_OB_COMP_TRANSFORM,
@@ -330,7 +333,7 @@ static void trans_object_base_deps_flag_finish(const TransInfo *t,
   if ((t->options & CTX_OBMODE_XFORM_OBDATA) == 0) {
     BKE_view_layer_synced_ensure(scene, view_layer);
     LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      if (base->object->id.tag & LIB_TAG_DOIT) {
+      if (base->object->id.tag & ID_TAG_DOIT) {
         base->flag_legacy |= BA_SNAP_FIX_DEPS_FIASCO;
       }
     }
@@ -903,6 +906,15 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   bool motionpath_update = false;
+
+  if (blender::animrig::is_autokey_on(t->scene) && !canceled) {
+    blender::Vector<Object *> objects;
+    for (int i = 0; i < tc->data_len; i++) {
+      const TransData *td = &tc->data[i];
+      objects.append(td->ob);
+    }
+    ANIM_deselect_keys_in_animation_editors(C);
+  }
 
   for (int i = 0; i < tc->data_len; i++) {
     TransData *td = tc->data + i;

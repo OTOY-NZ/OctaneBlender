@@ -22,7 +22,7 @@
 
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
@@ -32,7 +32,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -95,7 +95,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(user_data, ob, md, "texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -376,7 +378,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, ICON_NONE, nullptr);
+  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, has_texture);

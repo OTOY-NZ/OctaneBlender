@@ -556,7 +556,7 @@ static bool mesh_batch_cache_valid(Object &object, Mesh &mesh)
     return false;
   }
 
-  /* NOTE: PBVH draw data should not be checked here. */
+  /* NOTE: bke::pbvh::Tree draw data should not be checked here. */
 
   if (cache->is_editmode != (mesh.runtime->edit_mesh != nullptr)) {
     return false;
@@ -584,10 +584,6 @@ static void mesh_batch_cache_init(Object &object, Mesh &mesh)
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
 
   cache->is_editmode = mesh.runtime->edit_mesh != nullptr;
-
-  if (object.sculpt && object.sculpt->pbvh) {
-    cache->pbvh_is_drawing = BKE_pbvh_is_drawing(*object.sculpt->pbvh);
-  }
 
   if (cache->is_editmode == false) {
     // cache->edge_len = mesh_render_edges_len_get(mesh);
@@ -1494,15 +1490,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     return;
   }
 
-  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing (non-PBVH).
+  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing (non-pbvh::Tree).
    * This makes tools that sample the surface per step get wrong normals until a redraw happens.
    * Normal updates should be part of the brush loop and only run during the stroke when the
    * brush needs to sample the surface. The drawing code should only update the normals
    * per redraw when smooth shading is enabled. */
-  const bool do_update_sculpt_normals = ob.sculpt && ob.sculpt->pbvh;
+  const bool do_update_sculpt_normals = ob.sculpt && bke::object::pbvh_get(ob);
   if (do_update_sculpt_normals) {
-    Mesh *mesh = static_cast<Mesh *>(ob.data);
-    bke::pbvh::update_normals(*ob.sculpt->pbvh, mesh->runtime->subdiv_ccg.get());
+    bke::pbvh::update_normals_from_eval(ob, *bke::object::pbvh_get(ob));
   }
 
   cache.batch_ready |= batch_requested;
@@ -1673,6 +1668,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     DRW_ibo_request(cache.batch.edit_vertices, &mbuflist->ibo.points);
     DRW_vbo_request(cache.batch.edit_vertices, &mbuflist->vbo.pos);
     DRW_vbo_request(cache.batch.edit_vertices, &mbuflist->vbo.edit_data);
+    if (!do_subdivision || do_cage) {
+      /* For GPU subdivision, vertex normals are included in the `pos` VBO. */
+      DRW_vbo_request(cache.batch.edit_vertices, &mbuflist->vbo.vnor);
+    }
   }
   assert_deps_valid(MBC_EDIT_EDGES,
                     {BUFFER_INDEX(ibo.lines), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.edit_data)});
@@ -1680,6 +1679,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     DRW_ibo_request(cache.batch.edit_edges, &mbuflist->ibo.lines);
     DRW_vbo_request(cache.batch.edit_edges, &mbuflist->vbo.pos);
     DRW_vbo_request(cache.batch.edit_edges, &mbuflist->vbo.edit_data);
+    if (!do_subdivision || do_cage) {
+      /* For GPU subdivision, vertex normals are included in the `pos` VBO. */
+      DRW_vbo_request(cache.batch.edit_edges, &mbuflist->vbo.vnor);
+    }
   }
   assert_deps_valid(MBC_EDIT_VNOR,
                     {BUFFER_INDEX(ibo.points), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.vnor)});

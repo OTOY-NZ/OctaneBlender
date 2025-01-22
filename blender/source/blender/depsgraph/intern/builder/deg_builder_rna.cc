@@ -25,7 +25,7 @@
 #include "BKE_constraint.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "intern/builder/deg_builder.h"
 #include "intern/depsgraph.hh"
@@ -276,7 +276,6 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
     return node_identifier;
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Mesh) || RNA_struct_is_a(ptr->type, &RNA_Modifier) ||
-           RNA_struct_is_a(ptr->type, &RNA_GpencilModifier) ||
            RNA_struct_is_a(ptr->type, &RNA_Spline) || RNA_struct_is_a(ptr->type, &RNA_TextBox) ||
            RNA_struct_is_a(ptr->type, &RNA_GPencilLayer) ||
            RNA_struct_is_a(ptr->type, &RNA_LatticePoint) ||

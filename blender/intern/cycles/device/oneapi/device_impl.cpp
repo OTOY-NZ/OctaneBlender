@@ -190,10 +190,11 @@ void OneapiDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     if (bvh->params.top_level) {
       embree_scene = bvh_embree->scene;
 #    if RTC_VERSION >= 40302
-      if (bvh_embree->offload_scenes_to_gpu(all_embree_scenes) == false) {
+      RTCError error_code = bvh_embree->offload_scenes_to_gpu(all_embree_scenes);
+      if (error_code != RTC_ERROR_NONE) {
         set_error(
-            string_printf("BVH failed to to migrate to the GPU due to Embree library error (%s)",
-                          bvh_embree->get_last_error_message()));
+            string_printf("BVH failed to migrate to the GPU due to Embree library error (%s)",
+                          bvh_embree->get_error_string(error_code)));
       }
       all_embree_scenes.clear();
 #    endif
@@ -991,13 +992,13 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
 
 /* Compute-runtime (ie. NEO) version is what gets returned by sycl/L0 on Windows
  * since Windows driver 101.3268. */
-static const int lowest_supported_driver_version_win = 1015518;
+static const int lowest_supported_driver_version_win = 1015730;
 #  ifdef _WIN32
-/* For Windows driver 101.5518, compute-runtime version is 28044.
+/* For Windows driver 101.5730, compute-runtime version is 29550.
  * This information is returned by `ocloc query OCL_DRIVER_VERSION`.*/
-static const int lowest_supported_driver_version_neo = 29283;
+static const int lowest_supported_driver_version_neo = 29550;
 #  else
-static const int lowest_supported_driver_version_neo = 27642;
+static const int lowest_supported_driver_version_neo = 29735;
 #  endif
 
 int parse_driver_build_version(const sycl::device &device)

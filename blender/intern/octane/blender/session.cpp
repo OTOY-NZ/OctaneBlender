@@ -72,6 +72,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                BL::BlendData &b_data,
                                BlenderSession::ExportType export_type,
                                std::string &export_path,
+                               int export_frame_start,
+                               int export_frame_end,
                                std::unordered_set<std::string> &dirty_resources)
     : session(NULL),
       sync(NULL),
@@ -86,7 +88,9 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       width(0),
       height(0),
       python_thread_state(NULL),
-      export_path(export_path)
+      export_path(export_path),
+      export_frame_start(export_frame_start),
+      export_frame_end(export_frame_end)
 {
   sync_mutex.lock();
 
@@ -112,6 +116,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                int height,
                                BlenderSession::ExportType export_type,
                                std::string &export_path,
+                               int export_frame_start,
+                               int export_frame_end,
                                std::unordered_set<std::string> &dirty_resources)
     : session(NULL),
       sync(NULL),
@@ -126,7 +132,9 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       width(width),
       height(height),
       python_thread_state(NULL),
-      export_path(export_path)
+      export_path(export_path),
+      export_frame_start(export_frame_start),
+      export_frame_end(export_frame_end)
 {
   sync_mutex.lock();
 
@@ -516,7 +524,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
   BL::ViewLayer b_viewlayer = b_depsgraph.view_layer_eval();
   SessionParams session_params = BlenderSync::get_session_params(
-      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height, export_type);
+      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height, 
+      export_type, export_frame_start, export_frame_end);
   if (session_params.export_type != ::OctaneEngine::SceneExportTypes::NONE) {
     BL::Object b_camera_override(b_engine.camera_override());
     sync->sync_data(
@@ -536,7 +545,9 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
                                  session_params.out_of_core_mem_limit,
                                  session_params.out_of_core_gpu_headroom,
                                  session_params.render_priority,
-                                 session_params.resource_cache_type);
+                                 session_params.resource_cache_type,
+                                 session_params.export_frame_start,
+                                 session_params.export_frame_end);
 
     if (b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
       session->progress.set_status("Transferring scene file...");
@@ -1250,7 +1261,9 @@ BlenderSession *BlenderSession::create_export_scene(BL::Scene &b_scene,
                                                     BL::Preferences &b_userpref,
                                                     BL::BlendData &b_data,
                                                     std::string export_path,
-                                                    BlenderSession::ExportType export_type)
+                                                    BlenderSession::ExportType export_type,
+                                                    int frame_start,
+                                                    int frame_end)
 {
   static std::mutex export_mutex;
   bool result = false;
@@ -1290,8 +1303,14 @@ BlenderSession *BlenderSession::create_export_scene(BL::Scene &b_scene,
   BL::RenderEngine b_engine(engineptr);
 
   std::unordered_set<std::string> dirty_resources;
-  BlenderSession *session = new BlenderSession(
-      b_engine, b_userpref, b_data, export_type, export_path, dirty_resources);
+  BlenderSession *session = new BlenderSession(b_engine,
+                                               b_userpref,
+                                               b_data,
+                                               export_type,
+                                               export_path,
+                                               frame_start,
+                                               frame_end,
+                                               dirty_resources);
   export_mutex.unlock();
   return session;
 }
@@ -1352,7 +1371,7 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   BKE_scene_graph_update_tagged(m_depsgraph, m_main);
 
   BlenderSession *session = new BlenderSession(
-      b_engine, b_userpref, b_data, BlenderSession::NONE, empty, dirty_resources);
+      b_engine, b_userpref, b_data, BlenderSession::NONE, empty, 0, 0, dirty_resources);
 
   if (session) {
     session->reset_session(b_data, b_depsgraph);

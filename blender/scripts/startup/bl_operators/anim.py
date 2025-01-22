@@ -223,7 +223,7 @@ class NLA_OT_bake(Operator):
     )
     clear_constraints: BoolProperty(
         name="Clear Constraints",
-        description="Remove all constraints from keyed object/bones, and do 'visual' keying",
+        description="Remove all constraints from keyed object/bones. To get a correct bake with this setting Visual Keying should be enabled",
         default=False,
     )
     clear_parents: BoolProperty(
@@ -413,7 +413,7 @@ class UpdateAnimatedTransformConstraint(Operator):
             data = ...
             try:
                 data = eval("base." + old_path)
-            except BaseException:
+            except Exception:
                 pass
             ret = (data, old_path)
             if isinstance(base, bpy.types.TransformConstraint) and data is not ...:
@@ -430,7 +430,7 @@ class UpdateAnimatedTransformConstraint(Operator):
                     data = ...
                     try:
                         data = eval("base." + new_path)
-                    except BaseException:
+                    except Exception:
                         pass
                     ret = (data, new_path)
                     # print(ret)
@@ -668,6 +668,122 @@ class ARMATURE_OT_collection_remove_unused(Operator):
         )
 
 
+class ANIM_OT_slot_new_for_id(Operator):
+    """Create a new Action Slot for an ID.
+
+    Note that _which_ ID should get this slot must be set in the 'animated_id' context pointer, using:
+
+    >>> layout.context_pointer_set("animated_id", animated_id)
+    """
+    bl_idname = "anim.slot_new_for_id"
+    bl_label = "New Slot"
+    bl_description = "Create a new action slot for this data-block, to hold its animation"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        animated_id = getattr(context, "animated_id", None)
+        if not animated_id:
+            return False
+        if not animated_id.animation_data or not animated_id.animation_data.action:
+            cls.poll_message_set("An action slot can only be created when an action was assigned")
+            return False
+        if not animated_id.animation_data.action.is_action_layered:
+            cls.poll_message_set("Action slots are only supported by layered Actions. Upgrade this Action first")
+            return False
+        return True
+
+    def execute(self, context):
+        animated_id = context.animated_id
+
+        action = animated_id.animation_data.action
+        slot = action.slots.new(for_id=animated_id)
+        animated_id.animation_data.action_slot = slot
+        return {'FINISHED'}
+
+
+class ANIM_OT_slot_unassign_from_id(Operator):
+    """Un-assign the assigned Action Slot from an ID.
+
+    Note that _which_ ID should get this slot unassigned must be set in the
+    "animated_id" context pointer, using:
+
+    >>> layout.context_pointer_set("animated_id", animated_id)
+    """
+    bl_idname = "anim.slot_unassign_from_id"
+    bl_label = "Unassign Slot"
+    bl_description = "Un-assign the action slot, effectively making this data-block non-animated"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        animated_id = getattr(context, "animated_id", None)
+        if not animated_id:
+            return False
+        if not animated_id.animation_data or not animated_id.animation_data.action_slot:
+            cls.poll_message_set("This data-block has no Action slot assigned")
+            return False
+        return True
+
+    def execute(self, context):
+        animated_id = context.animated_id
+        animated_id.animation_data.action_slot = None
+        return {'FINISHED'}
+
+
+class generic_slot_unassign_mixin():
+    context_property_name = ""
+    """Which context attribute to use to get the to-be-manipulated data-block."""
+
+    @classmethod
+    def poll(cls, context):
+        slot_user = getattr(context, cls.context_property_name, None)
+        if not slot_user:
+            return False
+
+        if not slot_user.action_slot:
+            cls.poll_message_set("No Action slot is assigned, so there is nothing to un-assign")
+            return False
+        return True
+
+    def execute(self, context):
+        slot_user = getattr(context, self.context_property_name, None)
+        slot_user.action_slot = None
+        return {'FINISHED'}
+
+
+class ANIM_OT_slot_unassign_from_nla_strip(generic_slot_unassign_mixin, Operator):
+    """Un-assign the assigned Action Slot from an NLA strip.
+
+    Note that _which_ NLA strip should get this slot unassigned must be set in
+    the "nla_strip" context pointer, using:
+
+    >>> layout.context_pointer_set("nla_strip", nla_strip)
+    """
+    bl_idname = "anim.slot_unassign_from_nla_strip"
+    bl_label = "Unassign Slot"
+    bl_description = "Un-assign the action slot from this NLA strip, effectively making it non-animated"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    context_property_name = "nla_strip"
+
+
+class ANIM_OT_slot_unassign_from_constraint(generic_slot_unassign_mixin, Operator):
+    """Un-assign the assigned Action Slot from an Action constraint.
+
+    Note that _which_ constraint should get this slot unassigned must be set in
+    the "constraint" context pointer, using:
+
+    >>> layout.context_pointer_set("constraint", constraint)
+    """
+    bl_idname = "anim.slot_unassign_from_constraint"
+    bl_label = "Unassign Slot"
+    bl_description = "Un-assign the action slot from this constraint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    context_property_name = "constraint"
+
+
 classes = (
     ANIM_OT_keying_set_export,
     NLA_OT_bake,
@@ -677,4 +793,8 @@ classes = (
     ARMATURE_OT_collection_show_all,
     ARMATURE_OT_collection_unsolo_all,
     ARMATURE_OT_collection_remove_unused,
+    ANIM_OT_slot_new_for_id,
+    ANIM_OT_slot_unassign_from_id,
+    ANIM_OT_slot_unassign_from_nla_strip,
+    ANIM_OT_slot_unassign_from_constraint,
 )

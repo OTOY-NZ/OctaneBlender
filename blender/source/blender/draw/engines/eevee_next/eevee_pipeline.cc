@@ -11,6 +11,7 @@
  */
 
 #include "BLI_bounds.hh"
+#include "GPU_capabilities.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_pipeline.hh"
@@ -208,7 +209,7 @@ void ShadowPipeline::sync()
   bool shadow_update_tbdr = (ShadowModule::shadow_technique == ShadowTechnique::TILE_COPY);
   if (shadow_update_tbdr) {
     draw::PassMain::Sub &pass = render_ps_.sub("Shadow.TilePageClear");
-    pass.subpass_transition(GPU_ATTACHEMENT_WRITE, {GPU_ATTACHEMENT_WRITE});
+    pass.subpass_transition(GPU_ATTACHMENT_WRITE, {GPU_ATTACHMENT_WRITE});
     pass.shader_set(inst_.shaders.static_shader_get(SHADOW_PAGE_TILE_CLEAR));
     /* Only manually clear depth of the updated tiles.
      * This is because the depth is initialized to near depth using attachments for fast clear and
@@ -252,7 +253,7 @@ void ShadowPipeline::sync()
     pass.state_set(DRW_STATE_DEPTH_ALWAYS);
     /* Metal have implicit sync with Raster Order Groups. Other backend need to have manual
      * sub-pass transition to allow reading the frame-buffer. This is a no-op on Metal. */
-    pass.subpass_transition(GPU_ATTACHEMENT_WRITE, {GPU_ATTACHEMENT_READ});
+    pass.subpass_transition(GPU_ATTACHMENT_WRITE, {GPU_ATTACHMENT_READ});
     pass.bind_image(SHADOW_ATLAS_IMG_SLOT, inst_.shadows.atlas_tx_);
     pass.bind_ssbo("dst_coord_buf", inst_.shadows.dst_coord_buf_);
     pass.bind_ssbo("src_coord_buf", inst_.shadows.src_coord_buf_);
@@ -470,12 +471,12 @@ void ForwardPipeline::render(View &view,
 void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
 {
   gbuffer_ps_.init();
-  gbuffer_ps_.subpass_transition(GPU_ATTACHEMENT_WRITE,
-                                 {GPU_ATTACHEMENT_WRITE,
-                                  GPU_ATTACHEMENT_WRITE,
-                                  GPU_ATTACHEMENT_WRITE,
-                                  GPU_ATTACHEMENT_WRITE,
-                                  GPU_ATTACHEMENT_WRITE});
+  gbuffer_ps_.subpass_transition(GPU_ATTACHMENT_WRITE,
+                                 {GPU_ATTACHMENT_WRITE,
+                                  GPU_ATTACHMENT_WRITE,
+                                  GPU_ATTACHMENT_WRITE,
+                                  GPU_ATTACHMENT_WRITE,
+                                  GPU_ATTACHMENT_WRITE});
   /* G-buffer. */
   gbuffer_ps_.bind_image(GBUF_NORMAL_SLOT, &inst.gbuffer.normal_img_tx);
   gbuffer_ps_.bind_image(GBUF_CLOSURE_SLOT, &inst.gbuffer.closure_img_tx);
@@ -587,13 +588,17 @@ void DeferredLayer::end_sync(bool is_first_pass,
     {
       GPUShader *sh = inst_.shaders.static_shader_get(DEFERRED_TILE_CLASSIFY);
       PassMain::Sub &sub = gbuffer_ps_.sub("StencilClassify");
-      sub.subpass_transition(GPU_ATTACHEMENT_WRITE, /* Needed for depth test. */
-                             {GPU_ATTACHEMENT_IGNORE,
-                              GPU_ATTACHEMENT_READ, /* Header. */
-                              GPU_ATTACHEMENT_IGNORE,
-                              GPU_ATTACHEMENT_IGNORE,
-                              GPU_ATTACHEMENT_IGNORE});
+      sub.subpass_transition(GPU_ATTACHMENT_WRITE, /* Needed for depth test. */
+                             {GPU_ATTACHMENT_IGNORE,
+                              GPU_ATTACHMENT_READ, /* Header. */
+                              GPU_ATTACHMENT_IGNORE,
+                              GPU_ATTACHMENT_IGNORE,
+                              GPU_ATTACHMENT_IGNORE});
       sub.shader_set(sh);
+      if (GPU_stencil_clasify_buffer_workaround()) {
+        /* Binding any buffer to satisfy the binding. The buffer is not actually used. */
+        sub.bind_ssbo("dummy_workaround_buf", &inst_.film.aovs_info);
+      }
       sub.state_set(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS);
       if (GPU_stencil_export_support()) {
         /* The shader sets the stencil directly in one full-screen pass. */
@@ -933,10 +938,10 @@ void DeferredPipeline::debug_draw(draw::View &view, GPUFrameBuffer *combined_fb)
 
   switch (inst.debug_mode) {
     case eDebugMode::DEBUG_GBUFFER_EVALUATION:
-      inst.info = "Debug Mode: Deferred Lighting Cost";
+      inst.info_append("Debug Mode: Deferred Lighting Cost");
       break;
     case eDebugMode::DEBUG_GBUFFER_STORAGE:
-      inst.info = "Debug Mode: Gbuffer Storage Cost";
+      inst.info_append("Debug Mode: Gbuffer Storage Cost");
       break;
     default:
       /* Nothing to display. */

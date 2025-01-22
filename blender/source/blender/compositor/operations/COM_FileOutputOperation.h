@@ -11,8 +11,6 @@
 #include "COM_CompositorContext.h"
 #include "COM_NodeOperation.h"
 
-struct StampData;
-
 namespace blender::realtime_compositor {
 class FileOutput;
 }
@@ -20,10 +18,15 @@ class FileOutput;
 namespace blender::compositor {
 
 struct FileOutputInput {
-  FileOutputInput(NodeImageMultiFileSocket *data, DataType data_type);
+  FileOutputInput(NodeImageMultiFileSocket *data, DataType data_type, DataType original_data_type);
 
   NodeImageMultiFileSocket *data;
+  /* The internal data type of the input in the operation, which can be different from the UI type.
+   * See the get_input_data_type function in COM_FileOutputNode.cc for more information. */
   DataType data_type;
+  /* Stores the original data type of socket in the UI, see data_type above for more information
+   * about the distinction. */
+  DataType original_data_type;
 
   float *output_buffer = nullptr;
   SocketReader *image_input = nullptr;

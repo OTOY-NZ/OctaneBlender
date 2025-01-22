@@ -28,7 +28,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
@@ -150,5 +150,5 @@ void register_node_type_tex_oct_alpha_image(void)
   ntype.updatefunc = (node_octane_image_texture_conversion_update);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_alpha_image() */

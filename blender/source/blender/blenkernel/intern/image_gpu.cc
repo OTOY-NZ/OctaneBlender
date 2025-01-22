@@ -22,7 +22,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
 #include "BKE_main.hh"
 
@@ -31,8 +31,6 @@
 #include "GPU_texture.hh"
 
 using namespace blender::bke::image::partial_update;
-
-extern "C" {
 
 /* Prototypes. */
 static void gpu_free_unused_buffers();
@@ -210,10 +208,10 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 
   /* Upload each tile one by one. */
   LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    ImageTile_Runtime *tile_runtime = &tile->runtime;
-    int tilelayer = tile_runtime->tilearray_layer;
-    int *tileoffset = tile_runtime->tilearray_offset;
-    int *tilesize = tile_runtime->tilearray_size;
+    const ImageTile_Runtime *tile_runtime = &tile->runtime;
+    const int tilelayer = tile_runtime->tilearray_layer;
+    const int *tileoffset = tile_runtime->tilearray_offset;
+    const int *tilesize = tile_runtime->tilearray_size;
 
     if (tilesize[0] == 0 || tilesize[1] == 0) {
       continue;
@@ -656,7 +654,7 @@ static ImBuf *update_do_scale(const uchar *rect,
 
   /* Scale pixels. */
   ImBuf *ibuf = IMB_allocFromBuffer(rect, rect_float, part_w, part_h, 4);
-  IMB_scaleImBuf(ibuf, *w, *h);
+  IMB_scale(ibuf, *w, *h, IMBScaleFilter::Box, false);
 
   return ibuf;
 }
@@ -932,4 +930,3 @@ void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap)
 }
 
 /** \} */
-}

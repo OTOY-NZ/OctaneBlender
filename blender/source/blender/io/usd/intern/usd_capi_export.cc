@@ -34,8 +34,8 @@
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_save.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -44,7 +44,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
 
@@ -181,7 +181,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     xf_api.SetRotate(pxr::GfVec3f(eul[0], eul[1], eul[2]));
   }
 
-  for (auto path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
+  for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
     /* Tag generated prims to allow filtering on import */
     xform.GetPrim().SetCustomDataByKey(pxr::TfToken("Blender:generated"), pxr::VtValue(true));
@@ -204,17 +204,17 @@ static void process_usdz_textures(const ExportJobData *data, const char *path)
     return;
   }
 
-  int image_size = ((enum_value == USD_TEXTURE_SIZE_CUSTOM ?
-                         data->params.usdz_downscale_custom_size :
-                         enum_value));
+  const int image_size = (enum_value == USD_TEXTURE_SIZE_CUSTOM) ?
+                             data->params.usdz_downscale_custom_size :
+                             enum_value;
 
   char texture_path[FILE_MAX];
-  BLI_strncpy(texture_path, path, FILE_MAX);
+  STRNCPY(texture_path, path);
   BLI_path_append(texture_path, FILE_MAX, "textures");
   BLI_path_slash_ensure(texture_path, sizeof(texture_path));
 
-  struct direntry *entries;
-  unsigned int num_files = BLI_filelist_dir_contents(texture_path, &entries);
+  direntry *entries;
+  uint num_files = BLI_filelist_dir_contents(texture_path, &entries);
 
   for (int index = 0; index < num_files; index++) {
     /* We can skip checking extensions as this folder is only created
@@ -292,8 +292,8 @@ static bool perform_usdz_conversion(const ExportJobData *data)
   BLI_path_split_file_part(data->usdz_filepath, usdz_file, FILE_MAX);
 
   char original_working_dir_buff[FILE_MAX];
-  char *original_working_dir = BLI_current_working_dir(original_working_dir_buff,
-                                                       sizeof(original_working_dir_buff));
+  const char *original_working_dir = BLI_current_working_dir(original_working_dir_buff,
+                                                             sizeof(original_working_dir_buff));
   /* Buffer is expected to be returned by #BLI_current_working_dir, although in theory other
    * returns are possible on some platforms, this is not handled by this code. */
   BLI_assert(original_working_dir == original_working_dir_buff);
@@ -351,7 +351,7 @@ std::string get_image_cache_file(const std::string &file_name, bool mkdir)
   return file_path;
 }
 
-std::string cache_image_color(float color[4])
+std::string cache_image_color(const float color[4])
 {
   char name[128];
   SNPRINTF(name,
@@ -640,7 +640,7 @@ static void set_job_filepath(blender::io::usd::ExportJobData *job, const char *f
   job->usdz_filepath[0] = '\0';
 }
 
-bool USD_export(bContext *C,
+bool USD_export(const bContext *C,
                 const char *filepath,
                 const USDExportParams *params,
                 bool as_background_job,
@@ -692,7 +692,7 @@ bool USD_export(bContext *C,
   bool export_ok = false;
   if (as_background_job) {
     wmJob *wm_job = WM_jobs_get(
-        job->wm, CTX_wm_window(C), scene, "USD Export", WM_JOB_PROGRESS, WM_JOB_TYPE_ALEMBIC);
+        job->wm, CTX_wm_window(C), scene, "USD Export", WM_JOB_PROGRESS, WM_JOB_TYPE_USD_EXPORT);
 
     /* setup job */
     WM_jobs_customdata_set(wm_job, job, MEM_freeN);

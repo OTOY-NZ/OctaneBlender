@@ -25,12 +25,12 @@
 #include "BKE_material.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 #include "hydra_scene_delegate.hh"
 #include "image.hh"

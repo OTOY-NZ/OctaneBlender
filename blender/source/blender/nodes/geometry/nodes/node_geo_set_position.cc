@@ -82,7 +82,7 @@ static void set_position_in_grease_pencil(GreasePencil &grease_pencil,
 {
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
     if (drawing == nullptr || drawing->strokes().points_num() == 0) {
       continue;
     }
@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (Curves *curves_id = geometry.get_curves_for_write()) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     set_curves_position(curves,
-                        bke::CurvesFieldContext(curves, bke::AttrDomain::Point),
+                        bke::CurvesFieldContext(*curves_id, bke::AttrDomain::Point),
                         selection_field,
                         position_field);
   }
@@ -162,7 +162,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_SET_POSITION, "Set Position", NODE_CLASS_GEOMETRY);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

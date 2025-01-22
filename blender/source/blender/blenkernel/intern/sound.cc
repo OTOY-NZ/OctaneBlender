@@ -46,7 +46,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_sound.h"
 
 #include "DEG_depsgraph.hh"
@@ -187,8 +187,8 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
   /* clear waveform loading flag */
   sound->tags &= ~SOUND_TAGS_WAVEFORM_LOADING;
 
-  BKE_packedfile_blend_read(reader, &sound->packedfile);
-  BKE_packedfile_blend_read(reader, &sound->newpackedfile);
+  BKE_packedfile_blend_read(reader, &sound->packedfile, sound->filepath);
+  BKE_packedfile_blend_read(reader, &sound->newpackedfile, sound->filepath);
 }
 
 IDTypeInfo IDType_ID_SO = {
@@ -236,10 +236,10 @@ BLI_INLINE void sound_verify_evaluated_id(const ID *id)
    * them to be allocated on a data-blocks which are result of dependency graph evaluation.
    *
    * Data-blocks which are covered by a copy-on-evaluation system of dependency graph will have
-   * LIB_TAG_COPIED_ON_EVAL tag set on them. But if some of data-blocks during its evaluation
+   * ID_TAG_COPIED_ON_EVAL tag set on them. But if some of data-blocks during its evaluation
    * decides to re-allocate its nested one (for example, object evaluation could re-allocate mesh
    * when evaluating modifier stack). Such data-blocks will have
-   * LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT tag set on them.
+   * ID_TAG_COPIED_ON_EVAL_FINAL_RESULT tag set on them.
    *
    * Additionally, we also allow data-blocks outside of main database. Those can not be "original"
    * and could be used as a temporary evaluated result during operations like baking.
@@ -247,7 +247,7 @@ BLI_INLINE void sound_verify_evaluated_id(const ID *id)
    * NOTE: We consider ID evaluated if ANY of those flags is set. We do NOT require ALL of them.
    */
   BLI_assert(id->tag &
-             (LIB_TAG_COPIED_ON_EVAL | LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT | LIB_TAG_NO_MAIN));
+             (ID_TAG_COPIED_ON_EVAL | ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_NO_MAIN));
 }
 
 bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
@@ -736,11 +736,20 @@ void *BKE_sound_add_scene_sound(
   }
   sound_verify_evaluated_id(&sequence->sound->id);
   const double fps = FPS;
+  const double offset_time = sequence->sound->offset_time + sequence->sound_offset -
+                             frameskip / fps;
+  if (offset_time >= 0.0f) {
+    return AUD_Sequence_add(scene->sound_scene,
+                            sequence->sound->playback_handle,
+                            startframe / fps + offset_time,
+                            endframe / fps,
+                            0.0f);
+  }
   return AUD_Sequence_add(scene->sound_scene,
                           sequence->sound->playback_handle,
                           startframe / fps,
                           endframe / fps,
-                          frameskip / fps + sequence->sound->offset_time);
+                          -offset_time);
 }
 
 void *BKE_sound_add_scene_sound_defaults(Scene *scene, Sequence *sequence)
@@ -771,19 +780,29 @@ void BKE_sound_move_scene_sound(const Scene *scene,
 {
   sound_verify_evaluated_id(&scene->id);
   const double fps = FPS;
-  AUD_SequenceEntry_move(handle, startframe / fps, endframe / fps, frameskip / fps + audio_offset);
+  const double offset_time = audio_offset - frameskip / fps;
+  if (offset_time >= 0.0f) {
+    AUD_SequenceEntry_move(handle, startframe / fps + offset_time, endframe / fps, 0.0f);
+  }
+  else {
+    AUD_SequenceEntry_move(handle, startframe / fps, endframe / fps, -offset_time);
+  }
 }
 
 void BKE_sound_move_scene_sound_defaults(Scene *scene, Sequence *sequence)
 {
   sound_verify_evaluated_id(&scene->id);
   if (sequence->scene_sound) {
+    double offset_time = 0.0f;
+    if (sequence->sound != nullptr) {
+      offset_time = sequence->sound->offset_time + sequence->sound_offset;
+    }
     BKE_sound_move_scene_sound(scene,
                                sequence->scene_sound,
                                SEQ_time_left_handle_frame_get(scene, sequence),
                                SEQ_time_right_handle_frame_get(scene, sequence),
                                sequence->startofs + sequence->anim_startofs,
-                               0.0);
+                               offset_time);
   }
 }
 
@@ -941,7 +960,8 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
   bScreen *screen;
   int animation_playing;
 
-  const double one_frame = 1.0 / FPS;
+  const double one_frame = 1.0 / FPS +
+                           (U.audiorate > 0 ? U.mixbufsize / double(U.audiorate) : 0.0);
   const double cur_time = FRA2TIME(scene->r.cfra);
 
   AUD_Device_lock(sound_device);
@@ -1390,13 +1410,13 @@ void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene_listener(Scene * /*scene*/) {}
 void BKE_sound_update_fps(Main * /*bmain*/, Scene * /*scene*/) {}
 void BKE_sound_set_scene_sound_volume_at_frame(void * /*handle*/,
-                                               int /* frame */,
+                                               int /*frame*/,
                                                float /*volume*/,
                                                char /*animated*/)
 {
 }
 void BKE_sound_set_scene_sound_pan_at_frame(void * /*handle*/,
-                                            int /* frame */,
+                                            int /*frame*/,
                                             float /*pan*/,
                                             char /*animated*/)
 {

@@ -109,7 +109,7 @@ void SyncModule::sync_mesh(Object *ob,
     return;
   }
 
-  if ((ob->dt < OB_SOLID) && ((inst_.is_viewport() && inst_.v3d->shading.type != OB_RENDER))) {
+  if ((ob->dt < OB_SOLID) && (inst_.is_viewport() && inst_.v3d->shading.type != OB_RENDER)) {
     /** Do not render objects with display type lower than solid when in material preview mode. */
     return;
   }
@@ -184,14 +184,6 @@ bool SyncModule::sync_sculpt(Object *ob,
   }
 
   bool pbvh_draw = BKE_sculptsession_use_pbvh_draw(ob, inst_.rv3d) && !DRW_state_is_image_render();
-  /* Needed for mesh cache validation, to prevent two copies of
-   * of vertex color arrays from being sent to the GPU (e.g.
-   * when switching from eevee to workbench).
-   */
-  if (ob_ref.object->sculpt && ob_ref.object->sculpt->pbvh) {
-    BKE_pbvh_is_drawing_set(*ob_ref.object->sculpt->pbvh, pbvh_draw);
-  }
-
   if (!pbvh_draw) {
     return false;
   }
@@ -251,9 +243,9 @@ bool SyncModule::sync_sculpt(Object *ob,
     inst_.volume.object_sync(ob_handle);
   }
 
-  /* Use a valid bounding box. The PBVH module already does its own culling, but a valid */
+  /* Use a valid bounding box. The pbvh::Tree module already does its own culling, but a valid */
   /* bounding box is still needed for directional shadow tile-map bounds computation. */
-  const Bounds<float3> bounds = bke::pbvh::bounds_get(*ob_ref.object->sculpt->pbvh);
+  const Bounds<float3> bounds = bke::pbvh::bounds_get(*bke::object::pbvh_get(*ob_ref.object));
   const float3 center = math::midpoint(bounds.min, bounds.max);
   const float3 half_extent = bounds.max - center + inflate_bounds;
   inst_.manager->update_handle_bounds(res_handle, center, half_extent);
@@ -397,149 +389,6 @@ void SyncModule::sync_volume(Object *ob,
   inst_.manager->extract_object_attributes(res_handle, ob_ref, material.volume_material.gpumat);
 
   inst_.volume.object_sync(ob_handle);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name GPencil
- * \{ */
-
-#define DO_BATCHING true
-
-struct gpIterData {
-  Instance &inst;
-  Object *ob;
-  MaterialArray &material_array;
-  int cfra;
-
-  /* Drawcall batching. */
-  gpu::Batch *geom = nullptr;
-  Material *material = nullptr;
-  int vfirst = 0;
-  int vcount = 0;
-  bool instancing = false;
-
-  gpIterData(Instance &inst_, Object *ob_, ObjectHandle &ob_handle, ResourceHandle resource_handle)
-      : inst(inst_),
-        ob(ob_),
-        material_array(inst_.materials.material_array_get(
-            ob_,
-            inst_.velocity.step_object_sync(
-                ob, ob_handle.object_key, resource_handle, ob_handle.recalc)))
-  {
-    cfra = DEG_get_ctime(inst.depsgraph);
-  };
-};
-
-static void gpencil_drawcall_flush(gpIterData &iter)
-{
-#if 0 /* Incompatible with new draw manager. */
-  if (iter.geom != nullptr) {
-    geometry_call(iter.material->shading.sub_pass,
-                  iter.ob,
-                  iter.geom,
-                  iter.vfirst,
-                  iter.vcount,
-                  iter.instancing);
-    geometry_call(iter.material->prepass.sub_pass,
-                  iter.ob,
-                  iter.geom,
-                  iter.vfirst,
-                  iter.vcount,
-                  iter.instancing);
-    geometry_call(iter.material->shadow.sub_pass,
-                  iter.ob,
-                  iter.geom,
-                  iter.vfirst,
-                  iter.vcount,
-                  iter.instancing);
-  }
-#endif
-  iter.geom = nullptr;
-  iter.vfirst = -1;
-  iter.vcount = 0;
-}
-
-/* Group draw-calls that are consecutive and with the same type. Reduces GPU driver overhead. */
-static void gpencil_drawcall_add(gpIterData &iter,
-                                 gpu::Batch *geom,
-                                 Material *material,
-                                 int v_first,
-                                 int v_count,
-                                 bool instancing)
-{
-  int last = iter.vfirst + iter.vcount;
-  /* Interrupt draw-call grouping if the sequence is not consecutive. */
-  if (!DO_BATCHING || (geom != iter.geom) || (material != iter.material) || (v_first - last > 3)) {
-    gpencil_drawcall_flush(iter);
-  }
-  iter.geom = geom;
-  iter.material = material;
-  iter.instancing = instancing;
-  if (iter.vfirst == -1) {
-    iter.vfirst = v_first;
-  }
-  iter.vcount = v_first + v_count - iter.vfirst;
-}
-
-static void gpencil_stroke_sync(bGPDlayer * /*gpl*/,
-                                bGPDframe * /*gpf*/,
-                                bGPDstroke *gps,
-                                void *thunk)
-{
-  gpIterData &iter = *(gpIterData *)thunk;
-
-  Material *material = &iter.material_array.materials[gps->mat_nr];
-  MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(iter.ob, gps->mat_nr + 1);
-
-  bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
-  bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0) ||
-                     (!DRW_state_is_image_render() && ((gps->flag & GP_STROKE_NOFILL) != 0));
-  bool show_fill = (gps->tot_triangles > 0) && ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0);
-
-  if (hide_material) {
-    return;
-  }
-
-  gpu::Batch *geom = DRW_cache_gpencil_get(iter.ob, iter.cfra);
-
-  if (show_fill) {
-    int vfirst = gps->runtime.fill_start * 3;
-    int vcount = gps->tot_triangles * 3;
-    gpencil_drawcall_add(iter, geom, material, vfirst, vcount, false);
-  }
-
-  if (show_stroke) {
-    /* Start one vert before to have gl_InstanceID > 0 (see shader). */
-    int vfirst = gps->runtime.stroke_start * 3;
-    /* Include "potential" cyclic vertex and start adj vertex (see shader). */
-    int vcount = gps->totpoints + 1 + 1;
-    gpencil_drawcall_add(iter, geom, material, vfirst, vcount, true);
-  }
-}
-
-void SyncModule::sync_gpencil(Object *ob, ObjectHandle &ob_handle, ResourceHandle res_handle)
-{
-  /* TODO(fclem): Waiting for a user option to use the render engine instead of gpencil engine. */
-  return;
-
-  /* Is this a surface or curves? */
-  if (!inst_.use_surfaces) {
-    return;
-  }
-
-  UNUSED_VARS(res_handle);
-
-  gpIterData iter(inst_, ob, ob_handle, res_handle);
-
-  BKE_gpencil_visible_stroke_iter((bGPdata *)ob->data, nullptr, gpencil_stroke_sync, &iter);
-
-  gpencil_drawcall_flush(iter);
-
-  bool is_alpha_blend = true;          /* TODO material.is_alpha_blend. */
-  bool has_transparent_shadows = true; /* TODO material.has_transparent_shadows. */
-  inst_.shadows.sync_object(ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows);
 }
 
 /** \} */

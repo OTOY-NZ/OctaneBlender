@@ -126,5 +126,5 @@ void register_node_type_emission_oct_toon_direction_light(void)
   node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_oct_toon_direction_light_init);
   ntype.updatefunc = (node_type_emission_update_oct_toon_direction_light);
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

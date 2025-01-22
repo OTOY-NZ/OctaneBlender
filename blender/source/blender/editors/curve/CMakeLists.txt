@@ -9,7 +9,7 @@ set(INC
   ../../gpu
   ../../makesrna
   ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -33,6 +33,7 @@ set(SRC
 
 set(LIB
   bf_blenkernel
+  PRIVATE bf::animrig
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
@@ -41,8 +42,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
 )
 
-
 blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_curve bf_rna)

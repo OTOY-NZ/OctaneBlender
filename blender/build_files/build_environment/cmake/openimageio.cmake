@@ -109,17 +109,17 @@ set(OPENIMAGEIO_EXTRA_ARGS
 )
 
 if(WIN32)
-  # We don't want the SOABI tags in the final filename since it gets the debug 
+  # We don't want the SOABI tags in the final filename since it gets the debug
   # tags wrong and the final .pyd won't be found by python, pybind11 will try to
   # get the tags and dump them into PYTHON_MODULE_EXTENSION every time the current
   # python interperter doesn't match the old one, overwriting our preference.
   # To side step this behavior we set PYBIND11_PYTHON_EXECUTABLE_LAST so it'll
-  # leave the PYTHON_MODULE_EXTENSION value we set alone. 
-  LIST(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYBIND11_PYTHON_EXECUTABLE_LAST=${PYTHON_BINARY})
+  # leave the PYTHON_MODULE_EXTENSION value we set alone.
+  list(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYBIND11_PYTHON_EXECUTABLE_LAST=${PYTHON_BINARY})
   if(BUILD_MODE STREQUAL Release)
-     LIST(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYTHON_MODULE_EXTENSION=.pyd)
+    list(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYTHON_MODULE_EXTENSION=.pyd)
   else()
-    LIST(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYTHON_MODULE_EXTENSION=_d.pyd)
+    list(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYTHON_MODULE_EXTENSION=_d.pyd)
   endif()
 endif()
 
@@ -142,7 +142,10 @@ ExternalProject_Add(external_openimageio
       ${PATCH_DIR}/oiio_4062.diff &&
     ${PATCH_CMD} -p 1 -N -d
       ${BUILD_DIR}/openimageio/src/external_openimageio/ <
-      ${PATCH_DIR}/oiio_4302.diff
+      ${PATCH_DIR}/oiio_4302.diff &&
+    ${PATCH_CMD} -p 1 -N -d
+      ${BUILD_DIR}/openimageio/src/external_openimageio/ <
+      ${PATCH_DIR}/oiio_windows_arm64.diff
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openimageio
     ${DEFAULT_CMAKE_FLAGS}

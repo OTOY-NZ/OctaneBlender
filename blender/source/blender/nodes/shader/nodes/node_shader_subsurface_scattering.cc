@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSSRDF");
 }
 
@@ -73,10 +73,10 @@ static void node_shader_update_subsurface_scattering(bNodeTree *ntree, bNode *no
 
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "IOR", "Anisotropy")) {
-      bke::nodeSetSocketAvailability(ntree, sock, sss_method != SHD_SUBSURFACE_BURLEY);
+      bke::node_set_socket_availability(ntree, sock, sss_method != SHD_SUBSURFACE_BURLEY);
     }
     if (STR_ELEM(sock->name, "Roughness")) {
-      bke::nodeSetSocketAvailability(ntree, sock, sss_method == SHD_SUBSURFACE_RANDOM_WALK);
+      bke::node_set_socket_availability(ntree, sock, sss_method == SHD_SUBSURFACE_RANDOM_WALK);
     }
   }
 }
@@ -126,5 +126,5 @@ void register_node_type_sh_subsurface_scattering()
   ntype.updatefunc = file_ns::node_shader_update_subsurface_scattering;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

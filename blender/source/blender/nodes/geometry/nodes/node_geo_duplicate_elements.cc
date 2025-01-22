@@ -13,6 +13,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
@@ -56,7 +57,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 }
 
 struct IndexAttributes {
-  AnonymousAttributeIDPtr duplicate_index;
+  std::optional<std::string> duplicate_index;
 };
 
 /* -------------------------------------------------------------------- */
@@ -112,7 +113,7 @@ static void create_duplicate_index_attribute(bke::MutableAttributeAccessor attri
                                              const OffsetIndices<int> offsets)
 {
   SpanAttributeWriter<int> duplicate_indices = attributes.lookup_or_add_for_write_only_span<int>(
-      attribute_outputs.duplicate_index.get(), output_domain);
+      *attribute_outputs.duplicate_index, output_domain);
   for (const int i : IndexRange(selection.size())) {
     MutableSpan<int> indices = duplicate_indices.span.slice(offsets[i]);
     for (const int i : indices.index_range()) {
@@ -156,21 +157,20 @@ static void copy_stable_id_point(const OffsetIndices<int> offsets,
  * Copies the attributes for curve duplicates. If copying the curve domain, the attributes are
  * copied with an offset fill, otherwise a mapping is used.
  */
-static void copy_curve_attributes_without_id(
-    const bke::CurvesGeometry &src_curves,
-    const IndexMask &selection,
-    const OffsetIndices<int> curve_offsets,
-    const AnonymousAttributePropagationInfo &propagation_info,
-    bke::CurvesGeometry &dst_curves)
+static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curves,
+                                             const IndexMask &selection,
+                                             const OffsetIndices<int> curve_offsets,
+                                             const AttributeFilter &attribute_filter,
+                                             bke::CurvesGeometry &dst_curves)
 {
   const OffsetIndices src_points_by_curve = src_curves.points_by_curve();
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_curves.attributes(),
-                                                               dst_curves.attributes_for_write(),
-                                                               ATTR_DOMAIN_MASK_ALL,
-                                                               propagation_info,
-                                                               {"id"}))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_curves.attributes(),
+           dst_curves.attributes_for_write(),
+           ATTR_DOMAIN_MASK_ALL,
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Curve:
@@ -240,23 +240,13 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
   dst_attribute.finish();
 }
 
-static void duplicate_curves(GeometrySet &geometry_set,
-                             const Field<int> &count_field,
-                             const Field<bool> &selection_field,
-                             const IndexAttributes &attribute_outputs,
-                             const AnonymousAttributePropagationInfo &propagation_info)
+static bke::CurvesGeometry duplicate_curves_CurveGeometry(const bke::CurvesGeometry &curves,
+                                                          const FieldContext &field_context,
+                                                          const Field<int> &count_field,
+                                                          const Field<bool> &selection_field,
+                                                          const IndexAttributes &attribute_outputs,
+                                                          const AttributeFilter &attribute_filter)
 {
-  if (!geometry_set.has_curves()) {
-    geometry_set.remove_geometry_during_modify();
-    return;
-  }
-  geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
-  GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
-
-  const Curves &curves_id = *geometry_set.get_curves();
-  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-
-  const bke::CurvesFieldContext field_context{curves, AttrDomain::Curve};
   FieldEvaluator evaluator{field_context, curves.curves_num()};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -282,8 +272,7 @@ static void duplicate_curves(GeometrySet &geometry_set,
   });
 
   if (dst_points_num == 0) {
-    geometry_set.remove_geometry_during_modify();
-    return;
+    return {};
   }
 
   curve_offset_data.last() = dst_curves_num;
@@ -292,11 +281,8 @@ static void duplicate_curves(GeometrySet &geometry_set,
   const OffsetIndices<int> curve_offsets(curve_offset_data);
   const OffsetIndices<int> point_offsets(point_offset_data);
 
-  Curves *new_curves_id = bke::curves_new_nomain(dst_points_num, dst_curves_num);
-  bke::curves_copy_parameters(curves_id, *new_curves_id);
-  bke::CurvesGeometry &new_curves = new_curves_id->geometry.wrap();
+  bke::CurvesGeometry new_curves{dst_points_num, dst_curves_num};
   MutableSpan<int> all_dst_offsets = new_curves.offsets_for_write();
-
   selection.foreach_index(GrainSize(512),
                           [&](const int64_t i_src_curve, const int64_t i_selection) {
                             const IndexRange src_curve_range = points_by_curve[i_src_curve];
@@ -307,11 +293,9 @@ static void duplicate_curves(GeometrySet &geometry_set,
                                                          src_curve_range.size() * i_duplicate;
                             }
                           });
-
   all_dst_offsets.last() = dst_points_num;
 
-  copy_curve_attributes_without_id(curves, selection, curve_offsets, propagation_info, new_curves);
-
+  copy_curve_attributes_without_id(curves, selection, curve_offsets, attribute_filter, new_curves);
   copy_stable_id_curves(curves, selection, curve_offsets, new_curves);
 
   if (attribute_outputs.duplicate_index) {
@@ -323,7 +307,53 @@ static void duplicate_curves(GeometrySet &geometry_set,
   }
 
   new_curves.update_curve_types();
-  geometry_set.replace_curves(new_curves_id);
+  return new_curves;
+}
+
+static void duplicate_curves(GeometrySet &geometry_set,
+                             const Field<int> &count_field,
+                             const Field<bool> &selection_field,
+                             const IndexAttributes &attribute_outputs,
+                             const AttributeFilter &attribute_filter)
+{
+  geometry_set.keep_only_during_modify(
+      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
+  if (const Curves *curves_id = geometry_set.get_curves()) {
+    const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
+    bke::CurvesGeometry new_curves = duplicate_curves_CurveGeometry(curves_id->geometry.wrap(),
+                                                                    field_context,
+                                                                    count_field,
+                                                                    selection_field,
+                                                                    attribute_outputs,
+                                                                    attribute_filter);
+    Curves *new_curves_id = bke::curves_new_nomain(std::move(new_curves));
+    bke::curves_copy_parameters(*curves_id, *new_curves_id);
+    geometry_set.replace_curves(new_curves_id);
+  }
+  if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+    using namespace bke::greasepencil;
+    threading::parallel_for(
+        grease_pencil->layers().index_range(), 16, [&](const IndexRange layers_range) {
+          for (const int layer_i : layers_range) {
+            Layer &layer = grease_pencil->layer(layer_i);
+            Drawing *drawing = grease_pencil->get_eval_drawing(layer);
+            if (!drawing) {
+              continue;
+            }
+            bke::CurvesGeometry &curves = drawing->strokes_for_write();
+            const bke::GreasePencilLayerFieldContext field_context{
+                *grease_pencil, AttrDomain::Curve, layer_i};
+            curves = duplicate_curves_CurveGeometry(curves,
+                                                    field_context,
+                                                    count_field,
+                                                    selection_field,
+                                                    attribute_outputs,
+                                                    attribute_filter);
+            drawing->tag_topology_changed();
+          }
+        });
+  }
 }
 
 /** \} */
@@ -336,22 +366,21 @@ static void duplicate_curves(GeometrySet &geometry_set,
  * Copies the attributes for face duplicates. If copying the face domain, the attributes are
  * copied with an offset fill, otherwise a mapping is used.
  */
-static void copy_face_attributes_without_id(
-    const Span<int> edge_mapping,
-    const Span<int> vert_mapping,
-    const Span<int> loop_mapping,
-    const OffsetIndices<int> offsets,
-    const IndexMask &selection,
-    const AnonymousAttributePropagationInfo &propagation_info,
-    const bke::AttributeAccessor src_attributes,
-    bke::MutableAttributeAccessor dst_attributes)
+static void copy_face_attributes_without_id(const Span<int> edge_mapping,
+                                            const Span<int> vert_mapping,
+                                            const Span<int> loop_mapping,
+                                            const OffsetIndices<int> offsets,
+                                            const IndexMask &selection,
+                                            const AttributeFilter &attribute_filter,
+                                            const bke::AttributeAccessor src_attributes,
+                                            bke::MutableAttributeAccessor dst_attributes)
 {
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
            ATTR_DOMAIN_MASK_ALL,
-           propagation_info,
-           {"id", ".corner_vert", ".corner_edge", ".edge_verts"}))
+           bke::attribute_filter_with_skip_ref(
+               attribute_filter, {"id", ".corner_vert", ".corner_edge", ".edge_verts"})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Point:
@@ -430,7 +459,7 @@ static void duplicate_faces(GeometrySet &geometry_set,
                             const Field<int> &count_field,
                             const Field<bool> &selection_field,
                             const IndexAttributes &attribute_outputs,
-                            const AnonymousAttributePropagationInfo &propagation_info)
+                            const AttributeFilter &attribute_filter)
 {
   if (!geometry_set.has_mesh()) {
     geometry_set.remove_geometry_during_modify();
@@ -509,7 +538,7 @@ static void duplicate_faces(GeometrySet &geometry_set,
                                   loop_mapping,
                                   duplicates,
                                   selection,
-                                  propagation_info,
+                                  attribute_filter,
                                   mesh.attributes(),
                                   new_mesh->attributes_for_write());
 
@@ -541,20 +570,18 @@ static void duplicate_faces(GeometrySet &geometry_set,
  * Copies the attributes for edge duplicates. If copying the edge domain, the attributes are
  * copied with an offset fill, for point domain a mapping is used.
  */
-static void copy_edge_attributes_without_id(
-    const Span<int> point_mapping,
-    const OffsetIndices<int> offsets,
-    const IndexMask &selection,
-    const AnonymousAttributePropagationInfo &propagation_info,
-    const bke::AttributeAccessor src_attributes,
-    bke::MutableAttributeAccessor dst_attributes)
+static void copy_edge_attributes_without_id(const Span<int> point_mapping,
+                                            const OffsetIndices<int> offsets,
+                                            const IndexMask &selection,
+                                            const AttributeFilter &attribute_filter,
+                                            const bke::AttributeAccessor src_attributes,
+                                            bke::MutableAttributeAccessor dst_attributes)
 {
-  for (auto &attribute :
-       bke::retrieve_attributes_for_transfer(src_attributes,
-                                             dst_attributes,
-                                             ATTR_DOMAIN_MASK_POINT | ATTR_DOMAIN_MASK_EDGE,
-                                             propagation_info,
-                                             {"id", ".edge_verts"}))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes,
+           dst_attributes,
+           ATTR_DOMAIN_MASK_POINT | ATTR_DOMAIN_MASK_EDGE,
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".edge_verts"})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Edge:
@@ -618,7 +645,7 @@ static void duplicate_edges(GeometrySet &geometry_set,
                             const Field<int> &count_field,
                             const Field<bool> &selection_field,
                             const IndexAttributes &attribute_outputs,
-                            const AnonymousAttributePropagationInfo &propagation_info)
+                            const AttributeFilter &attribute_filter)
 {
   if (!geometry_set.has_mesh()) {
     geometry_set.remove_geometry_during_modify();
@@ -670,7 +697,7 @@ static void duplicate_edges(GeometrySet &geometry_set,
   copy_edge_attributes_without_id(vert_orig_indices,
                                   duplicates,
                                   selection,
-                                  propagation_info,
+                                  attribute_filter,
                                   mesh.attributes(),
                                   new_mesh->attributes_for_write());
 
@@ -696,19 +723,18 @@ static void duplicate_edges(GeometrySet &geometry_set,
 /** \name Duplicate Points (Curves)
  * \{ */
 
-static void duplicate_points_curve(GeometrySet &geometry_set,
-                                   const Field<int> &count_field,
-                                   const Field<bool> &selection_field,
-                                   const IndexAttributes &attribute_outputs,
-                                   const AnonymousAttributePropagationInfo &propagation_info)
+static bke::CurvesGeometry duplicate_points_CurvesGeometry(
+    const bke::CurvesGeometry &src_curves,
+    const FieldContext &field_context,
+    const Field<int> &count_field,
+    const Field<bool> &selection_field,
+    const IndexAttributes &attribute_outputs,
+    const AttributeFilter &attribute_filter)
 {
-  const Curves &src_curves_id = *geometry_set.get_curves();
-  const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
   if (src_curves.points_num() == 0) {
-    return;
+    return {};
   }
 
-  const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Point};
   FieldEvaluator evaluator{field_context, src_curves.points_num()};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -723,24 +749,22 @@ static void duplicate_points_curve(GeometrySet &geometry_set,
 
   const Array<int> point_to_curve_map = src_curves.point_to_curve_map();
 
-  Curves *new_curves_id = bke::curves_new_nomain(dst_num, dst_num);
-  bke::curves_copy_parameters(src_curves_id, *new_curves_id);
-  bke::CurvesGeometry &new_curves = new_curves_id->geometry.wrap();
+  bke::CurvesGeometry new_curves{dst_num, dst_num};
   offset_indices::fill_constant_group_size(1, 0, new_curves.offsets_for_write());
 
   bke::gather_attributes_to_groups(src_curves.attributes(),
                                    AttrDomain::Point,
-                                   propagation_info,
-                                   {},
+                                   AttrDomain::Point,
+                                   attribute_filter,
                                    duplicates,
                                    selection,
                                    new_curves.attributes_for_write());
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_curves.attributes(),
-                                                               new_curves.attributes_for_write(),
-                                                               ATTR_DOMAIN_MASK_CURVE,
-                                                               propagation_info,
-                                                               {"id"}))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_curves.attributes(),
+           new_curves.attributes_for_write(),
+           ATTR_DOMAIN_MASK_CURVE,
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
       using T = decltype(dummy);
@@ -764,7 +788,65 @@ static void duplicate_points_curve(GeometrySet &geometry_set,
                                      duplicates);
   }
 
+  return new_curves;
+}
+
+static void duplicate_points_curve(GeometrySet &geometry_set,
+                                   const Field<int> &count_field,
+                                   const Field<bool> &selection_field,
+                                   const IndexAttributes &attribute_outputs,
+                                   const AttributeFilter &attribute_filter)
+{
+  const Curves &src_curves_id = *geometry_set.get_curves();
+  const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
+
+  const bke::CurvesFieldContext field_context{src_curves_id, AttrDomain::Point};
+  bke::CurvesGeometry new_curves = duplicate_points_CurvesGeometry(src_curves,
+                                                                   field_context,
+                                                                   count_field,
+                                                                   selection_field,
+                                                                   attribute_outputs,
+                                                                   attribute_filter);
+
+  Curves *new_curves_id = bke::curves_new_nomain(std::move(new_curves));
+  bke::curves_copy_parameters(src_curves_id, *new_curves_id);
   geometry_set.replace_curves(new_curves_id);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Points (Grease Pencil)
+ * \{ */
+
+static void duplicate_points_grease_pencil(GeometrySet &geometry_set,
+                                           const Field<int> &count_field,
+                                           const Field<bool> &selection_field,
+                                           const IndexAttributes &attribute_outputs,
+                                           const AttributeFilter &attribute_filter)
+{
+  using namespace bke::greasepencil;
+  GreasePencil &grease_pencil = *geometry_set.get_grease_pencil_for_write();
+  threading::parallel_for(
+      grease_pencil.layers().index_range(), 16, [&](const IndexRange layers_range) {
+        for (const int layer_i : layers_range) {
+          Layer &layer = grease_pencil.layer(layer_i);
+          Drawing *drawing = grease_pencil.get_eval_drawing(layer);
+          if (!drawing) {
+            continue;
+          }
+          bke::CurvesGeometry &curves = drawing->strokes_for_write();
+          const bke::GreasePencilLayerFieldContext field_context{
+              grease_pencil, AttrDomain::Point, layer_i};
+          curves = duplicate_points_CurvesGeometry(curves,
+                                                   field_context,
+                                                   count_field,
+                                                   selection_field,
+                                                   attribute_outputs,
+                                                   attribute_filter);
+          drawing->tag_topology_changed();
+        }
+      });
 }
 
 /** \} */
@@ -777,7 +859,7 @@ static void duplicate_points_mesh(GeometrySet &geometry_set,
                                   const Field<int> &count_field,
                                   const Field<bool> &selection_field,
                                   const IndexAttributes &attribute_outputs,
-                                  const AnonymousAttributePropagationInfo &propagation_info)
+                                  const AttributeFilter &attribute_filter)
 {
   const Mesh &mesh = *geometry_set.get_mesh();
 
@@ -797,8 +879,8 @@ static void duplicate_points_mesh(GeometrySet &geometry_set,
 
   bke::gather_attributes_to_groups(mesh.attributes(),
                                    AttrDomain::Point,
-                                   propagation_info,
-                                   {"id"},
+                                   AttrDomain::Point,
+                                   bke::attribute_filter_with_skip_ref(attribute_filter, {"id"}),
                                    duplicates,
                                    selection,
                                    new_mesh->attributes_for_write());
@@ -828,7 +910,7 @@ static void duplicate_points_pointcloud(GeometrySet &geometry_set,
                                         const Field<int> &count_field,
                                         const Field<bool> &selection_field,
                                         const IndexAttributes &attribute_outputs,
-                                        const AnonymousAttributePropagationInfo &propagation_info)
+                                        const AttributeFilter &attribute_filter)
 {
   const PointCloud &src_points = *geometry_set.get_pointcloud();
 
@@ -848,8 +930,8 @@ static void duplicate_points_pointcloud(GeometrySet &geometry_set,
 
   bke::gather_attributes_to_groups(src_points.attributes(),
                                    AttrDomain::Point,
-                                   propagation_info,
-                                   {"id"},
+                                   AttrDomain::Point,
+                                   bke::attribute_filter_with_skip_ref(attribute_filter, {"id"}),
                                    duplicates,
                                    selection,
                                    pointcloud->attributes_for_write());
@@ -876,7 +958,7 @@ static void duplicate_points(GeometrySet &geometry_set,
                              const Field<int> &count_field,
                              const Field<bool> &selection_field,
                              const IndexAttributes &attribute_outputs,
-                             const AnonymousAttributePropagationInfo &propagation_info)
+                             const AttributeFilter &attribute_filter)
 {
   Vector<GeometryComponent::Type> component_types = geometry_set.gather_component_types(true,
                                                                                         true);
@@ -885,27 +967,114 @@ static void duplicate_points(GeometrySet &geometry_set,
       case GeometryComponent::Type::PointCloud:
         if (geometry_set.has_pointcloud()) {
           duplicate_points_pointcloud(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
         }
         break;
       case GeometryComponent::Type::Mesh:
         if (geometry_set.has_mesh()) {
           duplicate_points_mesh(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
         }
         break;
       case GeometryComponent::Type::Curve:
         if (geometry_set.has_curves()) {
           duplicate_points_curve(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
         }
         break;
+      case GeometryComponent::Type::GreasePencil: {
+        if (geometry_set.has_grease_pencil()) {
+          duplicate_points_grease_pencil(
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
+        }
+        break;
+      }
       default:
         break;
     }
   }
   component_types.append(GeometryComponent::Type::Instance);
   geometry_set.keep_only_during_modify(component_types);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Layers
+ * \{ */
+
+static void duplicate_layers(GeometrySet &geometry_set,
+                             const Field<int> &count_field,
+                             const Field<bool> &selection_field,
+                             const IndexAttributes &attribute_outputs,
+                             const AttributeFilter &attribute_filter)
+{
+  using namespace bke::greasepencil;
+  if (!geometry_set.has_grease_pencil()) {
+    geometry_set.clear();
+    return;
+  }
+  geometry_set.keep_only_during_modify({GeometryComponent::Type::GreasePencil});
+  GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
+  const GreasePencil &src_grease_pencil = *geometry_set.get_grease_pencil();
+
+  bke::GreasePencilFieldContext field_context{src_grease_pencil};
+  FieldEvaluator evaluator{field_context, src_grease_pencil.layers().size()};
+  evaluator.add(count_field);
+  evaluator.set_selection(selection_field);
+  evaluator.evaluate();
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<int> counts = evaluator.get_evaluated<int>(0);
+
+  Array<int> offset_data;
+  const OffsetIndices<int> duplicates = accumulate_counts_to_offsets(
+      selection, counts, offset_data);
+  const int new_layers_num = duplicates.total_size();
+  if (new_layers_num == 0) {
+    geometry_set.clear();
+    return;
+  }
+
+  GreasePencil *new_grease_pencil = BKE_grease_pencil_new_nomain();
+  BKE_grease_pencil_copy_parameters(src_grease_pencil, *new_grease_pencil);
+
+  new_grease_pencil->add_layers_with_empty_drawings_for_eval(new_layers_num);
+  static bke::CurvesGeometry static_empty_curves;
+  selection.foreach_index([&](const int src_layer_i, const int pos) {
+    const IndexRange range = duplicates[pos];
+    if (range.is_empty()) {
+      return;
+    }
+    const Layer &src_layer = src_grease_pencil.layer(src_layer_i);
+    const Drawing *src_drawing = src_grease_pencil.get_eval_drawing(src_layer);
+    const bke::CurvesGeometry &src_curves = src_drawing ? src_drawing->strokes() :
+                                                          static_empty_curves;
+    const StringRefNull src_layer_name = src_layer.name();
+    for (Layer *new_layer : new_grease_pencil->layers_for_write().slice(range)) {
+      BKE_grease_pencil_copy_layer_parameters(src_layer, *new_layer);
+      new_layer->set_name(src_layer_name);
+      Drawing *new_drawing = new_grease_pencil->get_eval_drawing(*new_layer);
+      new_drawing->strokes_for_write() = src_curves;
+    }
+  });
+
+  bke::gather_attributes_to_groups(src_grease_pencil.attributes(),
+                                   AttrDomain::Layer,
+                                   AttrDomain::Layer,
+                                   attribute_filter,
+                                   duplicates,
+                                   selection,
+                                   new_grease_pencil->attributes_for_write());
+
+  if (attribute_outputs.duplicate_index) {
+    create_duplicate_index_attribute(new_grease_pencil->attributes_for_write(),
+                                     AttrDomain::Layer,
+                                     selection,
+                                     attribute_outputs,
+                                     duplicates);
+  }
+
+  geometry_set.replace_grease_pencil(new_grease_pencil);
 }
 
 /** \} */
@@ -918,7 +1087,7 @@ static void duplicate_instances(GeometrySet &geometry_set,
                                 const Field<int> &count_field,
                                 const Field<bool> &selection_field,
                                 const IndexAttributes &attribute_outputs,
-                                const AnonymousAttributePropagationInfo &propagation_info)
+                                const AttributeFilter &attribute_filter)
 {
   if (!geometry_set.has_instances()) {
     geometry_set.clear();
@@ -957,13 +1126,14 @@ static void duplicate_instances(GeometrySet &geometry_set,
     dst_instances->reference_handles_for_write().slice(range).fill(new_handle);
   }
 
-  bke::gather_attributes_to_groups(src_instances.attributes(),
-                                   AttrDomain::Instance,
-                                   propagation_info,
-                                   {"id", ".reference_index"},
-                                   duplicates,
-                                   selection,
-                                   dst_instances->attributes_for_write());
+  bke::gather_attributes_to_groups(
+      src_instances.attributes(),
+      AttrDomain::Instance,
+      AttrDomain::Instance,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".reference_index"}),
+      duplicates,
+      selection,
+      dst_instances->attributes_for_write());
 
   if (attribute_outputs.duplicate_index) {
     create_duplicate_index_attribute(dst_instances->attributes_for_write(),
@@ -1001,31 +1171,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   attribute_outputs.duplicate_index = params.get_output_anonymous_attribute_id_if_needed(
       "Duplicate Index");
 
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Geometry");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
 
   if (duplicate_domain == AttrDomain::Instance) {
     duplicate_instances(
-        geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+        geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
   }
   else {
     geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
       switch (duplicate_domain) {
         case AttrDomain::Curve:
           duplicate_curves(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
           break;
         case AttrDomain::Face:
           duplicate_faces(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
           break;
         case AttrDomain::Edge:
           duplicate_edges(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
           break;
         case AttrDomain::Point:
           duplicate_points(
-              geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
+          break;
+        case AttrDomain::Layer:
+          duplicate_layers(
+              geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
           break;
         default:
           BLI_assert_unreachable();
@@ -1051,6 +1224,7 @@ static void node_rna(StructRNA *srna)
       {int(AttrDomain::Edge), "EDGE", 0, "Edge", ""},
       {int(AttrDomain::Face), "FACE", 0, "Face", ""},
       {int(AttrDomain::Curve), "SPLINE", 0, "Spline", ""},
+      {int(AttrDomain::Layer), "LAYER", 0, "Layer", ""},
       {int(AttrDomain::Instance), "INSTANCE", 0, "Instance", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -1081,7 +1255,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

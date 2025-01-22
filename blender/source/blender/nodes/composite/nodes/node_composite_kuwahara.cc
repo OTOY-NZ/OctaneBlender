@@ -95,7 +95,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
      * is enabled, since summed area tables are less precise. */
     Result &size_input = get_input("Size");
     if (!node_storage(bnode()).high_precision &&
-        (size_input.is_texture() || size_input.get_float_value() > 5.0f))
+        (!size_input.is_single_value() || size_input.get_float_value() > 5.0f))
     {
       execute_classic_summed_area_table();
       return;
@@ -128,11 +128,10 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   void execute_classic_summed_area_table()
   {
-    Result table = context().create_temporary_result(ResultType::Color, ResultPrecision::Full);
+    Result table = context().create_result(ResultType::Color, ResultPrecision::Full);
     summed_area_table(context(), get_input("Image"), table);
 
-    Result squared_table = context().create_temporary_result(ResultType::Color,
-                                                             ResultPrecision::Full);
+    Result squared_table = context().create_result(ResultType::Color, ResultPrecision::Full);
     summed_area_table(
         context(), get_input("Image"), squared_table, SummedAreaTableOperation::Square);
 
@@ -174,7 +173,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
   void execute_anisotropic()
   {
     Result structure_tensor = compute_structure_tensor();
-    Result smoothed_structure_tensor = context().create_temporary_result(ResultType::Color);
+    Result smoothed_structure_tensor = context().create_result(ResultType::Color);
     symmetric_separable_blur(context(),
                              structure_tensor,
                              smoothed_structure_tensor,
@@ -225,7 +224,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     input.bind_as_texture(shader, "input_tx");
 
     const Domain domain = compute_domain();
-    Result structure_tensor = context().create_temporary_result(ResultType::Color);
+    Result structure_tensor = context().create_result(ResultType::Color);
     structure_tensor.allocate_texture(domain);
     structure_tensor.bind_as_image(shader, "structure_tensor_img");
 
@@ -322,5 +321,5 @@ void register_node_type_cmp_kuwahara()
       &ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

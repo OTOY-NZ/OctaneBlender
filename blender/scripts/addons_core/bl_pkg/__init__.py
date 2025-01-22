@@ -26,7 +26,6 @@ import bpy
 from bpy.props import (
     BoolProperty,
     EnumProperty,
-    IntProperty,
     PointerProperty,
     StringProperty,
 )
@@ -98,11 +97,12 @@ def manifest_compatible_with_wheel_data_or_error(
         repo_module,  # `str`
         pkg_id,  # `str`
         repo_directory,  # `str`
-        wheel_list,  # `List[Tuple[str, List[str]]]`
+        wheel_list,  # `list[tuple[str, list[str]]]`
 ):  # `Optional[str]`
     from bl_pkg.bl_extension_utils import (
         pkg_manifest_dict_is_valid_or_error,
         toml_from_filepath,
+        python_versions_from_wheels,
     )
     from bl_pkg.bl_extension_ops import (
         pkg_manifest_params_compatible_or_error_for_this_system,
@@ -116,20 +116,56 @@ def manifest_compatible_with_wheel_data_or_error(
     if (error := pkg_manifest_dict_is_valid_or_error(manifest_dict, from_repo=False, strict=False)):
         return error
 
+    # NOTE: this is not type checked here to be `list[str]` (expected type).
+    # account for an invalid value in the following checks.
+    wheels_rel = manifest_dict.get("wheels")
+
+    python_versions = []
+    if wheels_rel:
+        try:
+            python_versions_test = python_versions_from_wheels(wheels_rel)
+        except Exception as ex:
+            # This should only ever happen for invalid wheels.
+            python_versions_test = "Error extracting Python version from wheels: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            )
+
+        if isinstance(python_versions_test, str):
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                python_versions_test,
+                pkg_manifest_filepath,
+            ))
+        else:
+            python_versions = [
+                ".".join(str(i) for i in v)
+                for v in python_versions_test
+            ]
+
     if isinstance(error := pkg_manifest_params_compatible_or_error_for_this_system(
             blender_version_min=manifest_dict.get("blender_version_min", ""),
             blender_version_max=manifest_dict.get("blender_version_max", ""),
             platforms=manifest_dict.get("platforms", ""),
+            python_versions=python_versions,
     ), str):
         return error
 
     # NOTE: the caller may need to collect wheels when refreshing.
     # While this isn't so clean it happens to be efficient.
     # It could be refactored to work differently in the future if that is ever needed.
-    if wheels_rel := manifest_dict.get("wheels"):
+    if wheels_rel:
         from .bl_extension_ops import pkg_wheel_filter
-        if (wheel_abs := pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)) is not None:
-            wheel_list.append(wheel_abs)
+        try:
+            wheels_abs = pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)
+        except Exception as ex:
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            ))
+            wheels_abs = None
+
+        if wheels_abs is not None:
+            wheel_list.append(wheels_abs)
 
     return None
 
@@ -570,6 +606,7 @@ _repo_cache_store = None
 def repo_cache_store_ensure():
     # pylint: disable-next=global-statement
     global _repo_cache_store
+    import sys
 
     if _repo_cache_store is not None:
         return _repo_cache_store
@@ -578,7 +615,10 @@ def repo_cache_store_ensure():
         bl_extension_ops,
         bl_extension_utils,
     )
-    _repo_cache_store = bl_extension_utils.RepoCacheStore(bpy.app.version)
+    _repo_cache_store = bl_extension_utils.RepoCacheStore(
+        blender_version=bpy.app.version,
+        python_version=sys.version_info[:3],
+    )
     bl_extension_ops.repo_cache_store_refresh_from_prefs(_repo_cache_store)
     return _repo_cache_store
 

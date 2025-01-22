@@ -19,7 +19,7 @@
 #include "BLI_fileops.h"
 #include "BLI_hash.hh"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_serialize.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -566,8 +566,12 @@ class AssetIndexFile : public AbstractFile {
     JsonFormatter formatter;
     std::ifstream is;
     is.open(this->filename);
+    BLI_SCOPED_DEFER([&]() { is.close(); });
+
     std::unique_ptr<Value> read_data = formatter.deserialize(is);
-    is.close();
+    if (!read_data) {
+      return nullptr;
+    }
 
     return std::make_unique<AssetIndex>(read_data);
   }
@@ -680,6 +684,11 @@ static eFileIndexerResult read_index(const char *filename,
   }
 
   std::unique_ptr<AssetIndex> contents = asset_index_file.read_contents();
+  if (!contents) {
+    CLOG_INFO(&LOG, 3, "Asset file index is ignored; failed to read contents.");
+    return FILE_INDEXER_NEEDS_UPDATE;
+  }
+
   if (!contents->is_latest_version()) {
     CLOG_INFO(&LOG,
               3,

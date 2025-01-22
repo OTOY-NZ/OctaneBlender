@@ -28,7 +28,7 @@
 #include "ED_util.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -143,8 +143,9 @@ static bool lib_id_generate_preview_poll(bContext *C)
 
   const PointerRNA idptr = CTX_data_pointer_get(C, "id");
   const ID *id = (ID *)idptr.data;
-  if (GS(id->name) == ID_NT) {
-    CTX_wm_operator_poll_msg_set(C, "Can't generate automatic preview for node group");
+  const char *disabled_hint = nullptr;
+  if (!ED_preview_id_is_supported(id, &disabled_hint)) {
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
     return false;
   }
 
@@ -188,7 +189,7 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
 
 static bool lib_id_generate_preview_from_object_poll(bContext *C)
 {
-  if (!lib_id_preview_editing_poll(C)) {
+  if (!lib_id_generate_preview_poll(C)) {
     return false;
   }
   if (CTX_data_active_object(C) == nullptr) {
@@ -304,7 +305,7 @@ static int lib_id_unlink_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  memset(&idptr, 0, sizeof(idptr));
+  idptr = {};
   RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr, nullptr);
   RNA_property_update(C, &pprop.ptr, pprop.prop);
 

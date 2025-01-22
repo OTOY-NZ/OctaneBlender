@@ -6,7 +6,7 @@
  * \ingroup edcurves
  */
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
@@ -72,6 +72,7 @@
 #include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+#include "BKE_paint.hh"
 
 #include "geometry_intern.hh"
 
@@ -246,7 +247,7 @@ static void store_result_geometry(
       const bool has_shape_keys = mesh.key != nullptr;
 
       if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_begin(object, &op);
+        sculpt_paint::undo::geometry_begin(scene, object, &op);
       }
 
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
@@ -274,6 +275,7 @@ static void store_result_geometry(
 
       if (object.mode == OB_MODE_SCULPT) {
         sculpt_paint::undo::geometry_end(object);
+        BKE_sculptsession_free_pbvh(object);
       }
       break;
     }
@@ -486,7 +488,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   for (ID *id : input_ids.values()) {
     /* Skip IDs that are already fully evaluated in the active depsgraph. */
     if (!DEG_id_is_fully_evaluated(depsgraph_active, id)) {
-      return extra_ids.add(id);
+      extra_ids.add(id);
     }
   }
 
@@ -571,7 +573,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings();
+  tree_log.ensure_node_warnings(node_tree);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
@@ -614,8 +616,7 @@ static void store_input_node_values_rna_props(const bContext &C,
   /* 3D cursor node inputs. */
   const View3DCursor &cursor = scene->cursor;
   RNA_float_set_array(op.ptr, "cursor_position", cursor.location);
-  math::Quaternion cursor_rotation;
-  BKE_scene_cursor_rot_to_quat(&cursor, &cursor_rotation.w);
+  math::Quaternion cursor_rotation = cursor.rotation();
   RNA_float_set_array(op.ptr, "cursor_rotation", &cursor_rotation.w);
 
   /* Viewport transform node inputs. */
@@ -663,7 +664,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
                                                   PointerRNA *md_ptr,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
-  bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   char socket_id_esc[MAX_NAME * 2];
@@ -716,7 +717,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      const bNodeTreeInterfaceSocket &socket,
                                      const int socket_index)
 {
-  bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
@@ -1063,7 +1064,9 @@ static asset::AssetItemTree *get_static_item_tree(const Object &active_object)
 void clear_operator_asset_trees()
 {
   for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD}) {
-    for (const eObjectMode mode : {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES}) {
+    for (const eObjectMode mode :
+         {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES})
+    {
       if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
         tree->dirty = true;
       }
@@ -1141,6 +1144,7 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           menus.add_new("Face");
           menus.add_new("Face/Face Data");
           menus.add_new("UV");
+          menus.add_new("UV/Unwrap");
           break;
         case OB_MODE_SCULPT:
           menus.add_new("View");

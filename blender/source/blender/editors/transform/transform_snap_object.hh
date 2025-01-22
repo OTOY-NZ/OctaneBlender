@@ -67,9 +67,10 @@ struct SnapObjectContext {
     /* Read/write. */
     uint object_index;
 
+    eSnapOcclusionTest occlusion_test_edit;
+
     bool has_occlusion_plane;
     bool has_occlusion_plane_in_front;
-    bool use_occlusion_test_edit;
   } runtime;
 
   /* Output. */
@@ -235,11 +236,11 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
                             const ID *id,
                             const blender::float4x4 &obmat,
                             eSnapMode snap_to_flag,
-                            int face);
+                            int face_index);
 
 eSnapMode snap_edge_points_mesh(SnapObjectContext *sctx,
                                 const Object *ob_eval,
                                 const ID *id,
                                 const blender::float4x4 &obmat,
                                 float dist_px_sq_orig,
-                                int edge);
+                                int edge_index);

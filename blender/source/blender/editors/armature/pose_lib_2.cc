@@ -19,7 +19,7 @@
 
 #include "DNA_armature_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -33,7 +33,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -45,9 +45,12 @@
 #include "ED_screen.hh"
 #include "ED_util.hh"
 
+#include "ANIM_action.hh"
+#include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
+#include "ANIM_pose.hh"
 
 #include "armature_intern.hh"
 
@@ -138,7 +141,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 
   /* start tagging/keying */
   const bArmature *armature = static_cast<const bArmature *>(pbd->ob->data);
-  LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
+  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
     /* Only for selected bones unless there aren't any selected, in which case all are included. */
     bPoseChannel *pchan = BKE_pose_channel_find_name(pose, agrp->name);
     if (pchan == nullptr) {
@@ -153,6 +156,10 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 
     /* Add data-source override for the PoseChannel, to be used later. */
     ANIM_relative_keyingset_add_source(sources, &pbd->ob->id, &RNA_PoseBone, pchan);
+  }
+
+  if (adt->action) {
+    blender::animrig::action_deselect_keys(adt->action->wrap());
   }
 
   /* Perform actual auto-keying. */
@@ -188,7 +195,11 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph, 0.0f);
   bAction *to_blend = poselib_action_to_blend(pbd);
-  BKE_pose_apply_action_blend(pbd->ob, to_blend, &anim_eval_context, pbd->blend_factor);
+  blender::animrig::slot_handle_t to_blend_slot_handle = blender::animrig::first_slot_handle(
+      *to_blend);
+
+  blender::animrig::pose_apply_action_blend(
+      pbd->ob, to_blend, to_blend_slot_handle, &anim_eval_context, pbd->blend_factor);
 }
 
 /* ---------------------------- */

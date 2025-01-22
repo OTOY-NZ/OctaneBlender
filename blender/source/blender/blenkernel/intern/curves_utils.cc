@@ -27,7 +27,7 @@ void fill_points(const OffsetIndices<int> points_by_curve,
 CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
 {
   CurvesGeometry dst_curves(0, src_curves.curves_num());
-  CustomData_copy(
+  CustomData_init_from(
       &src_curves.curve_data, &dst_curves.curve_data, CD_MASK_ALL, src_curves.curves_num());
   dst_curves.runtime->type_counts = src_curves.runtime->type_counts;
   return dst_curves;
@@ -71,5 +71,61 @@ void foreach_curve_by_type(const VArray<int8_t> &types,
   call_if_not_empty(CURVE_TYPE_BEZIER, bezier_fn);
   call_if_not_empty(CURVE_TYPE_NURBS, nurbs_fn);
 }
+
+namespace bezier {
+
+Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
+                                     const IndexMask &curves_selection)
+{
+  if (curves.curves_num() == 0 || !curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return {};
+  }
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const Span<float3> positions = curves.positions();
+  const Span<float3> handle_positions_left = curves.handle_positions_left();
+  const Span<float3> handle_positions_right = curves.handle_positions_right();
+
+  Array<float3> all_positions(positions.size() * 3);
+  curves_selection.foreach_index(GrainSize(1024), [&](const int curve) {
+    const IndexRange points = points_by_curve[curve];
+    for (const int point : points) {
+      const int index = point * 3;
+      all_positions[index] = handle_positions_left[point];
+      all_positions[index + 1] = positions[point];
+      all_positions[index + 2] = handle_positions_right[point];
+    }
+  });
+
+  return all_positions;
+}
+
+void write_all_positions(bke::CurvesGeometry &curves,
+                         const IndexMask &curves_selection,
+                         const Span<float3> all_positions)
+{
+  if (curves_selection.is_empty() || curves.curves_num() == 0 ||
+      !curves.has_curve_with_type(CURVE_TYPE_BEZIER))
+  {
+    return;
+  }
+  BLI_assert(curves_selection.size() * 3 == all_positions.size());
+
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+
+  curves_selection.foreach_index(GrainSize(1024), [&](const int curve) {
+    const IndexRange points = points_by_curve[curve];
+    for (const int point : points) {
+      const int index = point * 3;
+      handle_positions_left[point] = all_positions[index];
+      positions[point] = all_positions[index + 1];
+      handle_positions_right[point] = all_positions[index + 2];
+    }
+  });
+}
+
+}  // namespace bezier
 
 }  // namespace blender::bke::curves

@@ -89,5 +89,5 @@ void register_node_type_oct_vectron(void)
   ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

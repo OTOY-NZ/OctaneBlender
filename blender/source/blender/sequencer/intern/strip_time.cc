@@ -57,7 +57,7 @@ int seq_time_strip_original_content_length_get(const Scene *scene, const Sequenc
   return seq->len / SEQ_time_media_playback_rate_factor_get(scene, seq);
 }
 
-float SEQ_give_frame_index(const Scene *scene, Sequence *seq, float timeline_frame)
+float SEQ_give_frame_index(const Scene *scene, const Sequence *seq, float timeline_frame)
 {
   float frame_index;
   float sta = SEQ_time_start_frame_get(seq);
@@ -94,10 +94,6 @@ float SEQ_give_frame_index(const Scene *scene, Sequence *seq, float timeline_fra
   }
   /* Clamp frame index to strip content frame range. */
   frame_index = clamp_f(frame_index, 0, frame_index_max);
-
-  if (seq->strobe < 1.0f) {
-    seq->strobe = 1.0f;
-  }
 
   if (seq->strobe > 1.0f) {
     frame_index -= fmodf(double(frame_index), double(seq->strobe));
@@ -142,7 +138,7 @@ static void seq_update_sound_bounds_recursive_impl(const Scene *scene,
 
         double offset_time = 0.0f;
         if (seq->sound != nullptr) {
-          offset_time = seq->sound->offset_time;
+          offset_time = seq->sound->offset_time + seq->sound_offset;
         }
 
         BKE_sound_move_scene_sound(scene,
@@ -357,12 +353,12 @@ float SEQ_time_sequence_get_fps(Scene *scene, Sequence *seq)
   return 0.0f;
 }
 
-void SEQ_timeline_init_boundbox(const Scene *scene, rctf *rect)
+void SEQ_timeline_init_boundbox(const Scene *scene, rctf *r_rect)
 {
-  rect->xmin = scene->r.sfra;
-  rect->xmax = scene->r.efra + 1;
-  rect->ymin = 1.0f; /* The first strip is drawn at y == 1.0f */
-  rect->ymax = 8.0f;
+  r_rect->xmin = scene->r.sfra;
+  r_rect->xmax = scene->r.efra + 1;
+  r_rect->ymin = 1.0f; /* The first strip is drawn at y == 1.0f */
+  r_rect->ymax = 8.0f;
 }
 
 void SEQ_timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, rctf *rect)
@@ -385,10 +381,10 @@ void SEQ_timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, r
   }
 }
 
-void SEQ_timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *rect)
+void SEQ_timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *r_rect)
 {
-  SEQ_timeline_init_boundbox(scene, rect);
-  SEQ_timeline_expand_boundbox(scene, seqbase, rect);
+  SEQ_timeline_init_boundbox(scene, r_rect);
+  SEQ_timeline_expand_boundbox(scene, seqbase, r_rect);
 }
 
 static bool strip_exists_at_frame(const Scene *scene,
@@ -477,7 +473,8 @@ int SEQ_time_strip_length_get(const Scene *scene, const Sequence *seq)
     const int last_key_frame = SEQ_retiming_key_timeline_frame_get(
         scene, seq, SEQ_retiming_last_key_get(seq));
     /* Last key is mapped to last frame index. Numbering starts from 0. */
-    return last_key_frame + 1 - SEQ_time_start_frame_get(seq);
+    int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
+    return last_key_frame + 1 - SEQ_time_start_frame_get(seq) - sound_offset;
   }
 
   return seq->len / SEQ_time_media_playback_rate_factor_get(scene, seq);
@@ -574,8 +571,13 @@ void seq_time_translate_handles(const Scene *scene, Sequence *seq, const int off
   SEQ_time_update_meta_strip_range(scene, seq_sequence_lookup_meta_by_seq(scene, seq));
 }
 
-static void seq_time_slip_strip_ex(const Scene *scene, Sequence *seq, int delta, bool recursed)
+static void seq_time_slip_strip_ex(
+    const Scene *scene, Sequence *seq, int delta, float subframe_delta, bool recursed)
 {
+  if (seq->type == SEQ_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
+    seq->sound_offset += subframe_delta / FPS;
+  }
+
   if (delta == 0) {
     return;
   }
@@ -599,7 +601,7 @@ static void seq_time_slip_strip_ex(const Scene *scene, Sequence *seq, int delta,
       return;
     }
     LISTBASE_FOREACH (Sequence *, seq_child, &seq->seqbase) {
-      seq_time_slip_strip_ex(scene, seq_child, delta, true);
+      seq_time_slip_strip_ex(scene, seq_child, delta, subframe_delta, true);
     }
   }
 
@@ -617,7 +619,16 @@ static void seq_time_slip_strip_ex(const Scene *scene, Sequence *seq, int delta,
   seq_time_update_effects_strip_range(scene, effects);
 }
 
-void SEQ_time_slip_strip(const Scene *scene, Sequence *seq, int delta)
+void SEQ_time_slip_strip(const Scene *scene, Sequence *seq, int delta, float subframe_delta)
 {
-  seq_time_slip_strip_ex(scene, seq, delta, false);
+  seq_time_slip_strip_ex(scene, seq, delta, subframe_delta, false);
+}
+
+int SEQ_time_get_rounded_sound_offset(const Scene *scene, const Sequence *seq)
+{
+  int sound_offset = 0;
+  if (seq->type == SEQ_TYPE_SOUND_RAM && seq->sound != nullptr) {
+    sound_offset = round_fl_to_int((seq->sound->offset_time + seq->sound_offset) * FPS);
+  }
+  return sound_offset;
 }

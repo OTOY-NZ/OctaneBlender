@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1000000.0f)
       .description("Strength of the emitted light");
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("Background");
 }
 
@@ -43,5 +43,5 @@ void register_node_type_sh_background()
   ntype.add_ui_poll = world_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_background;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -28,7 +28,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
@@ -417,5 +417,5 @@ void register_node_type_sh_oct_composite_mat(void)
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.updatefunc = (node_shader_update_composite_mat);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_sh_oct_composite_mat() */

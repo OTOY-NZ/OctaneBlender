@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
 #include "RNA_types.hh"
@@ -124,6 +125,11 @@ struct SpaceType {
   int (*space_subtype_get)(ScrArea *area);
   void (*space_subtype_set)(ScrArea *area, int value);
   void (*space_subtype_item_extend)(bContext *C, EnumPropertyItem **item, int *totitem);
+
+  /* Return a custom name, based on subtype or other reason. */
+  blender::StringRefNull (*space_name_get)(const ScrArea *area);
+  /* Return a custom icon, based on subtype or other reason. */
+  int (*space_icon_get)(const ScrArea *area);
 
   /**
    * Update pointers for all structs directly owned by this space.
@@ -295,6 +301,9 @@ struct PanelType {
   short region_type;
   /* For popovers, 0 for default. */
   int ui_units_x;
+  /** For popovers, position the popover at the given offset (multiplied by #UI_UNIT_X/#UI_UNIT_Y)
+   * relative to the top left corner, if it's not attached to a button. */
+  blender::float2 offset_units_xy;
   int order;
 
   int flag;
@@ -527,6 +536,8 @@ enum AssetShelfTypeFlag {
 };
 ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
 
+#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
+
 struct AssetShelfType {
   char idname[BKE_ST_MAXNAME]; /* unique name */
 
@@ -644,7 +655,7 @@ ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const i
  * \note This does _not_ work if the region to look up is not in the active space.
  * Use #BKE_spacedata_find_region_type if that may be the case.
  */
-ARegion *BKE_area_find_region_type(const ScrArea *area, int type);
+ARegion *BKE_area_find_region_type(const ScrArea *area, int region_type);
 ARegion *BKE_area_find_region_active_win(const ScrArea *area);
 ARegion *BKE_area_find_region_xy(const ScrArea *area, int regiontype, const int xy[2])
     ATTR_NONNULL(3);
@@ -664,6 +675,10 @@ ARegion *BKE_screen_find_main_region_at_xy(const bScreen *screen, int space_type
 ScrArea *BKE_screen_find_area_from_space(const bScreen *screen,
                                          const SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
+/**
+ * \note used to get proper RNA paths for spaces (editors).
+ */
+std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr);
 /**
  * \note Using this function is generally a last resort, you really want to be
  * using the context when you can - campbell

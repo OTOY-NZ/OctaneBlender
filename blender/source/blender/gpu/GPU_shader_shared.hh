@@ -42,9 +42,10 @@ struct NodeLinkData {
   float dim_factor;
   float thickness;
   float4 dash_params;
+  bool32_t has_back_link;
   float aspect;
   float arrowSize;
-  float2 _pad;
+  float _pad;
 };
 BLI_STATIC_ASSERT_ALIGN(NodeLinkData, 16)
 
@@ -119,7 +120,7 @@ struct SeqStripDrawData {
   /* Horizontal strip positions (1.0 is one frame). */
   float left_handle, right_handle;  /* Left and right strip sides. */
   float content_start, content_end; /* Start and end of actual content (only relevant for strips
-                                       that have holdout regions). */
+                                     * that have holdout regions). */
   float handle_width;
   /* Vertical strip positions (1.0 is one channel). */
   float bottom;
@@ -136,6 +137,17 @@ struct SeqStripDrawData {
 BLI_STATIC_ASSERT_ALIGN(SeqStripDrawData, 16)
 BLI_STATIC_ASSERT(sizeof(SeqStripDrawData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
                   "SeqStripDrawData UBO must not exceed minspec UBO size (16384)")
+
+/* VSE per-thumbnail data for timeline rendering. */
+struct SeqStripThumbData {
+  float left, right, bottom, top; /* Strip rectangle positions. */
+  float x1, y1, x2, y2;           /* Thumbnail rectangle positions. */
+  float u1, v1, u2, v2;           /* Thumbnail UVs. */
+  float4 tint_color;
+};
+BLI_STATIC_ASSERT_ALIGN(SeqStripThumbData, 16)
+BLI_STATIC_ASSERT(sizeof(SeqStripThumbData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
+                  "SeqStripThumbData UBO must not exceed minspec UBO size (16384)")
 
 /* VSE global data for timeline rendering. */
 struct SeqContextDrawData {

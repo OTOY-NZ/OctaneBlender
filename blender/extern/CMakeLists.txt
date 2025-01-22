@@ -85,10 +85,6 @@ if(WITH_GTESTS)
   add_subdirectory(gmock)
 endif()
 
-if(WITH_SDL AND WITH_SDL_DYNLOAD)
-  add_subdirectory(sdlew)
-endif()
-
 if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
   set(AUDASPACE_CMAKE_CFG ${CMAKE_CURRENT_SOURCE_DIR}/audaspace/blender_config.cmake)
   set(LIB_SUFFIX "")  # Quiet uninitialized warning.

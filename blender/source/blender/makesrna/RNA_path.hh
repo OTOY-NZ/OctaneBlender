@@ -38,12 +38,12 @@ struct IDProperty;
  *
  * This type is intended to be convenient to construct with initializer lists:
  *
- * ```
+ * \code{.cpp}
  * RNAPath path_only =               {"dof.focus_distance"};
  * RNAPath path_with_index =         {"location", {}, 2};
  * RNAPath path_with_key =           {"modifiers", "SimpleDeform"};
  * RNAPath path_with_key_and_index = {"modifiers", "SimpleDeform", 5};
- * ```
+ * \endcode
  *
  * NOTE: some older parts of Blender's code base use negative array indices as a
  * magic value to mean things like "all array elements". However, magic values
@@ -51,9 +51,9 @@ struct IDProperty;
  * unspecified. Unspecified indices can then be converted to a negative magic
  * value at the API boundaries that need it, like so:
  *
- * ```
+ * \code{.cpp}
  * some_older_function(rna_path.index.value_or(-1));
- * ```
+ * \endcode
  */
 struct RNAPath {
   std::string path;
@@ -64,28 +64,17 @@ struct RNAPath {
    */
   std::optional<std::string> key = std::nullopt;
   std::optional<int> index = std::nullopt;
-
-  /**
-   * NOTE: equality is defined in a specific way here to reflect the semantic
-   * meaning of `RNAPath`. Since the key existing indicates a key-based array
-   * element, with the index then only serving as a fallback, the index only
-   * affects the equality result if *neither* `RNAPath` has a key specified.
-   * (See the main `RNAPath` documentation above for the specific semantics of
-   * key and index.)
-   */
-  bool operator==(const RNAPath &other) const
-  {
-    if (this->path != other.path) {
-      return false;
-    }
-
-    if (this->key.has_value() || other.key.has_value()) {
-      return this->key == other.key;
-    }
-
-    return this->index == other.index;
-  }
 };
+
+/**
+ * NOTE: equality is defined in a specific way here to reflect the semantic
+ * meaning of `RNAPath`. Since the key existing indicates a key-based array
+ * element, with the index then only serving as a fallback, the index only
+ * affects the equality result if *neither* `RNAPath` has a key specified.
+ * (See the main `RNAPath` documentation above for the specific semantics of
+ * key and index.)
+ */
+bool operator==(const RNAPath &left, const RNAPath &right);
 
 char *RNA_path_append(
     const char *path, const PointerRNA *ptr, PropertyRNA *prop, int intkey, const char *strkey);

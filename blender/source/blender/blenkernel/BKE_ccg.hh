@@ -74,10 +74,15 @@ inline CCGElem *CCG_elem_offset(const CCGKey &key, CCGElem *elem, int offset)
   return reinterpret_cast<CCGElem *>((reinterpret_cast<char *>(elem)) + key.elem_size * offset);
 }
 
+inline int CCG_grid_xy_to_index(const int grid_size, const int x, const int y)
+{
+  return y * grid_size + x;
+}
+
 inline CCGElem *CCG_grid_elem(const CCGKey &key, CCGElem *elem, int x, int y)
 {
   //  BLI_assert(x < key.grid_size && y < key.grid_size);
-  return CCG_elem_offset(key, elem, (y * key.grid_size + x));
+  return CCG_elem_offset(key, elem, CCG_grid_xy_to_index(key.grid_size, x, y));
 }
 
 inline blender::float3 &CCG_grid_elem_co(const CCGKey &key, CCGElem *elem, int x, int y)
@@ -98,19 +103,4 @@ inline float &CCG_grid_elem_mask(const CCGKey &key, CCGElem *elem, int x, int y)
 inline blender::float3 &CCG_elem_offset_co(const CCGKey &key, CCGElem *elem, int offset)
 {
   return CCG_elem_co(key, CCG_elem_offset(key, elem, offset));
-}
-
-inline blender::float3 &CCG_elem_offset_no(const CCGKey &key, CCGElem *elem, int offset)
-{
-  return CCG_elem_no(key, CCG_elem_offset(key, elem, offset));
-}
-
-inline float &CCG_elem_offset_mask(const CCGKey &key, CCGElem *elem, int offset)
-{
-  return CCG_elem_mask(key, CCG_elem_offset(key, elem, offset));
-}
-
-inline CCGElem *CCG_elem_next(const CCGKey &key, CCGElem *elem)
-{
-  return CCG_elem_offset(key, elem, 1);
 }

@@ -23,6 +23,7 @@ struct ScrArea;
 struct bContext;
 struct bScreen;
 struct PreviewImage;
+struct uiPreview;
 struct ViewLayer;
 struct World;
 struct wmWindow;
@@ -75,7 +76,7 @@ void ED_preview_free_dbase();
 /**
  * Check if \a id is supported by the automatic preview render.
  */
-bool ED_preview_id_is_supported(const ID *id);
+bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint = nullptr);
 
 void ED_preview_set_visibility(Main *pr_main,
                                Scene *scene,
@@ -107,7 +108,14 @@ void ED_preview_restart_queue_work(const bContext *C);
 
 void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain);
 
-void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slot, rcti *rect);
+void ED_preview_draw(
+    const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect);
+
+/**
+ * For UI previews (i.e. #uiPreview, not #PreviewImage): Tag all previews for \a id as dirty, so
+ * the next redraw triggers a re-render in #ED_preview_draw().
+ */
+void ED_previews_tag_dirty_by_id(const Main &bmain, const ID &id);
 
 void ED_render_clear_mtex_copybuf();
 

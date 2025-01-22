@@ -6,16 +6,18 @@
 
 #include "BLI_assert.h"
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_index_range.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -26,8 +28,10 @@
 
 namespace blender::compositor {
 
-FileOutputInput::FileOutputInput(NodeImageMultiFileSocket *data, DataType data_type)
-    : data(data), data_type(data_type)
+FileOutputInput::FileOutputInput(NodeImageMultiFileSocket *data,
+                                 DataType data_type,
+                                 DataType original_data_type)
+    : data(data), data_type(data_type), original_data_type(original_data_type)
 {
 }
 
@@ -165,6 +169,8 @@ void FileOutputOperation::execute_single_layer()
      * be stored in views. An exception to this is stereo images, which needs to have the same
      * structure as non-EXR images. */
     const auto &format = input.data->use_node_format ? node_data_->format : input.data->format;
+    const bool save_as_render = input.data->use_node_format ? node_data_->save_as_render :
+                                                              input.data->save_as_render;
     const bool is_exr = format.imtype == R_IMF_IMTYPE_OPENEXR;
     const int views_count = BKE_scene_multiview_num_views_get(context_->get_render_data());
     if (is_exr && !(format.views_format == R_IMF_VIEWS_STEREO_3D && views_count == 2)) {
@@ -177,7 +183,7 @@ void FileOutputOperation::execute_single_layer()
 
     const int2 size = int2(input.image_input->get_width(), input.image_input->get_height());
     realtime_compositor::FileOutput &file_output = context_->get_render_context()->get_file_output(
-        image_path, format, size, input.data->save_as_render);
+        image_path, format, size, save_as_render);
 
     add_view_for_input(file_output, input, context_->get_view_name());
 
@@ -240,8 +246,7 @@ void FileOutputOperation::execute_multi_layer()
   file_output.add_view(pass_view);
 
   for (const FileOutputInput &input : file_output_inputs_) {
-    /* We only write images, not single values. */
-    if (!input.image_input || input.image_input->get_flags().is_constant_operation) {
+    if (!input.image_input) {
       /* Ownership of outputs buffers are transferred to file outputs, so if we are not writing a
        * file output, we need to free the output buffer here. */
       if (input.output_buffer) {
@@ -257,22 +262,120 @@ void FileOutputOperation::execute_multi_layer()
   }
 }
 
-/* Add a pass of the given name, view, and input buffer. The pass channel identifiers follows the
- * EXR conventions. */
+/* Given a float4 image, return a newly allocated float3 image that ignores the last channel. The
+ * input image is freed. */
+static float *float4_to_float3_image(int2 size, float *float4_image)
+{
+  float *float3_image = static_cast<float *>(
+      MEM_malloc_arrayN(size_t(size.x) * size.y, sizeof(float[3]), "File Output Vector Buffer."));
+
+  threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
+    for (const int64_t y : sub_y_range) {
+      for (const int64_t x : IndexRange(size.x)) {
+        for (int i = 0; i < 3; i++) {
+          const int pixel_index = y * size.x + x;
+          float3_image[pixel_index * 3 + i] = float4_image[pixel_index * 4 + i];
+        }
+      }
+    }
+  });
+
+  MEM_freeN(float4_image);
+  return float3_image;
+}
+
+/* Allocates and fills an image buffer of the specified size with the value of the given constant
+ * input. */
+static float *inflate_input(const FileOutputInput &input, const int2 size)
+{
+  BLI_assert(input.image_input->get_flags().is_constant_operation);
+
+  switch (input.data_type) {
+    case DataType::Value: {
+      float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+          size_t(size.x) * size.y, sizeof(float), "File Output Inflated Buffer."));
+
+      const float value = input.image_input->get_constant_value_default(0.0f);
+      threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
+        for (const int64_t y : sub_y_range) {
+          for (const int64_t x : IndexRange(size.x)) {
+            buffer[y * size.x + x] = value;
+          }
+        }
+      });
+      return buffer;
+    }
+    case DataType::Color: {
+      float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+          size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
+
+      const float *value = input.image_input->get_constant_elem_default(nullptr);
+      threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
+        for (const int64_t y : sub_y_range) {
+          for (const int64_t x : IndexRange(size.x)) {
+            copy_v4_v4(buffer + ((y * size.x + x) * 4), value);
+          }
+        }
+      });
+      return buffer;
+    }
+    default:
+      /* Vector types are not possible for File output, see get_input_data_type in
+       * COM_FileOutputNode.cc for more information. Other types are internal and needn't be
+       * handled by operations. */
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
 void FileOutputOperation::add_pass_for_input(realtime_compositor::FileOutput &file_output,
                                              const FileOutputInput &input,
                                              const char *pass_name,
                                              const char *view_name)
 {
-  switch (input.data_type) {
+  /* For constant operations, we fill a buffer that covers the canvas of the operation with the
+   * value of the operation. */
+  const int2 size = input.image_input->get_flags().is_constant_operation ?
+                        int2(this->get_width(), this->get_height()) :
+                        int2(input.image_input->get_width(), input.image_input->get_height());
+
+  /* The image buffer in the file output will take ownership of this buffer and freeing it will be
+   * its responsibility. So if we don't use the output buffer, we need to free it here. */
+  float *buffer = nullptr;
+  if (input.image_input->get_flags().is_constant_operation) {
+    buffer = inflate_input(input, size);
+    MEM_freeN(input.output_buffer);
+  }
+  else {
+    buffer = input.output_buffer;
+  }
+
+  switch (input.original_data_type) {
     case DataType::Color:
-      file_output.add_pass(pass_name, view_name, "RGBA", input.output_buffer);
+      /* Use lowercase rgba for Cryptomatte layers because the EXR internal compression rules
+       * specify that all uppercase RGBA channels will be compressed, and Cryptomatte should not be
+       * compressed. */
+      if (input.image_input->get_meta_data() &&
+          input.image_input->get_meta_data()->is_cryptomatte_layer())
+      {
+        file_output.add_pass(pass_name, view_name, "rgba", buffer);
+      }
+      else {
+        file_output.add_pass(pass_name, view_name, "RGBA", buffer);
+      }
       break;
     case DataType::Vector:
-      file_output.add_pass(pass_name, view_name, "XYZ", input.output_buffer);
+      if (input.image_input->get_meta_data() && input.image_input->get_meta_data()->is_4d_vector) {
+        file_output.add_pass(pass_name, view_name, "XYZW", buffer);
+      }
+      else {
+        file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
+      }
       break;
     case DataType::Value:
-      file_output.add_pass(pass_name, view_name, "V", input.output_buffer);
+      file_output.add_pass(pass_name, view_name, "V", buffer);
       break;
     case DataType::Float2:
       /* An internal type that needn't be handled. */
@@ -281,17 +384,17 @@ void FileOutputOperation::add_pass_for_input(realtime_compositor::FileOutput &fi
   }
 }
 
-/* Add a view of the given name and input buffer. */
 void FileOutputOperation::add_view_for_input(realtime_compositor::FileOutput &file_output,
                                              const FileOutputInput &input,
                                              const char *view_name)
 {
-  switch (input.data_type) {
+  const int2 size = int2(input.image_input->get_width(), input.image_input->get_height());
+  switch (input.original_data_type) {
     case DataType::Color:
       file_output.add_view(view_name, 4, input.output_buffer);
       break;
     case DataType::Vector:
-      file_output.add_view(view_name, 3, input.output_buffer);
+      file_output.add_view(view_name, 3, float4_to_float3_image(size, input.output_buffer));
       break;
     case DataType::Value:
       file_output.add_view(view_name, 1, input.output_buffer);
@@ -303,10 +406,6 @@ void FileOutputOperation::add_view_for_input(realtime_compositor::FileOutput &fi
   }
 }
 
-/* Get the base path of the image to be saved, based on the base path of the node. The base name
- * is an optional initial name of the image, which will later be concatenated with other
- * information like the frame number, view, and extension. If the base name is empty, then the
- * base path represents a directory, so a trailing slash is ensured. */
 void FileOutputOperation::get_single_layer_image_base_path(const char *base_name, char *base_path)
 {
   if (base_name[0]) {
@@ -318,7 +417,6 @@ void FileOutputOperation::get_single_layer_image_base_path(const char *base_name
   }
 }
 
-/* Get the path of the image to be saved based on the given format. */
 void FileOutputOperation::get_single_layer_image_path(const char *base_path,
                                                       const ImageFormatData &format,
                                                       char *image_path)
@@ -333,8 +431,6 @@ void FileOutputOperation::get_single_layer_image_path(const char *base_path,
                                nullptr);
 }
 
-/* Get the path of the EXR image to be saved. If the given view is not empty, its corresponding
- * file suffix will be appended to the name. */
 void FileOutputOperation::get_multi_layer_exr_image_path(const char *base_path,
                                                          const char *view,
                                                          char *image_path)
@@ -360,13 +456,11 @@ const char *FileOutputOperation::get_base_path()
   return node_data_->base_path;
 }
 
-/* Add the file format extensions to the rendered file name. */
 bool FileOutputOperation::use_file_extension()
 {
   return context_->get_render_data()->scemode & R_EXTENSION;
 }
 
-/* If true, save views in a multi-view EXR file, otherwise, save each view in its own file. */
 bool FileOutputOperation::is_multi_view_exr()
 {
   if (!is_multi_view_scene()) {

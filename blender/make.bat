@@ -39,6 +39,11 @@ if "%FORMAT%" == "1" (
 	goto EOF
 )
 
+if "%LICENSE%" == "1" (
+	call "%BLENDER_DIR%\build_files\windows\license.cmd"
+	goto EOF
+)
+
 call "%BLENDER_DIR%\build_files\windows\detect_architecture.cmd"
 if errorlevel 1 goto EOF
 
@@ -77,11 +82,6 @@ if "%BUILD_UPDATE%" == "1" (
 call "%BLENDER_DIR%\build_files\windows\set_build_dir.cmd"
 
 :convenience_targets
-
-if "%ICONS%" == "1" (
-	call "%BLENDER_DIR%\build_files\windows\icons.cmd"
-	goto EOF
-)
 
 if "%ICONS_GEOM%" == "1" (
 	call "%BLENDER_DIR%\build_files\windows\icons_geom.cmd"

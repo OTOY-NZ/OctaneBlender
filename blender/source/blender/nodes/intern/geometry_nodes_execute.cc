@@ -326,6 +326,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       IDPropertyUIDataString *ui_data = (IDPropertyUIDataString *)IDP_ui_data_ensure(
           property.get());
       ui_data->default_value = BLI_strdup(value->value);
+      ui_data->base.rna_subtype = value->subtype;
       return property;
     }
     case SOCK_MENU: {
@@ -1013,7 +1014,10 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
                             param_input_usages,
                             param_output_usages,
                             param_set_outputs};
-  lazy_function.execute(lf_params, lf_context);
+  {
+    ScopedComputeContextTimer timer{lf_context};
+    lazy_function.execute(lf_params, lf_context);
+  }
   lazy_function.destruct_storage(lf_context.storage);
 
   for (GMutablePointer &ptr : inputs_to_destruct) {

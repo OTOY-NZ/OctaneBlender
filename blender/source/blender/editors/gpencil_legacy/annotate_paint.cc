@@ -46,7 +46,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -107,7 +107,7 @@ struct tGPsdata {
   /** For operations that require occlusion testing. */
   ViewDepths *depths;
   /** for using the camera rect within the 3d view. */
-  rctf *subrect;
+  const rctf *subrect;
   rctf subrect_data;
 
   /** settings to pass to gp_points_to_xy(). */
@@ -658,12 +658,12 @@ static short annotation_stroke_addpoint(tGPsdata *p,
             mode = V3D_DEPTH_SELECTED_ONLY;
           }
           else {
-            mode = V3D_DEPTH_NO_OVERLAYS;
+            mode = V3D_DEPTH_ALL;
           }
         }
 
         view3d_region_operator_needs_opengl(p->win, p->region);
-        ED_view3d_depth_override(p->depsgraph, p->region, v3d, nullptr, mode, nullptr);
+        ED_view3d_depth_override(p->depsgraph, p->region, v3d, nullptr, mode, false, nullptr);
       }
 
       /* convert screen-coordinates to appropriate coordinates (and store them) */
@@ -1226,7 +1226,7 @@ static void annotation_stroke_doeraser(tGPsdata *p)
       View3D *v3d = static_cast<View3D *>(p->area->spacedata.first);
       view3d_region_operator_needs_opengl(p->win, p->region);
       ED_view3d_depth_override(
-          p->depsgraph, p->region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &p->depths);
+          p->depsgraph, p->region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &p->depths);
     }
   }
 
@@ -1635,7 +1635,7 @@ static void annotation_paint_initstroke(tGPsdata *p,
       if (rv3d->persp == RV3D_CAMOB) {
         /* no shift */
         ED_view3d_calc_camera_border(
-            p->scene, depsgraph, p->region, v3d, rv3d, &p->subrect_data, true);
+            p->scene, depsgraph, p->region, v3d, rv3d, true, &p->subrect_data);
         p->subrect = &p->subrect_data;
       }
     }
@@ -1690,13 +1690,13 @@ static void annotation_paint_strokeend(tGPsdata *p)
         mode = V3D_DEPTH_SELECTED_ONLY;
       }
       else {
-        mode = V3D_DEPTH_NO_OVERLAYS;
+        mode = V3D_DEPTH_ALL;
       }
     }
     /* need to restore the original projection settings before packing up */
     view3d_region_operator_needs_opengl(p->win, p->region);
     ED_view3d_depth_override(
-        p->depsgraph, p->region, v3d, nullptr, mode, is_eraser ? nullptr : &p->depths);
+        p->depsgraph, p->region, v3d, nullptr, mode, false, is_eraser ? nullptr : &p->depths);
   }
 
   /* check if doing eraser or not */
@@ -2519,7 +2519,8 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
        * - Since this operator is non-modal, we can just call it here, and keep going...
        * - This operator is especially useful when animating
        */
-      WM_operator_name_call(C, "GPENCIL_OT_blank_frame_add", WM_OP_EXEC_DEFAULT, nullptr, event);
+      WM_operator_name_call(
+          C, "GPENCIL_OT_layer_annotation_add", WM_OP_EXEC_DEFAULT, nullptr, event);
       estate = OPERATOR_RUNNING_MODAL;
     }
     else {

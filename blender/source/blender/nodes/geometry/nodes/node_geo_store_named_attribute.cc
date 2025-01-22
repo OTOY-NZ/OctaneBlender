@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Geometry");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::String>("Name").is_attribute_name();
+  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
@@ -91,6 +91,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (!bke::allow_procedural_attribute_access(name)) {
     params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
+    params.set_output("Geometry", std::move(geometry_set));
+    return;
+  }
+  if (bke::attribute_name_is_anonymous(name)) {
+    params.error_message_add(NodeWarningType::Info,
+                             TIP_("Anonymous attributes can't be created here"));
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
@@ -196,8 +202,7 @@ static void node_rna(StructRNA *srna)
                     "Which domain to store the data in",
                     rna_enum_attribute_domain_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point),
-                    enums::domain_experimental_grease_pencil_version3_fn);
+                    int(AttrDomain::Point));
 }
 
 static void node_register()
@@ -216,7 +221,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

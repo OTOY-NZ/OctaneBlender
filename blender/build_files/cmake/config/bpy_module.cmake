@@ -29,9 +29,6 @@ set(WITH_PYTHON_MODULE       ON  CACHE BOOL "" FORCE)
 # There is no point in copying python into Python.
 set(WITH_PYTHON_INSTALL      OFF CACHE BOOL "" FORCE)
 
-# Depends on Python install, do this to quiet warning.
-set(WITH_DRACO               OFF CACHE BOOL "" FORCE)
-
 if(WIN32)
   set(WITH_WINDOWS_BUNDLE_CRT  OFF CACHE BOOL "" FORCE)
 endif()
@@ -57,9 +54,12 @@ set(WITH_BLENDER_THUMBNAILER OFF CACHE BOOL "" FORCE)
 # -----------------------------------------------------------------------------
 # Audio Support.
 
+# Enable audio support without audio-device support
+# so the sequencer can be used properly from Python, see: #125007.
+set(WITH_AUDASPACE           ON  CACHE BOOL "" FORCE)
+
 # Disable audio, its possible some developers may want this but for now disable
 # so the Python module doesn't hold the audio device and loads quickly.
-set(WITH_AUDASPACE           OFF CACHE BOOL "" FORCE)
 set(WITH_JACK                OFF CACHE BOOL "" FORCE)
 set(WITH_OPENAL              OFF CACHE BOOL "" FORCE)
 set(WITH_SDL                 OFF CACHE BOOL "" FORCE)

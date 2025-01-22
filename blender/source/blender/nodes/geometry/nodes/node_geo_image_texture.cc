@@ -4,7 +4,7 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_threads.h"
@@ -428,7 +428,7 @@ static void node_register()
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.geometry_node_execute = node_geo_exec;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -4,7 +4,7 @@
 
 #include "COM_MetaData.h"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "RE_pipeline.h"
 
@@ -13,6 +13,13 @@ namespace blender::compositor {
 void MetaData::add(const blender::StringRef key, const blender::StringRef value)
 {
   entries_.add(key, value);
+}
+
+bool MetaData::is_cryptomatte_layer() const
+{
+  return entries_.contains(META_DATA_KEY_CRYPTOMATTE_HASH) ||
+         entries_.contains(META_DATA_KEY_CRYPTOMATTE_CONVERSION) ||
+         entries_.contains(META_DATA_KEY_CRYPTOMATTE_MANIFEST);
 }
 
 void MetaData::add_cryptomatte_entry(const blender::StringRef layer_name,

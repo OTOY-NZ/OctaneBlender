@@ -27,7 +27,7 @@
 #include "util/transform.h"
 #include <unordered_map>
 
-#include "RNA_blender_cpp.h"
+#include "RNA_blender_cpp.hh"
 
 namespace OctaneEngine {
 class OctaneClient;

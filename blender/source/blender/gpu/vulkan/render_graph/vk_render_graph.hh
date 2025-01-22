@@ -39,12 +39,14 @@
 
 #include <mutex>
 #include <optional>
+#include <pthread.h>
 
 #include "BKE_global.hh"
 
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "BKE_global.hh"
 
@@ -54,6 +56,7 @@
 #include "vk_command_builder.hh"
 #include "vk_render_graph_links.hh"
 #include "vk_resource_state_tracker.hh"
+#include "vk_resource_tracker.hh"
 
 namespace blender::gpu::render_graph {
 class VKScheduler;
@@ -61,6 +64,8 @@ class VKScheduler;
 class VKRenderGraph : public NonCopyable {
   friend class VKCommandBuilder;
   friend class VKScheduler;
+  using DebugGroupNameID = int64_t;
+  using DebugGroupID = int64_t;
 
   /** All links inside the graph indexable via NodeHandle. */
   Vector<VKRenderGraphNodeLinks> links_;
@@ -93,25 +98,29 @@ class VKRenderGraph : public NonCopyable {
   VKResourceStateTracker &resources_;
 
   struct {
+    VectorSet<std::string> group_names;
+
     /** Current stack of debug group names. */
-    Vector<const char *> group_stack;
+    Vector<DebugGroupNameID> group_stack;
     /** Has a node been added to the current stack? If not the group stack will be added to
      * used_groups.*/
     bool group_used = false;
     /** All used debug groups. */
-    Vector<Vector<const char *>> used_groups;
+    Vector<Vector<DebugGroupNameID>> used_groups;
     /**
      * Map of a node_handle to an index of debug group in used_groups.
      *
      * <source>
-     * int used_group_index = node_group_map[node_handle];
-     * const Vector<const char*> &used_group = used_groups[used_group_index];
+     * int used_group_id = node_group_map[node_handle];
+     * const Vector<DebugGroupNameID> &used_group = used_groups[used_group_id];
      * </source>
      */
-    Vector<int64_t> node_group_map;
+    Vector<DebugGroupID> node_group_map;
   } debug_;
 
  public:
+  VKSubmissionID submission_id;
+
   /**
    * Construct a new render graph instance.
    *
@@ -120,17 +129,6 @@ class VKRenderGraph : public NonCopyable {
    */
   VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
                 VKResourceStateTracker &resources);
-
-  /**
-   * Free all resources held by the render graph. After calling this function the render graph may
-   * not work as expected, leading to crashes.
-   *
-   * Freeing data of context resources cannot be done inside the destructor due to an issue when
-   * Blender (read window manager) exits. During this phase the backend is deallocated, device is
-   * destroyed, but window manager requires a context so it creates new one. We work around this
-   * issue by ensuring the VKDevice is always in control of releasing resources.
-   */
-  void free_data();
 
  private:
   /**
@@ -141,12 +139,24 @@ class VKRenderGraph : public NonCopyable {
     std::scoped_lock lock(resources_.mutex);
     static VKRenderGraphNode node_template = {};
     NodeHandle node_handle = nodes_.append_and_get_index(node_template);
+#if 0
+    /* Useful during debugging. When a validation error occurs during submission we know the node
+     * type and node handle, but we don't know when and by who that specific node was added to the
+     * render graph. By enabling this part of the code and set the correct node_handle and node
+     * type a debugger can break at the moment the node has been added to the render graph. */
+    if (node_handle == 267 && NodeInfo::node_type == VKNodeType::DRAW) {
+      std::cout << "break\n";
+    }
+#endif
     if (nodes_.size() > links_.size()) {
       links_.resize(nodes_.size());
     }
     VKRenderGraphNode &node = nodes_[node_handle];
-    VKRenderGraphNodeLinks &node_links = links_[node_handle];
     node.set_node_data<NodeInfo>(create_info);
+
+    VKRenderGraphNodeLinks &node_links = links_[node_handle];
+    BLI_assert(node_links.inputs.is_empty());
+    BLI_assert(node_links.outputs.is_empty());
     node.build_links<NodeInfo>(resources_, node_links, create_info);
 
     if (G.debug & G_DEBUG_GPU) {
@@ -167,7 +177,9 @@ class VKRenderGraph : public NonCopyable {
   { \
     add_node<NODE_CLASS>(create_info); \
   }
+  ADD_NODE(VKBeginQueryNode)
   ADD_NODE(VKBeginRenderingNode)
+  ADD_NODE(VKEndQueryNode)
   ADD_NODE(VKEndRenderingNode)
   ADD_NODE(VKClearAttachmentsNode)
   ADD_NODE(VKClearColorImageNode)
@@ -180,6 +192,13 @@ class VKRenderGraph : public NonCopyable {
   ADD_NODE(VKBlitImageNode)
   ADD_NODE(VKDispatchNode)
   ADD_NODE(VKDispatchIndirectNode)
+  ADD_NODE(VKDrawNode)
+  ADD_NODE(VKDrawIndexedNode)
+  ADD_NODE(VKDrawIndexedIndirectNode)
+  ADD_NODE(VKDrawIndirectNode)
+  ADD_NODE(VKResetQueryPoolNode)
+  ADD_NODE(VKUpdateBufferNode)
+  ADD_NODE(VKUpdateMipmapsNode)
 #undef ADD_NODE
 
   /**
@@ -207,6 +226,15 @@ class VKRenderGraph : public NonCopyable {
   void submit_for_present(VkImage vk_swapchain_image);
 
   /**
+   * Submit full graph.
+   */
+  void submit();
+
+  /**  Submit render graph with CPU synchronization event. */
+  void submit_synchronization_event(VkFence vk_fence);
+  /** Wait and reset for a CPU synchronization event. */
+  void wait_synchronization_event(VkFence vk_fence);
+  /**
    * Push a new debugging group to the stack with the given name.
    *
    * New nodes added to the render graph will be associated with this debug group.
@@ -221,8 +249,22 @@ class VKRenderGraph : public NonCopyable {
    */
   void debug_group_end();
 
+  /**
+   * Utility function that is used during debugging.
+   *
+   * When debugging most of the time know the node_handle that is needed after the node has been
+   * constructed. When haunting a bug it is more useful to query what the next node handle will be
+   * so you can step through the node building process.
+   */
+  NodeHandle next_node_handle()
+  {
+    return nodes_.size();
+  }
+
+  void debug_print(NodeHandle node_handle) const;
+
  private:
   void remove_nodes(Span<NodeHandle> node_handles);
-};  // namespace blender::gpu::render_graph
+};
 
 }  // namespace blender::gpu::render_graph

@@ -49,7 +49,7 @@ enum {
    * Also used for most Editors ID usages (active node tree in the Node editor, shown image in the
    * Image editor, and so on).
    *
-   * See also #LIB_INDIRECT_WEAK_LINK in DNA_ID.h
+   * See also #ID_FLAG_INDIRECT_WEAK_LINK in DNA_ID.h
    */
   IDWALK_CB_DIRECT_WEAK_LINK = (1 << 3),
 
@@ -117,9 +117,17 @@ enum {
 
 enum {
   IDWALK_RET_NOP = 0,
-  /** Completely stop iteration. */
+  /**
+   * Completely stop iteration.
+   *
+   * \note Should never be returned by a callback in case #IDWALK_READONLY is not set.
+   */
   IDWALK_RET_STOP_ITER = 1 << 0,
-  /** Stop recursion, that is, do not loop over ID used by current one. */
+  /**
+   * Stop recursion, that is, do not loop over ID used by current one.
+   *
+   * \note Should never be returned by a callback in case #IDWALK_READONLY is not set.
+   */
   IDWALK_RET_STOP_RECURSION = 1 << 1,
 };
 
@@ -229,6 +237,7 @@ enum {
 bool BKE_lib_query_foreachid_iter_stop(const LibraryForeachIDData *data);
 void BKE_lib_query_foreachid_process(LibraryForeachIDData *data, ID **id_pp, int cb_flag);
 int BKE_lib_query_foreachid_process_flags_get(const LibraryForeachIDData *data);
+Main *BKE_lib_query_foreachid_process_main_get(const LibraryForeachIDData *data);
 int BKE_lib_query_foreachid_process_callback_flag_override(LibraryForeachIDData *data,
                                                            int cb_flag,
                                                            bool do_replace);
@@ -479,7 +488,7 @@ void BKE_lib_query_unused_ids_tag(Main *bmain, int tag, LibQueryUnusedIDsData &p
  * which prevents their deletion by 'basic' usage checks.
  *
  * \param do_init_tag: if \a true, all linked data are checked, if \a false,
- * only linked data-blocks already tagged with #LIB_TAG_DOIT are checked.
+ * only linked data-blocks already tagged with #ID_TAG_DOIT are checked.
  */
 void BKE_library_unused_linked_data_set_tag(Main *bmain, bool do_init_tag);
 /**

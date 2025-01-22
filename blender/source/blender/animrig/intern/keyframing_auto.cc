@@ -16,8 +16,9 @@
 
 #include "DNA_scene_types.h"
 
+#include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_keyframing.hh"
 
@@ -142,14 +143,15 @@ void autokeyframe_object(bContext *C, Scene *scene, Object *ob, Span<RNAPath> rn
 
   CombinedKeyingResult combined_result;
   for (PointerRNA ptr : sources) {
-    const CombinedKeyingResult result = insert_key_rna(
+    const CombinedKeyingResult result = insert_keyframes(
+        bmain,
         &ptr,
+        std::nullopt,
         rna_paths,
         scene_frame,
-        flag,
+        anim_eval_context,
         eBezTriple_KeyframeType(scene->toolsettings->keyframe_type),
-        bmain,
-        anim_eval_context);
+        flag);
     combined_result.merge(result);
   }
 
@@ -245,14 +247,15 @@ void autokeyframe_pose_channel(bContext *C,
 
   CombinedKeyingResult combined_result;
   for (PointerRNA &ptr : sources) {
-    const CombinedKeyingResult result = insert_key_rna(
+    const CombinedKeyingResult result = insert_keyframes(
+        bmain,
         &ptr,
+        std::nullopt,
         rna_paths,
         scene_frame,
-        flag,
+        anim_eval_context,
         eBezTriple_KeyframeType(scene->toolsettings->keyframe_type),
-        bmain,
-        anim_eval_context);
+        flag);
     combined_result.merge(result);
   }
 
@@ -319,7 +322,6 @@ bool autokeyframe_property(bContext *C,
     if (autokeyframe_cfra_can_key(scene, id)) {
       ToolSettings *ts = scene->toolsettings;
       const eInsertKeyFlags flag = get_autokey_flags(scene);
-      const std::optional<std::string> path = RNA_path_from_ID_to_property(ptr, prop);
 
       if (only_if_property_keyed) {
         /* NOTE: We use rnaindex instead of fcu->array_index,
@@ -327,15 +329,24 @@ bool autokeyframe_property(bContext *C,
          *       E.g., color wheels (see #42567). */
         BLI_assert((fcu->array_index == rnaindex) || (rnaindex == -1));
       }
-      CombinedKeyingResult result = insert_keyframe(bmain,
-                                                    *id,
-                                                    (fcu && fcu->grp) ? fcu->grp->name : nullptr,
-                                                    fcu ? fcu->rna_path :
-                                                          (path ? path->c_str() : nullptr),
-                                                    rnaindex,
-                                                    &anim_eval_context,
-                                                    eBezTriple_KeyframeType(ts->keyframe_type),
-                                                    flag);
+
+      const std::optional<std::string> group = (fcu && fcu->grp) ? std::optional(fcu->grp->name) :
+                                                                   std::nullopt;
+      const std::string path = fcu ? fcu->rna_path :
+                                     RNA_path_from_ID_to_property(ptr, prop).value_or("");
+      /* NOTE: `rnaindex == -1` is a magic number, meaning either "operate on
+       * all elements" or "not an array property". */
+      const std::optional<int> array_index = rnaindex < 0 ? std::nullopt : std::optional(rnaindex);
+
+      PointerRNA id_pointer = RNA_id_pointer_create(ptr->owner_id);
+      CombinedKeyingResult result = insert_keyframes(bmain,
+                                                     &id_pointer,
+                                                     group,
+                                                     {{path, {}, array_index}},
+                                                     std::nullopt,
+                                                     anim_eval_context,
+                                                     eBezTriple_KeyframeType(ts->keyframe_type),
+                                                     flag);
       changed = result.get_count(SingleKeyingResult::SUCCESS) != 0;
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
     }

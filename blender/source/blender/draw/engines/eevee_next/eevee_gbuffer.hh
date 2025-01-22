@@ -141,7 +141,7 @@ struct GBuffer {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                              GPU_TEXTURE_USAGE_ATTACHMENT;
-    header_tx.ensure_2d(GPU_R16UI, extent, usage);
+    header_tx.ensure_2d(GPU_R32UI, extent, usage);
     closure_tx.ensure_2d_array(GPU_RGB10_A2, extent, data_count, usage);
     normal_tx.ensure_2d_array(GPU_RG16, extent, normal_count, usage);
     /* Ensure layer view for frame-buffer attachment. */
@@ -155,12 +155,6 @@ struct GBuffer {
   /* Bind the GBuffer frame-buffer correctly using the correct workarounds. */
   void bind(Framebuffer &gbuffer_fb)
   {
-    if (/* FIXME(fclem): Vulkan doesn't implement load / store config yet. */
-        GPU_backend_get_type() == GPU_BACKEND_VULKAN)
-    {
-      header_tx.clear(uint4(0));
-    }
-
     /* Workaround a Metal bug that is only showing up on ATI/Intel GPUs. */
     if (GPU_type_matches(
             GPU_DEVICE_ATI | GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_MAC, GPU_DRIVER_ANY))

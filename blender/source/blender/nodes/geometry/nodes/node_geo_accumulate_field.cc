@@ -419,7 +419,7 @@ static void node_rna(StructRNA *srna)
                     rna_enum_attribute_domain_items,
                     NOD_storage_enum_accessors(domain),
                     int(AttrDomain::Point),
-                    enums::domain_experimental_grease_pencil_version3_fn,
+                    nullptr,
                     true);
 }
 
@@ -435,7 +435,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   blender::bke::node_type_storage(
       &ntype, "NodeAccumulateField", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -18,7 +18,7 @@
 #include "NOD_node_declaration.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -62,7 +62,8 @@ static void draw_node_input(bContext *C,
 
   PointerRNA socket_ptr = RNA_pointer_create(node_ptr->owner_id, &RNA_NodeSocket, &socket);
   const char *text = IFACE_(bke::nodeSocketLabel(&socket));
-  socket.typeinfo->draw(C, layout, &socket_ptr, node_ptr, text);
+  uiLayout *row = uiLayoutRow(layout, true);
+  socket.typeinfo->draw(C, row, &socket_ptr, node_ptr, text);
 }
 
 static void draw_node_input(bContext *C,

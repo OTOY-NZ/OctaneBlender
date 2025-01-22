@@ -97,7 +97,7 @@ inline void set_item_name_and_make_unique(bNode &node,
   SocketItemsRef array = Accessor::get_items_from_node(node);
   const char *default_name = "Item";
   if constexpr (Accessor::has_type) {
-    default_name = bke::nodeStaticSocketLabel(Accessor::get_socket_type(item), 0);
+    default_name = bke::node_static_socket_label(Accessor::get_socket_type(item), 0);
   }
 
   char unique_name[MAX_NAME + 4];
@@ -257,12 +257,14 @@ template<typename Accessor>
   update_node_declaration_and_sockets(ntree, extend_node);
   if (extend_socket.is_input()) {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_IN);
-    bNodeSocket *new_socket = bke::nodeFindSocket(&extend_node, SOCK_IN, item_identifier.c_str());
+    bNodeSocket *new_socket = bke::node_find_socket(
+        &extend_node, SOCK_IN, item_identifier.c_str());
     link.tosock = new_socket;
   }
   else {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_OUT);
-    bNodeSocket *new_socket = bke::nodeFindSocket(&extend_node, SOCK_OUT, item_identifier.c_str());
+    bNodeSocket *new_socket = bke::node_find_socket(
+        &extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
   return true;
@@ -273,10 +275,12 @@ template<typename Accessor>
  * \return False if the link should be removed.
  */
 template<typename Accessor>
-[[nodiscard]] inline bool try_add_item_via_any_extend_socket(bNodeTree &ntree,
-                                                             bNode &extend_node,
-                                                             bNode &storage_node,
-                                                             bNodeLink &link)
+[[nodiscard]] inline bool try_add_item_via_any_extend_socket(
+    bNodeTree &ntree,
+    bNode &extend_node,
+    bNode &storage_node,
+    bNodeLink &link,
+    const std::optional<StringRef> socket_identifier = std::nullopt)
 {
   bNodeSocket *possible_extend_socket = nullptr;
   if (link.fromnode == &extend_node) {
@@ -290,6 +294,11 @@ template<typename Accessor>
   }
   if (!STREQ(possible_extend_socket->idname, "NodeSocketVirtual")) {
     return true;
+  }
+  if (socket_identifier.has_value()) {
+    if (possible_extend_socket->identifier != socket_identifier) {
+      return true;
+    }
   }
   return try_add_item_via_extend_socket<Accessor>(
       ntree, extend_node, *possible_extend_socket, storage_node, link);

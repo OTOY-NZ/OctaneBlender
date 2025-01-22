@@ -88,7 +88,7 @@ static void draw_item(uiList * /*ui_list*/,
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   static const uiListType *items_list = []() {
-    uiListType *list = MEM_new<uiListType>(__func__);
+    uiListType *list = MEM_cnew<uiListType>(__func__);
     STRNCPY(list->idname, "NODE_UL_capture_items_list");
     list->draw_item = draw_item;
     WM_uilisttype_add(list);
@@ -169,8 +169,8 @@ static void node_operators()
   WM_operatortype_append(NODE_OT_capture_attribute_item_move);
 }
 
-static void clean_unused_attributes(const AnonymousAttributePropagationInfo &propagation_info,
-                                    const Set<AttributeIDRef> &skip,
+static void clean_unused_attributes(const AttributeFilter &attribute_filter,
+                                    const Set<StringRef> &keep,
                                     GeometryComponent &component)
 {
   std::optional<MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -179,18 +179,17 @@ static void clean_unused_attributes(const AnonymousAttributePropagationInfo &pro
   }
 
   Vector<std::string> unused_ids;
-  attributes->for_all([&](const AttributeIDRef &id, const AttributeMetaData /*meta_data*/) {
-    if (!id.is_anonymous()) {
-      return true;
+  attributes->foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (!bke::attribute_name_is_anonymous(iter.name)) {
+      return;
     }
-    if (skip.contains(id)) {
-      return true;
+    if (keep.contains(iter.name)) {
+      return;
     }
-    if (propagation_info.propagate(id.anonymous_id())) {
-      return true;
+    if (!attribute_filter.allow_skip(iter.name)) {
+      return;
     }
-    unused_ids.append(id.name());
-    return true;
+    unused_ids.append(iter.name);
   });
 
   for (const std::string &unused_id : unused_ids) {
@@ -215,8 +214,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<const NodeGeometryAttributeCaptureItem *> used_items;
   Vector<GField> fields;
-  Vector<AnonymousAttributeIDPtr> attribute_id_ptrs;
-  Set<AttributeIDRef> used_attribute_ids_set;
+  Vector<std::string> attribute_id_ptrs;
+  Set<StringRef> used_attribute_ids_set;
   for (const NodeGeometryAttributeCaptureItem &item :
        Span{storage.capture_items, storage.capture_items_num})
   {
@@ -224,14 +223,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         CaptureAttributeItemsAccessor::input_socket_identifier_for_item(item);
     const std::string output_identifier =
         CaptureAttributeItemsAccessor::output_socket_identifier_for_item(item);
-    AnonymousAttributeIDPtr attribute_id = params.get_output_anonymous_attribute_id_if_needed(
+    std::optional<std::string> attribute_id = params.get_output_anonymous_attribute_id_if_needed(
         output_identifier);
     if (!attribute_id) {
       continue;
     }
     used_attribute_ids_set.add(*attribute_id);
     fields.append(params.extract_input<GField>(input_identifier));
-    attribute_id_ptrs.append(std::move(attribute_id));
+    attribute_id_ptrs.append(std::move(*attribute_id));
     used_items.append(&item);
   }
 
@@ -241,9 +240,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Array<AttributeIDRef> attribute_ids(attribute_id_ptrs.size());
+  Array<StringRef> attribute_ids(attribute_id_ptrs.size());
   for (const int i : attribute_id_ptrs.index_range()) {
-    attribute_ids[i] = *attribute_id_ptrs[i];
+    attribute_ids[i] = attribute_id_ptrs[i];
   }
 
   const auto capture_on = [&](GeometryComponent &component) {
@@ -251,7 +250,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     /* Changing of the anonymous attributes may require removing attributes that are no longer
      * needed. */
     clean_unused_attributes(
-        params.get_output_propagation_info("Geometry"), used_attribute_ids_set, component);
+        params.get_attribute_filter("Geometry"), used_attribute_ids_set, component);
   };
 
   /* Run on the instances component separately to only affect the top level of instances. */
@@ -293,8 +292,8 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryAttributeCapture &src_storage = node_storage(*src_node);
-  NodeGeometryAttributeCapture *dst_storage = MEM_new<NodeGeometryAttributeCapture>(__func__,
-                                                                                    src_storage);
+  NodeGeometryAttributeCapture *dst_storage = MEM_cnew<NodeGeometryAttributeCapture>(__func__,
+                                                                                     src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<CaptureAttributeItemsAccessor>(*src_node, *dst_node);
@@ -337,7 +336,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

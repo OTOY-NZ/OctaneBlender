@@ -35,29 +35,81 @@ KeyframeSettings get_keyframe_settings(const bool from_userprefs)
   return settings;
 }
 
-FCurve *create_fcurve_for_channel(const StringRef rna_path, const int array_index)
+const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor fcurve_descriptor)
+{
+  for (const FCurve *fcurve : fcurves) {
+    /* Check indices first, much cheaper than a string comparison. */
+    if (fcurve->array_index == fcurve_descriptor.array_index && fcurve->rna_path &&
+        StringRef(fcurve->rna_path) == fcurve_descriptor.rna_path)
+    {
+      return fcurve;
+    }
+  }
+  return nullptr;
+}
+FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor fcurve_descriptor)
+{
+  const FCurve *fcurve = fcurve_find(fcurves.cast<const FCurve *>(), fcurve_descriptor);
+  return const_cast<FCurve *>(fcurve);
+}
+
+FCurve *create_fcurve_for_channel(const FCurveDescriptor fcurve_descriptor)
 {
   FCurve *fcu = BKE_fcurve_create();
-  fcu->rna_path = BLI_strdupn(rna_path.data(), rna_path.size());
-  fcu->array_index = array_index;
+  fcu->rna_path = BLI_strdupn(fcurve_descriptor.rna_path.data(),
+                              fcurve_descriptor.rna_path.size());
+  fcu->array_index = fcurve_descriptor.array_index;
   fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
   fcu->auto_smoothing = U.auto_smoothing_new;
+
+  /* Set the fcurve's color mode if needed/able. */
+  if ((U.keying_flag & KEYING_FLAG_XYZ2RGB) != 0 && fcurve_descriptor.prop_subtype.has_value()) {
+    switch (*fcurve_descriptor.prop_subtype) {
+      case PROP_TRANSLATION:
+      case PROP_XYZ:
+      case PROP_EULER:
+      case PROP_COLOR:
+      case PROP_COORDS:
+        fcu->color_mode = FCURVE_COLOR_AUTO_RGB;
+        break;
+
+      case PROP_QUATERNION:
+        fcu->color_mode = FCURVE_COLOR_AUTO_YRGB;
+        break;
+
+      default:
+        /* Leave the color mode as default. */
+        break;
+    }
+  }
 
   return fcu;
 }
 
-bool delete_keyframe_fcurve(AnimData *adt, FCurve *fcu, float cfra)
+bool fcurve_delete_keyframe_at_time(FCurve *fcurve, const float time)
 {
+  if (BKE_fcurve_is_protected(fcurve)) {
+    return false;
+  }
   bool found;
 
-  const int index = BKE_fcurve_bezt_binarysearch_index(fcu->bezt, cfra, fcu->totvert, &found);
+  const int index = BKE_fcurve_bezt_binarysearch_index(
+      fcurve->bezt, time, fcurve->totvert, &found);
   if (!found) {
     return false;
   }
 
-  /* Delete the key at the index (will sanity check + do recalc afterwards). */
-  BKE_fcurve_delete_key(fcu, index);
-  BKE_fcurve_handles_recalc(fcu);
+  BKE_fcurve_delete_key(fcurve, index);
+  BKE_fcurve_handles_recalc(fcurve);
+
+  return true;
+}
+
+bool delete_keyframe_fcurve_legacy(AnimData *adt, FCurve *fcu, float cfra)
+{
+  if (!fcurve_delete_keyframe_at_time(fcu, cfra)) {
+    return false;
+  }
 
   /* Empty curves get automatically deleted. */
   if (BKE_fcurve_is_empty(fcu)) {
@@ -313,6 +365,48 @@ static bool new_key_needed(const FCurve &fcu, const float frame, const float val
   return true;
 }
 
+/**
+ * Move the point where a key is about to be inserted to be inside the main cycle range.
+ * Returns the type of the cycle if it is enabled and valid.
+ */
+static float2 remap_cyclic_keyframe_location(const FCurve &fcu,
+                                             const eFCU_Cycle_Type type,
+                                             float2 position)
+{
+  if (fcu.totvert < 2 || !fcu.bezt) {
+    return position;
+  }
+
+  if (type == FCU_CYCLE_NONE) {
+    return position;
+  }
+
+  BezTriple *first = &fcu.bezt[0], *last = &fcu.bezt[fcu.totvert - 1];
+  const float start = first->vec[1][0], end = last->vec[1][0];
+
+  if (start >= end) {
+    return position;
+  }
+
+  if (position.x < start || position.x > end) {
+    const float period = end - start;
+    const float step = floorf((position.x - start) / period);
+    position.x -= step * period;
+
+    if (type == FCU_CYCLE_OFFSET) {
+      /* Nasty check to handle the case when the modes are different better. */
+      FMod_Cycles *data = static_cast<FMod_Cycles *>(((FModifier *)fcu.modifiers.first)->data);
+      short mode = (step >= 0) ? data->after_mode : data->before_mode;
+
+      if (mode == FCM_EXTRAPOLATE_CYCLIC_OFFSET) {
+        position.y -= step * (last->vec[1][1] - first->vec[1][1]);
+      }
+    }
+  }
+
+  return position;
+}
+
 SingleKeyingResult insert_vert_fcurve(FCurve *fcu,
                                       const float2 position,
                                       const KeyframeSettings &settings,
@@ -320,12 +414,24 @@ SingleKeyingResult insert_vert_fcurve(FCurve *fcu,
 {
   BLI_assert(fcu != nullptr);
 
-  if ((flag & INSERTKEY_NEEDED) && !new_key_needed(*fcu, position[0], position[1])) {
+  float2 remapped_position = position;
+  /* Adjust coordinates for cycle aware insertion. */
+  if (flag & INSERTKEY_CYCLE_AWARE) {
+    eFCU_Cycle_Type type = BKE_fcurve_get_cycle_type(fcu);
+    remapped_position = remap_cyclic_keyframe_location(*fcu, type, position);
+    if (type != FCU_CYCLE_PERFECT) {
+      /* Inhibit action from insert_bezt_fcurve unless it's a perfect cycle. */
+      flag &= ~INSERTKEY_CYCLE_AWARE;
+    }
+  }
+
+  if ((flag & INSERTKEY_NEEDED) && !new_key_needed(*fcu, remapped_position.x, remapped_position.y))
+  {
     return SingleKeyingResult::NO_KEY_NEEDED;
   }
 
   BezTriple beztr = {{{0}}};
-  initialize_bezt(&beztr, position, settings, eFCurve_Flags(fcu->flag));
+  initialize_bezt(&beztr, remapped_position, settings, eFCurve_Flags(fcu->flag));
 
   uint oldTot = fcu->totvert;
   int a;

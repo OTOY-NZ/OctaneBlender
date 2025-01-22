@@ -8,12 +8,13 @@
 
 #pragma once
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "DNA_ID.h"
 
 #include "IO_orientation.hh"
 
+struct Mesh;
 struct bContext;
 struct ReportList;
 
@@ -73,3 +74,5 @@ struct PLYImportParams {
 void PLY_export(bContext *C, const PLYExportParams *export_params);
 
 void PLY_import(bContext *C, const PLYImportParams *import_params);
+
+Mesh *PLY_import_mesh(const PLYImportParams *import_params);

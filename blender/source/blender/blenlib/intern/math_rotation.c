@@ -371,7 +371,7 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
    * BLI_ASSERT_UNIT_QUAT(), so it's likely that even after a few more
    * transformations the quaternion will still be considered unit-ish. */
   const float q_len_squared = dot_qtqt(q, q);
-  const float threshold = 0.0002f /* BLI_ASSERT_UNIT_EPSILON */ * 3;
+  const float threshold = 0.0002f /* #BLI_ASSERT_UNIT_EPSILON */ * 3;
   if (fabs(q_len_squared - 1.0f) >= threshold) {
     normalize_qt(q);
   }
@@ -1643,9 +1643,9 @@ void eulO_to_quat(float q[4], const float e[3], const short order)
   double ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
   double a[3];
 
-  ti = e[i] * 0.5f;
-  tj = e[j] * (R->parity ? -0.5f : 0.5f);
-  th = e[k] * 0.5f;
+  ti = (double)e[i] * 0.5;
+  tj = (double)e[j] * (R->parity ? -0.5 : 0.5);
+  th = (double)e[k] * 0.5;
 
   ci = cos(ti);
   cj = cos(tj);

@@ -10,7 +10,6 @@ set(INC
   ../../bmesh
   ../../functions
   ../../geometry
-  ../../gpencil_modifiers_legacy
   ../../gpu
   ../../ikplugin
   ../../imbuf
@@ -21,7 +20,7 @@ set(INC
   ../../shader_fx
   ../../windowmanager
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -39,11 +38,11 @@ set(SRC
   object_data_transfer.cc
   object_data_transform.cc
   object_edit.cc
-  object_gpencil_modifier.cc
   object_hook.cc
   object_light_linking_ops.cc
   object_modes.cc
   object_modifier.cc
+  object_multires_modifier.cc
   object_ops.cc
   object_random.cc
   object_relations.cc
@@ -85,10 +84,9 @@ endif()
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
   add_definitions(-DWITH_POINT_CLOUD)
-  add_definitions(-DWITH_GREASE_PENCIL_V3)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_object bf_rna)

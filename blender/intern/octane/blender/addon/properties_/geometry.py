@@ -891,6 +891,16 @@ class OctaneMeshPropertyGroup(OctanePropertyGroup):
             description="",
             type=cls,
         )
+        bpy.types.GreasePencilv3.octane = PointerProperty(
+            name="Octane GreasePencil Settings",
+            description="",
+            type=cls,
+        )
+        bpy.types.PointCloud.octane = PointerProperty(
+            name="Octane PointCloud Settings",
+            description="",
+            type=cls,
+        )
 
     @classmethod
     def unregister(cls):
@@ -898,6 +908,8 @@ class OctaneMeshPropertyGroup(OctanePropertyGroup):
         del bpy.types.Curves.octane
         del bpy.types.Curve.octane
         del bpy.types.MetaBall.octane
+        del bpy.types.GreasePencilv3.octane
+        del bpy.types.PointCloud.octane
 
 
 UNIT_CONVERT_MAP = {

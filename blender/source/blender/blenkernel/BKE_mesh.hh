@@ -10,16 +10,14 @@
 
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_string_ref.hh"
 
 #include "BKE_mesh.h"
 #include "BKE_mesh_types.hh"
 
-struct ModifierData;
-
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
-class AttributeIDRef;
 
 namespace mesh {
 /* -------------------------------------------------------------------- */
@@ -239,7 +237,7 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
  * \{ */
 
 /**
- * Find the index of the next corner in the face, looping to the start if necessary.
+ * Find the index of the previous corner in the face, looping to the end if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_prev(const IndexRange face, const int corner)
@@ -248,7 +246,7 @@ inline int face_corner_prev(const IndexRange face, const int corner)
 }
 
 /**
- * Find the index of the previous corner in the face, looping to the end if necessary.
+ * Find the index of the next corner in the face, looping to the start if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_next(const IndexRange face, const int corner)
@@ -363,7 +361,7 @@ void mesh_select_face_flush(Mesh &mesh);
 
 /** Set the default name when adding a color attribute if there is no default yet. */
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
-                                                const AttributeIDRef &id,
+                                                StringRef id,
                                                 AttrDomain domain,
                                                 eCustomDataType data_type);
 

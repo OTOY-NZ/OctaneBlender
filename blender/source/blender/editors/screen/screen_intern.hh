@@ -47,6 +47,15 @@ enum eScreenAxis {
   SCREEN_AXIS_V = 'v',
 };
 
+enum class AreaDockTarget {
+  None,
+  Right,  /* Right diagonal quadrant of area. */
+  Left,   /* Left diagonal quadrant of area. */
+  Top,    /* Top diagonal quadrant of area. */
+  Bottom, /* Bottom diagonal quadrant of area. */
+  Center, /* Middle portion of area. */
+};
+
 #define AZONESPOTW UI_HEADER_OFFSET         /* width of corner #AZone - max */
 #define AZONESPOTH (0.6f * U.widget_unit)   /* height of corner #AZone */
 #define AZONEFADEIN (5.0f * U.widget_unit)  /* when #AZone is totally visible */
@@ -59,7 +68,7 @@ enum eScreenAxis {
 /**
  * Expanded interaction influence of area borders.
  */
-#define BORDERPADDING ((2.0f * UI_SCALE_FAC) + U.pixelsize)
+#define BORDERPADDING ((3.0f * UI_SCALE_FAC) + U.pixelsize)
 
 /* `area.cc` */
 
@@ -79,8 +88,12 @@ void region_toggle_hidden(bContext *C, ARegion *region, bool do_fade);
  * \param sa1: Area from which the resultant originates.
  * \param sa2: Target area that will be replaced.
  */
-void screen_draw_join_highlight(ScrArea *sa1, ScrArea *sa2);
-void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float fac);
+void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir);
+void screen_draw_dock_preview(
+    ScrArea *source, ScrArea *target, AreaDockTarget dock_target, float factor, int x, int y);
+void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor);
+
+void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis);
 
 /* `screen_edit.cc` */
 

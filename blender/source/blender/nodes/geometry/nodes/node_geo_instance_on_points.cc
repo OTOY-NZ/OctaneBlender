@@ -12,6 +12,8 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_join_geometries.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_instance_on_points_cc {
@@ -47,7 +49,7 @@ static void add_instances_from_component(
     const GeometrySet &instance,
     const fn::FieldContext &field_context,
     const GeoNodeExecParams &params,
-    const Map<AttributeIDRef, AttributeKind> &attributes_to_propagate)
+    const Map<StringRef, AttributeKind> &attributes_to_propagate)
 {
   const AttrDomain domain = AttrDomain::Point;
   const int domain_num = src_attributes.domain_size(domain);
@@ -153,7 +155,7 @@ static void add_instances_from_component(
 
   bke::MutableAttributeAccessor dst_attributes = dst_component.attributes_for_write();
   for (const auto item : attributes_to_propagate.items()) {
-    const AttributeIDRef &id = item.key;
+    const StringRef id = item.key;
     const eCustomDataType data_type = item.value.data_type;
     const bke::GAttributeReader src = src_attributes.lookup(id, AttrDomain::Point, data_type);
     if (!src) {
@@ -184,8 +186,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   GeometrySet instance = params.get_input<GeometrySet>("Instance");
   instance.ensure_owns_direct_data();
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Instances");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Instances");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     /* It's important not to invalidate the existing #InstancesComponent because it owns references
@@ -202,11 +203,11 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                GeometryComponent::Type::PointCloud,
                                                GeometryComponent::Type::Curve};
 
-    Map<AttributeIDRef, AttributeKind> attributes_to_propagate;
+    Map<StringRef, AttributeKind> attributes_to_propagate;
     geometry_set.gather_attributes_for_propagation(types,
                                                    GeometryComponent::Type::Instance,
                                                    false,
-                                                   propagation_info,
+                                                   attribute_filter,
                                                    attributes_to_propagate);
     attributes_to_propagate.remove("position");
     attributes_to_propagate.remove(".reference_index");
@@ -226,8 +227,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       using namespace bke::greasepencil;
       const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
+      bke::Instances *instances = new bke::Instances();
       for (const int layer_index : grease_pencil.layers().index_range()) {
-        const Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+        const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
         if (drawing == nullptr) {
           continue;
         }
@@ -236,28 +238,35 @@ static void node_geo_exec(GeoNodeExecParams params)
           /* Add an empty reference so the number of layers and instances match.
            * This makes it easy to reconstruct the layers afterwards and keep their attributes.
            * Although in this particular case we don't propagate the attributes. */
-          const int handle = dst_instances->add_reference(bke::InstanceReference());
-          dst_instances->add_instance(handle, float4x4::identity());
+          const int handle = instances->add_reference(bke::InstanceReference());
+          instances->add_instance(handle, float4x4::identity());
           continue;
         }
         /* TODO: Attributes are not propagating from the curves or the points. */
-        bke::Instances *instances = new bke::Instances();
+        bke::Instances *layer_instances = new bke::Instances();
         const bke::GreasePencilLayerFieldContext field_context(
             grease_pencil, AttrDomain::Point, layer_index);
-        add_instances_from_component(*instances,
+        add_instances_from_component(*layer_instances,
                                      src_curves.attributes(),
                                      instance,
                                      field_context,
                                      params,
                                      attributes_to_propagate);
-        GeometrySet temp_set = GeometrySet::from_instances(instances);
-        const int handle = dst_instances->add_reference(bke::InstanceReference{temp_set});
-        dst_instances->add_instance(handle, float4x4::identity());
+        GeometrySet temp_set = GeometrySet::from_instances(layer_instances);
+        const int handle = instances->add_reference(bke::InstanceReference{temp_set});
+        instances->add_instance(handle, float4x4::identity());
       }
       GeometrySet::propagate_attributes_from_layer_to_instances(
           geometry_set.get_grease_pencil()->attributes(),
-          geometry_set.get_instances_for_write()->attributes_for_write(),
-          propagation_info);
+          instances->attributes_for_write(),
+          attribute_filter);
+      GeometrySet new_instances = geometry::join_geometries(
+          {GeometrySet::from_instances(dst_instances, bke::GeometryOwnershipType::Editable),
+           GeometrySet::from_instances(instances)},
+          attribute_filter);
+      instances_component.replace(
+          new_instances.get_component_for_write<InstancesComponent>().release());
+
       geometry_set.replace_grease_pencil(nullptr);
     }
     geometry_set.remove_geometry_during_modify();
@@ -282,7 +291,7 @@ static void node_register()
       &ntype, GEO_NODE_INSTANCE_ON_POINTS, "Instance on Points", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

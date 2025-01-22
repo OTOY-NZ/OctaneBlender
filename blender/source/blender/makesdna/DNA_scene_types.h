@@ -841,6 +841,11 @@ typedef struct RenderData {
   /** Precision used by the GPU execution of the compositor tree. */
   int compositor_precision; /* eCompositorPrecision */
 
+  /* If false and the experimental enable_new_cpu_compositor is true, use the new experimental
+   * CPU compositor implementation, otherwise, use the old CPU compositor. */
+  char use_old_cpu_compositor;
+  char _pad10[7];
+
   short use_octane_export;
   short octane_pads[7];
 } RenderData;
@@ -927,27 +932,63 @@ typedef struct TimeMarker {
 
 typedef struct Paint_Runtime {
   /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int tool_offset;
+  unsigned int initialized;
   unsigned short ob_mode;
   char _pad[2];
 } Paint_Runtime;
 
-/** We might want to store other things here. */
-typedef struct PaintToolSlot {
-  struct Brush *brush;
-} PaintToolSlot;
+typedef struct NamedBrushAssetReference {
+  struct NamedBrushAssetReference *next, *prev;
+
+  const char *name;
+  struct AssetWeakReference *brush_asset_reference;
+} NamedBrushAssetReference;
+
+/**
+ * For the tool system: Storage to remember the last active brush for specific tools.
+ *
+ * This stores a "main" brush reference, which is used for any tool that uses brushes but isn't
+ * limited to a specific brush type, and a list of brush references identified by the brush type,
+ * for tools that are limited to a brush type.
+ *
+ * The tool system updates these fields as the active brush or active tool changes. It also
+ * determines the brush to remember/restore on tool changes and activates it.
+ */
+typedef struct ToolSystemBrushBindings {
+  struct AssetWeakReference *main_brush_asset_reference;
+
+  /**
+   * The tool system exposes tools for some brush types, like an eraser tool to access eraser
+   * brushes. Switching between tools should remember the last used brush for a brush type, e.g.
+   * which eraser was used last by the eraser tool.
+   *
+   * Note that multiple tools may use the same brush type, for example primitive draw tools (to
+   * draw rectangles, circles, lines, etc.) all use a "DRAW" brush, which will then be shared
+   * among them.
+   */
+  ListBase active_brush_per_brush_type; /* #NamedBrushAssetReference */
+} ToolSystemBrushBindings;
 
 /** Paint Tool Base. */
 typedef struct Paint {
+  /**
+   * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
+   * counted.
+   */
   struct Brush *brush;
 
   /**
-   * Each tool has its own active brush,
-   * The currently active tool is defined by the current 'brush'.
+   * A weak asset reference to the #brush, if not NULL.
+   * Used to attempt restoring the active brush from the AssetLibrary system, typically on
+   * file load.
    */
-  struct PaintToolSlot *tool_slots;
-  int tool_slots_len;
-  char _pad1[4];
+  struct AssetWeakReference *brush_asset_reference;
+
+  /** Default eraser brush and associated weak reference. */
+  struct Brush *eraser_brush;
+  struct AssetWeakReference *eraser_brush_asset_reference;
+
+  ToolSystemBrushBindings tool_brush_bindings;
 
   struct Palette *palette;
   /** Cavity curve. */
@@ -1563,6 +1604,8 @@ typedef struct ToolSettings {
   char selectmode;
 
   /* UV Calculation. */
+
+  /* Use `UVCALC_UNWRAP_METHOD_*` values. */
   char unwrapper;
   char uvcalc_flag;
   char uv_flag;
@@ -1570,6 +1613,20 @@ typedef struct ToolSettings {
   char uv_sticky;
 
   float uvcalc_margin;
+
+  int uvcalc_iterations;
+  float uvcalc_weight_factor;
+
+  /**
+   * Regarding having a single vertex group for all meshes.
+   * In most cases there is no expectation for the names used for vertex groups.
+   * UV weights is a fairly specific feature for unwrapping and in this case
+   * users are expected to use the name `uv_importance`.
+   * While we could support setting a different group per mesh (similar to the active group).
+   * This isn't all that useful in practice, so use a "default" name instead.
+   * This approach may be reworked after gathering feedback from users.
+   */
+  char uvcalc_weight_group[64]; /* MAX_VGROUP_NAME */
 
   /* Auto-IK. */
   /** Runtime only. */
@@ -1841,24 +1898,12 @@ typedef struct SceneEEVEE {
   int gi_diffuse_bounces;
   int gi_cubemap_resolution;
   int gi_visibility_resolution;
-  float gi_irradiance_smoothing;
   float gi_glossy_clamp;
-  float gi_filter_quality;
   int gi_irradiance_pool_size;
-
-  float gi_cubemap_draw_size;
-  float gi_irradiance_draw_size;
+  char _pad0[4];
 
   int taa_samples;
   int taa_render_samples;
-  int sss_samples;
-  float sss_jitter_threshold;
-
-  float ssr_quality;
-  float ssr_max_roughness;
-  float ssr_thickness;
-  float ssr_border_fade;
-  float ssr_firefly_fac;
 
   float volumetric_start;
   float volumetric_end;
@@ -1870,32 +1915,23 @@ typedef struct SceneEEVEE {
   int volumetric_ray_depth;
 
   float gtao_distance;
-  float gtao_factor;
-  float gtao_quality;
   float gtao_thickness;
   float gtao_focus;
   int gtao_resolution;
 
   int fast_gi_step_count;
   int fast_gi_ray_count;
+  float fast_gi_quality;
   float fast_gi_distance;
   float fast_gi_thickness_near;
   float fast_gi_thickness_far;
   char fast_gi_method;
-  char _pad0[3];
+  char _pad1[3];
 
   float bokeh_overblur;
   float bokeh_max_size;
   float bokeh_threshold;
   float bokeh_neighbor_max;
-  float bokeh_denoise_fac;
-
-  float bloom_color[3];
-  float bloom_threshold;
-  float bloom_knee;
-  float bloom_intensity;
-  float bloom_radius;
-  float bloom_clamp;
 
   int motion_blur_samples DNA_DEPRECATED;
   int motion_blur_max;
@@ -1904,9 +1940,8 @@ typedef struct SceneEEVEE {
   float motion_blur_shutter_deprecated DNA_DEPRECATED;
   float motion_blur_depth_scale;
 
-  int shadow_method DNA_DEPRECATED;
-  int shadow_cube_size;
-  int shadow_cascade_size;
+  /* Only keep for versioning. */
+  int shadow_cube_size_deprecated DNA_DEPRECATED;
   int shadow_pool_size;
   int shadow_ray_count;
   int shadow_step_count;
@@ -2364,7 +2399,7 @@ typedef enum eSnapFlag {
   // SCE_SNAP_PROJECT = (1 << 3), /* DEPRECATED, see #SCE_SNAP_INDIVIDUAL_PROJECT. */
   /** Was `SCE_SNAP_NO_SELF`, but self should be active. */
   SCE_SNAP_NOT_TO_ACTIVE = (1 << 4),
-  /* SCE_SNAP_ABS_GRID = (1 << 5), */ /* UNUSED */
+  SCE_SNAP_ABS_GRID = (1 << 5),
   /* Same value with different name to make it easier to understand in time based code. */
   SCE_SNAP_ABS_TIME_STEP = (1 << 5),
   SCE_SNAP_BACKFACE_CULLING = (1 << 6),
@@ -2449,6 +2484,11 @@ enum {
   SEQ_SNAP_TO_CURRENT_FRAME = 1 << 1,
   SEQ_SNAP_TO_STRIP_HOLD = 1 << 2,
   SEQ_SNAP_TO_MARKERS = 1 << 3,
+
+  /* Preview snapping. */
+  SEQ_SNAP_TO_PREVIEW_BORDERS = 1 << 4,
+  SEQ_SNAP_TO_PREVIEW_CENTER = 1 << 5,
+  SEQ_SNAP_TO_STRIPS_PREVIEW = 1 << 6,
 };
 
 /** #SequencerToolSettings::snap_flag */
@@ -2656,6 +2696,13 @@ enum {
   IMAGEPAINT_MISSING_STENCIL = 1 << 3,
 };
 
+/** #ToolSettings::unwrapper */
+enum {
+  UVCALC_UNWRAP_METHOD_ANGLE = 0,
+  UVCALC_UNWRAP_METHOD_CONFORMAL = 1,
+  UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH = 2,
+};
+
 /** #ToolSettings::uvcalc_flag */
 enum {
   UVCALC_FILLHOLES = 1 << 0,
@@ -2669,6 +2716,10 @@ enum {
   UVCALC_TRANSFORM_CORRECT = 1 << 4,
   /** Keep equal values merged while correcting custom-data. */
   UVCALC_TRANSFORM_CORRECT_KEEP_CONNECTED = 1 << 5,
+  /** Prevent unwrap that flips. */
+  UVCALC_UNWRAP_NO_FLIP = 1 << 6,
+  /** Use importance weights. */
+  UVCALC_UNWRAP_USE_WEIGHTS = 1 << 7,
 };
 
 /** #ToolSettings::uv_flag */
@@ -2829,33 +2880,34 @@ enum {
 /** #SceneEEVEE::flag */
 enum {
   // SCE_EEVEE_VOLUMETRIC_ENABLED = (1 << 0), /* Unused */
-  SCE_EEVEE_VOLUMETRIC_LIGHTS = (1 << 1),
+  // SCE_EEVEE_VOLUMETRIC_LIGHTS = (1 << 1), /* Unused. */
   SCE_EEVEE_VOLUMETRIC_SHADOWS = (1 << 2),
   //  SCE_EEVEE_VOLUMETRIC_COLORED    = (1 << 3), /* Unused */
   SCE_EEVEE_GTAO_ENABLED = (1 << 4),
-  SCE_EEVEE_GTAO_BENT_NORMALS = (1 << 5),
-  SCE_EEVEE_GTAO_BOUNCE = (1 << 6),
+  // SCE_EEVEE_GTAO_BENT_NORMALS = (1 << 5), /* Unused. */
+  // SCE_EEVEE_GTAO_BOUNCE = (1 << 6), /* Unused. */
   // SCE_EEVEE_DOF_ENABLED = (1 << 7), /* Moved to camera->dof.flag */
   // SCE_EEVEE_BLOOM_ENABLED = (1 << 8), /* Unused */
   SCE_EEVEE_MOTION_BLUR_ENABLED_DEPRECATED = (1 << 9), /* Moved to scene->r.mode */
-  SCE_EEVEE_SHADOW_HIGH_BITDEPTH = (1 << 10),
+  // SCE_EEVEE_SHADOW_HIGH_BITDEPTH = (1 << 10), /* Unused. */
   SCE_EEVEE_TAA_REPROJECTION = (1 << 11),
   // SCE_EEVEE_SSS_ENABLED = (1 << 12), /* Unused */
   // SCE_EEVEE_SSS_SEPARATE_ALBEDO = (1 << 13), /* Unused */
   SCE_EEVEE_SSR_ENABLED = (1 << 14),
-  SCE_EEVEE_SSR_REFRACTION = (1 << 15),
-  SCE_EEVEE_SSR_HALF_RESOLUTION = (1 << 16),
-  SCE_EEVEE_SHOW_IRRADIANCE = (1 << 17),
-  SCE_EEVEE_SHOW_CUBEMAPS = (1 << 18),
+  // SCE_EEVEE_SSR_REFRACTION = (1 << 15), /* Unused. */
+  // SCE_EEVEE_SSR_HALF_RESOLUTION = (1 << 16), /* Unused. */
+  // SCE_EEVEE_SHOW_IRRADIANCE = (1 << 17), /* Unused. */
+  // SCE_EEVEE_SHOW_CUBEMAPS = (1 << 18), /* Unused. */
   SCE_EEVEE_GI_AUTOBAKE = (1 << 19),
-  SCE_EEVEE_SHADOW_SOFT = (1 << 20),
+  // SCE_EEVEE_SHADOW_SOFT = (1 << 20), /* Unused. */
   SCE_EEVEE_OVERSCAN = (1 << 21),
-  SCE_EEVEE_DOF_HQ_SLIGHT_FOCUS = (1 << 22),
+  // SCE_EEVEE_DOF_HQ_SLIGHT_FOCUS = (1 << 22), /* Unused. */
   SCE_EEVEE_DOF_JITTER = (1 << 23),
   SCE_EEVEE_SHADOW_ENABLED = (1 << 24),
   SCE_EEVEE_RAYTRACE_OPTIONS_SPLIT = (1 << 25),
   SCE_EEVEE_SHADOW_JITTERED_VIEWPORT = (1 << 26),
   SCE_EEVEE_VOLUME_CUSTOM_RANGE = (1 << 27),
+  SCE_EEVEE_FAST_GI_ENABLED = (1 << 28),
 };
 
 typedef enum RaytraceEEVEE_Flag {
@@ -2880,13 +2932,6 @@ typedef enum FastGI_Method {
   FAST_GI_FULL = 0,
   FAST_GI_AO_ONLY = 1,
 } FastGI_Method;
-
-/** #SceneEEVEE::shadow_method */
-enum {
-  SHADOW_ESM = 1,
-  /* SHADOW_VSM = 2, */        /* UNUSED */
-  /* SHADOW_METHOD_MAX = 3, */ /* UNUSED */
-};
 
 /** #SceneDisplay->render_aa and #SceneDisplay->viewport_aa */
 enum {

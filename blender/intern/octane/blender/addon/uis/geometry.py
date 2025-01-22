@@ -380,6 +380,21 @@ class OCTANE_CURVES_PT_curves_properties(OctanePropertyPanel, Panel):
             sub.prop(cdata, "hair_tip_width")
 
 
+class OCTANE_GPENCIL_PT_gpencil_properties(OctanePropertyPanel, Panel):
+    bl_label = "Octane GPencil Properties"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        if OctanePropertyPanel.poll(context):
+            if hasattr(context, "grease_pencil") and context.grease_pencil:
+                return True
+        return False
+
+    def draw(self, context):
+        pass
+
+
 _CLASSES = [
     OCTANE_MESH_PT_mesh_properties,
     OCTANE_MESH_PT_mesh_properties_geometric_node,
@@ -393,6 +408,7 @@ _CLASSES = [
     OCTANE_CURVE_PT_curve_properties,
     OCTANE_CURVE_PT_curve_properties_open_subdivision,
     OCTANE_CURVES_PT_curves_properties,
+    # OCTANE_GPENCIL_PT_gpencil_properties,
 ]
 
 

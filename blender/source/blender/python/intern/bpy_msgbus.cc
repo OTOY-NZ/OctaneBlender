@@ -9,12 +9,12 @@
 
 #include <Python.h>
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
 #include "BLI_utildefines.h"
 
@@ -24,10 +24,10 @@
 
 #include "RNA_access.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_rna.h"
+#include "bpy_capi_utils.hh"
+#include "bpy_rna.hh"
 
-#include "bpy_msgbus.h" /* own include */
+#include "bpy_msgbus.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utils
@@ -37,10 +37,12 @@
   "   :arg key: Represents the type of data being subscribed to\n" \
   "\n" \
   "      Arguments include\n" \
-  "      - :class:`bpy.types.Property` instance.\n" \
-  "      - :class:`bpy.types.Struct` type.\n" \
-  "      - (:class:`bpy.types.Struct`, str) type and property name.\n" \
-  "   :type key: Multiple\n"
+  "      - A property instance.\n" \
+  "      - A struct type.\n" \
+  "      - A tuple representing a (struct, property name) pair.\n" \
+  "   :type key: :class:`bpy.types.Property` | " \
+  ":class:`bpy.types.Struct` | " \
+  "tuple[:class:`bpy.types.Struct`, str]\n"
 
 /**
  * There are multiple ways we can get RNA from Python,
@@ -198,12 +200,12 @@ PyDoc_STRVAR(
     "   loaded, or can be cleared explicitly via :func:`bpy.msgbus.clear_by_owner`.\n"
     "\n" BPY_MSGBUS_RNA_MSGKEY_DOC
     "   :arg owner: Handle for this subscription (compared by identity).\n"
-    "   :type owner: Any type.\n"
+    "   :type owner: Any\n"
     "   :arg options: Change the behavior of the subscriber.\n"
     "\n"
     "      - ``PERSISTENT`` when set, the subscriber will be kept when remapping ID data.\n"
     "\n"
-    "   :type options: set of str.\n"
+    "   :type options: set[str]\n"
     "\n"
     ".. note::\n"
     "\n"
@@ -303,7 +305,7 @@ static PyObject *bpy_msgbus_subscribe_rna(PyObject * /*self*/, PyObject *args, P
 
   {
     PyObject *user_data = PyTuple_New(2);
-    PyTuple_SET_ITEMS(user_data, Py_INCREF_RET(callback_args), Py_INCREF_RET(callback_notify));
+    PyTuple_SET_ITEMS(user_data, Py_NewRef(callback_args), Py_NewRef(callback_notify));
     msg_val_params.user_data = user_data;
   }
 

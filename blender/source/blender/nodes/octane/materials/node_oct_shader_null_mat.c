@@ -119,5 +119,5 @@ void register_node_type_sh_oct_null_mat(void)
   node_type_storage(&ntype, "", NULL, NULL);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_sh_oct_null_mat() */

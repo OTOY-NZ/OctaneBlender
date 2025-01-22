@@ -25,7 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
@@ -36,12 +36,13 @@
 #include "BKE_animsys.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -88,7 +89,7 @@
 #include "ED_screen.hh"
 
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -541,6 +542,18 @@ static int material_slot_copy_exec(bContext *C, wmOperator * /*op*/)
       /* If we are using the same obdata, we only assign slots in ob_iter that are using object
        * materials, and not obdata ones. */
       const bool is_same_obdata = ob->data == ob_iter->data;
+
+      /* If we are using the same obdata, make the target object inherit the matbits of the active
+       * object. Without this, object material slots are not copied unless the target object
+       * already had its material slot link set to object. */
+      if (is_same_obdata) {
+        for (int i = ob->totcol; i--;) {
+          if (ob->matbits[i]) {
+            ob_iter->matbits[i] = ob->matbits[i];
+          }
+        }
+      }
+
       BKE_object_material_array_assign(bmain, ob_iter, &matar, ob->totcol, is_same_obdata);
 
       if (ob_iter->totcol == ob->totcol) {
@@ -2591,6 +2604,8 @@ void TEXTURE_OT_slot_move(wmOperatorType *ot)
 
 static int copy_material_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::bke::blendfile;
+
   Material *ma = static_cast<Material *>(
       CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
 
@@ -2598,29 +2613,20 @@ static int copy_material_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  char filepath[FILE_MAX];
   Main *bmain = CTX_data_main(C);
+  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
 
-  /* Store some status info that may be affected by partial write process. */
-  const bool is_fake_user = (ma->id.flag & LIB_FAKEUSER) != 0;
-  const int usercount = ma->id.us;
-  if (!is_fake_user) {
-    id_fake_user_set(&ma->id);
-  }
+  /* Add the material to the copybuffer (and all of its dependencies). */
+  copybuffer.id_add(&ma->id,
+                    PartialWriteContext::IDAddOptions{PartialWriteContext::IDAddOperations(
+                        PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                        PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                        PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+                    nullptr);
 
-  /* Mark is the material to use (others may be expanded). */
-  BKE_copybuffer_copy_begin(bmain);
-
-  BKE_copybuffer_copy_tag_ID(&ma->id);
-
+  char filepath[FILE_MAX];
   material_copybuffer_filepath_get(filepath, sizeof(filepath));
-  BKE_copybuffer_copy_end(bmain, filepath, op->reports);
-
-  /* Restore some status info that may be affected by partial write process. */
-  if (!is_fake_user) {
-    id_fake_user_clear(&ma->id);
-  }
-  ma->id.us = usercount;
+  copybuffer.write(filepath, *op->reports);
 
   /* We are all done! */
   BKE_report(op->reports, RPT_INFO, "Copied material to internal clipboard");
@@ -2733,7 +2739,7 @@ static int paste_material_exec(bContext *C, wmOperator *op)
    * check for a property that marks this as the active material. */
   Material *ma_from = nullptr;
   LISTBASE_FOREACH (Material *, ma_iter, &temp_bmain->materials) {
-    if (ma_iter->id.flag & LIB_CLIPBOARD_MARK) {
+    if (ma_iter->id.flag & ID_FLAG_CLIPBOARD_MARK) {
       ma_from = ma_iter;
       break;
     }
@@ -2763,7 +2769,7 @@ static int paste_material_exec(bContext *C, wmOperator *op)
     BKE_library_foreach_ID_link(
         bmain, &nodetree->id, paste_material_nodetree_ids_decref, nullptr, IDWALK_NOP);
 
-    blender::bke::ntreeFreeEmbeddedTree(nodetree);
+    blender::bke::node_tree_free_embedded_tree(nodetree);
     MEM_freeN(nodetree);
     ma->nodetree = nullptr;
   }
@@ -2848,6 +2854,7 @@ void MATERIAL_OT_paste(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = paste_material_exec;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -2913,7 +2920,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = MEM_new<MTex>("mtex copy");
+      *mtex = static_cast<MTex *>(MEM_callocN(sizeof(MTex), "mtex copy"));
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);

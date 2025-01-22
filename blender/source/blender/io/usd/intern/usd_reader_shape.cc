@@ -28,11 +28,6 @@
 #include <pxr/usdImaging/usdImaging/cylinderAdapter.h>
 #include <pxr/usdImaging/usdImaging/sphereAdapter.h>
 
-namespace usdtokens {
-/* Materials */
-static const pxr::TfToken displayColor("displayColor", pxr::TfToken::Immortal);
-}  // namespace usdtokens
-
 namespace blender::io::usd {
 
 USDShapeReader::USDShapeReader(const pxr::UsdPrim &prim,
@@ -133,7 +128,7 @@ bool USDShapeReader::read_mesh_values(double motionSampleTime,
 
 Mesh *USDShapeReader::read_mesh(Mesh *existing_mesh,
                                 const USDMeshReadParams params,
-                                const char ** /*err_str*/)
+                                const char ** /*r_err_str*/)
 {
   pxr::VtIntArray face_indices;
   pxr::VtIntArray face_counts;
@@ -169,10 +164,10 @@ Mesh *USDShapeReader::read_mesh(Mesh *existing_mesh,
 
 void USDShapeReader::read_geometry(bke::GeometrySet &geometry_set,
                                    USDMeshReadParams params,
-                                   const char **err_str)
+                                   const char **r_err_str)
 {
   Mesh *existing_mesh = geometry_set.get_mesh_for_write();
-  Mesh *new_mesh = read_mesh(existing_mesh, params, err_str);
+  Mesh *new_mesh = read_mesh(existing_mesh, params, r_err_str);
 
   if (new_mesh != existing_mesh) {
     geometry_set.replace_mesh(new_mesh);
@@ -191,7 +186,7 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
 
   pxr::TfToken active_color_name;
 
-  for (pxr::UsdGeomPrimvar &pv : primvars) {
+  for (const pxr::UsdGeomPrimvar &pv : primvars) {
     if (!pv.HasValue()) {
       BKE_reportf(reports(),
                   RPT_WARNING,
@@ -206,7 +201,7 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
       continue;
     }
 
-    const pxr::TfToken name = pv.StripPrimvarsName(pv.GetPrimvarName());
+    const pxr::TfToken name = pxr::UsdGeomPrimvar::StripPrimvarsName(pv.GetPrimvarName());
 
     /* Skip reading primvars that have been read before and are not time varying. */
     if (primvar_time_varying_map_.contains(name) && !primvar_time_varying_map_.lookup(name)) {
@@ -223,13 +218,13 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
       if (active_color_name.IsEmpty() || name == usdtokens::displayColor) {
         active_color_name = name;
       }
+    }
 
-      read_color_data_primvar(mesh, pv, motionSampleTime, reports(), false);
+    read_generic_mesh_primvar(mesh, pv, motionSampleTime, false);
 
-      /* Record whether the primvar attribute might be time varying. */
-      if (!primvar_time_varying_map_.contains(name)) {
-        primvar_time_varying_map_.add(name, pv.ValueMightBeTimeVarying());
-      }
+    /* Record whether the primvar attribute might be time varying. */
+    if (!primvar_time_varying_map_.contains(name)) {
+      primvar_time_varying_map_.add(name, pv.ValueMightBeTimeVarying());
     }
   }
 
@@ -265,12 +260,7 @@ Mesh *USDShapeReader::mesh_from_prim(Mesh *existing_mesh,
   }
 
   MutableSpan<float3> vert_positions = active_mesh->vert_positions_for_write();
-
-  for (int i = 0; i < positions.size(); i++) {
-    vert_positions[i][0] = positions[i][0];
-    vert_positions[i][1] = positions[i][1];
-    vert_positions[i][2] = positions[i][2];
-  }
+  vert_positions.copy_from(Span(positions.data(), positions.size()).cast<float3>());
 
   if (params.read_flags & MOD_MESHSEQ_READ_COLOR) {
     if (active_mesh != existing_mesh) {

@@ -21,14 +21,14 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "bpy_rna_context.h"
+#include "bpy_rna_context.hh"
 
-#include "../generic/python_compat.h"
+#include "../generic/python_compat.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Private Utility Functions
@@ -341,7 +341,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     }
   }
 
-  /* Account for for the window to be freed on file-read,
+  /* Account for the window to be freed on file-read,
    * in this case the window should not be restored, see: #92818.
    * Also account for other windowing members to be removed on exit,
    * in this case the context is cleared. */
@@ -567,10 +567,12 @@ static PyObject *bpy_context_temp_override_extract_known_args(const char *const 
   return kwds_parse;
 }
 
+/* NOTE(@ideasman42): `ContextTempOverride` isn't accessible from (without creating an instance),
+ * it should be exposed although it doesn't seem especially important either. */
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_context_temp_override_doc,
-    ".. method:: temp_override(window=None, area=None, region=None, **keywords)\n"
+    ".. method:: temp_override(*, window=None, area=None, region=None, **keywords)\n"
     "\n"
     "   Context manager to temporarily override members in the context.\n"
     "\n"
@@ -593,7 +595,7 @@ PyDoc_STRVAR(
     "   :type region: :class:`bpy.types.Region`\n"
     "   :arg keywords: Additional keywords override context members.\n"
     "   :return: The context manager .\n"
-    "   :rtype: context manager\n");
+    "   :rtype: ContextTempOverride\n");
 static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObject *kwds)
 {
   const PointerRNA *context_ptr = pyrna_struct_as_ptr(self, &RNA_Context);

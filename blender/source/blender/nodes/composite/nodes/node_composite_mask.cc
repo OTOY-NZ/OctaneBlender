@@ -51,16 +51,7 @@ static void node_composit_buts_mask(uiLayout *layout, bContext *C, PointerRNA *p
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "mask",
-               nullptr,
-               nullptr,
-               nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
-               false,
-               nullptr);
+  uiTemplateID(layout, C, ptr, "mask", nullptr, nullptr, nullptr);
   uiItemR(layout, ptr, "use_feather", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 
   uiItemR(layout, ptr, "size_source", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
@@ -195,5 +186,5 @@ void register_node_type_cmp_mask()
   blender::bke::node_type_storage(
       &ntype, "NodeMask", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

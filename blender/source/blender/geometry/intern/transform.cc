@@ -19,6 +19,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
@@ -89,9 +90,10 @@ static void translate_greasepencil(GreasePencil &grease_pencil, const float3 tra
 {
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    if (Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index))) {
-      drawing->strokes_for_write().translate(translation);
-    }
+    Layer &layer = grease_pencil.layer(layer_index);
+    float4x4 local_transform = layer.local_transform();
+    local_transform.location() += translation;
+    layer.set_local_transform(local_transform);
   }
 }
 
@@ -99,9 +101,10 @@ static void transform_greasepencil(GreasePencil &grease_pencil, const float4x4 &
 {
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    if (Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index))) {
-      drawing->strokes_for_write().transform(transform);
-    }
+    Layer &layer = grease_pencil.layer(layer_index);
+    float4x4 local_transform = layer.local_transform();
+    local_transform = transform * local_transform;
+    layer.set_local_transform(local_transform);
   }
 }
 
@@ -191,10 +194,24 @@ static void transform_curve_edit_hints(bke::CurvesEditHints &edit_hints, const f
   }
 }
 
+static void transform_gizmo_edit_hints(bke::GizmoEditHints &edit_hints, const float4x4 &transform)
+{
+  for (float4x4 &m : edit_hints.gizmo_transforms.values()) {
+    m = transform * m;
+  }
+}
+
 static void translate_curve_edit_hints(bke::CurvesEditHints &edit_hints, const float3 &translation)
 {
   if (const std::optional<MutableSpan<float3>> positions = edit_hints.positions_for_write()) {
     translate_positions(*positions, translation);
+  }
+}
+
+static void translate_gizmos_edit_hints(bke::GizmoEditHints &edit_hints, const float3 &translation)
+{
+  for (float4x4 &m : edit_hints.gizmo_transforms.values()) {
+    m.location() += translation;
   }
 }
 
@@ -220,6 +237,9 @@ void translate_geometry(bke::GeometrySet &geometry, const float3 translation)
   }
   if (bke::CurvesEditHints *curve_edit_hints = geometry.get_curve_edit_hints_for_write()) {
     translate_curve_edit_hints(*curve_edit_hints, translation);
+  }
+  if (bke::GizmoEditHints *gizmo_edit_hints = geometry.get_gizmo_edit_hints_for_write()) {
+    translate_gizmos_edit_hints(*gizmo_edit_hints, translation);
   }
 }
 
@@ -247,6 +267,9 @@ std::optional<TransformGeometryErrors> transform_geometry(bke::GeometrySet &geom
   }
   if (bke::CurvesEditHints *curve_edit_hints = geometry.get_curve_edit_hints_for_write()) {
     transform_curve_edit_hints(*curve_edit_hints, transform);
+  }
+  if (bke::GizmoEditHints *gizmo_edit_hints = geometry.get_gizmo_edit_hints_for_write()) {
+    transform_gizmo_edit_hints(*gizmo_edit_hints, transform);
   }
 
   if (errors.volume_too_small) {

@@ -37,7 +37,9 @@ void forward_lighting_eval(float thickness, out vec3 radiance, out vec3 transmit
 
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  light_eval_reflection(stack, g_data.P, surface_N, V, vPz);
+  ObjectInfos object_infos = drw_infos[resource_id];
+  uchar receiver_light_set = receiver_light_set_get(object_infos);
+  light_eval_reflection(stack, g_data.P, surface_N, V, vPz, receiver_light_set);
 
 #if defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || defined(MAT_TRANSLUCENT)
 
@@ -54,7 +56,7 @@ void forward_lighting_eval(float thickness, out vec3 radiance, out vec3 transmit
     stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(stack, g_data.P, surface_N, V, vPz, thickness);
+    light_eval_transmission(stack, g_data.P, surface_N, V, vPz, thickness, receiver_light_set);
 
 #  if defined(MAT_SUBSURFACE)
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
@@ -79,7 +81,7 @@ void forward_lighting_eval(float thickness, out vec3 radiance, out vec3 transmit
   vec3 radiance_direct = vec3(0.0);
   vec3 radiance_indirect = vec3(0.0);
   for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
-    ClosureUndetermined cl = g_closure_get(i);
+    ClosureUndetermined cl = g_closure_get_resolved(i, 1.0);
     if (cl.weight > 1e-5) {
       vec3 direct_light = closure_light_get(stack, i).light_shadowed;
       vec3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
@@ -91,7 +93,6 @@ void forward_lighting_eval(float thickness, out vec3 radiance, out vec3 transmit
         /* We model two transmission event, so the surface color need to be applied twice. */
         cl.color *= cl.color;
       }
-      cl.color *= cl.weight;
 
       radiance_direct += direct_light * cl.color;
       radiance_indirect += indirect_light * cl.color;

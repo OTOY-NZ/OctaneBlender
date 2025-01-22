@@ -9,14 +9,13 @@
  */
 
 struct BlendDataReader;
-struct BlendLibReader;
 struct BlendWriter;
 struct ImBuf;
 struct ListBase;
-struct Scene;
 struct SeqRenderData;
 struct Sequence;
 struct SequenceModifierData;
+struct StripScreenQuad;
 
 struct SequenceModifierTypeInfo {
   /* default name for the modifier */
@@ -40,8 +39,9 @@ struct SequenceModifierTypeInfo {
   /* copy data from one modifier to another */
   void (*copy_data)(SequenceModifierData *smd, SequenceModifierData *target);
 
-  /* apply modifier on a given image buffer */
-  void (*apply)(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  /* Apply modifier on an image buffer.
+   * quad contains four corners of the (pre-transform) strip rectangle in pixel space. */
+  void (*apply)(const StripScreenQuad &quad, SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask);
 };
 
 const SequenceModifierTypeInfo *SEQ_modifier_type_info_get(int type);
@@ -51,10 +51,10 @@ void SEQ_modifier_clear(Sequence *seq);
 void SEQ_modifier_free(SequenceModifierData *smd);
 void SEQ_modifier_unique_name(Sequence *seq, SequenceModifierData *smd);
 SequenceModifierData *SEQ_modifier_find_by_name(Sequence *seq, const char *name);
-ImBuf *SEQ_modifier_apply_stack(const SeqRenderData *context,
-                                Sequence *seq,
-                                ImBuf *ibuf,
-                                int timeline_frame);
+void SEQ_modifier_apply_stack(const SeqRenderData *context,
+                              const Sequence *seq,
+                              ImBuf *ibuf,
+                              int timeline_frame);
 void SEQ_modifier_list_copy(Sequence *seqn, Sequence *seq);
 int SEQ_sequence_supports_modifiers(Sequence *seq);
 

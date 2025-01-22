@@ -28,7 +28,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_colorband.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
@@ -429,5 +429,5 @@ void register_node_type_tex_oct_gradient(void)
   ntype.updatefunc = (node_oct_update_gradient);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_gradient() */

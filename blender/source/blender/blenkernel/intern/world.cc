@@ -51,7 +51,7 @@ static void world_free_data(ID *id)
 
   /* is no lib link block, but world extension */
   if (wrld->nodetree) {
-    blender::bke::ntreeFreeEmbeddedTree(wrld->nodetree);
+    blender::bke::node_tree_free_embedded_tree(wrld->nodetree);
     MEM_freeN(wrld->nodetree);
     wrld->nodetree = nullptr;
   }
@@ -92,12 +92,14 @@ static void world_copy_data(Main *bmain,
   const World *wrld_src = (const World *)id_src;
 
   const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
-  /* We always need allocation of our private ID data. */
-  const int flag_private_id_data = flag & ~LIB_ID_CREATE_NO_ALLOCATE;
+  /* Never handle user-count here for own sub-data. */
+  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  /* Always need allocation of the embedded ID data. */
+  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
 
   if (wrld_src->nodetree) {
     if (is_localized) {
-      wrld_dst->nodetree = blender::bke::ntreeLocalize(wrld_src->nodetree, &wrld_dst->id);
+      wrld_dst->nodetree = blender::bke::node_tree_localize(wrld_src->nodetree, &wrld_dst->id);
     }
     else {
       BKE_id_copy_in_lib(bmain,
@@ -105,7 +107,7 @@ static void world_copy_data(Main *bmain,
                          &wrld_src->nodetree->id,
                          &wrld_dst->id,
                          reinterpret_cast<ID **>(&wrld_dst->nodetree),
-                         flag_private_id_data);
+                         flag_embedded_id_data);
     }
   }
 
@@ -162,7 +164,7 @@ static void world_blend_write(BlendWriter *writer, ID *id, const void *id_addres
                                 bNodeTree,
                                 wrld->nodetree,
                                 BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
-    blender::bke::ntreeBlendWrite(
+    blender::bke::node_tree_blend_write(
         writer, (bNodeTree *)BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
     BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
   }

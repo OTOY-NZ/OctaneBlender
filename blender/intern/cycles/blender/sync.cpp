@@ -133,7 +133,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
   /* Iterate over all IDs in this depsgraph. */
   for (BL::DepsgraphUpdate &b_update : b_depsgraph.updates) {
     /* TODO(sergey): Can do more selective filter here. For example, ignore changes made to
-     * screen datablock. Note that sync_data() needs to be called after object deletion, and
+     * screen data-block. Note that sync_data() needs to be called after object deletion, and
      * currently this is ensured by the scene ID tagged for update, which sets the `has_updates_`
      * flag. */
     has_updates_ = true;
@@ -359,21 +359,12 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
     scene->light_manager->tag_update(scene, LightManager::UPDATE_ALL);
   }
 
-  const bool is_vertex_baking = scene->bake_manager->get_baking() &&
-                                b_scene.render().bake().target() !=
-                                    BL::BakeSettings::target_IMAGE_TEXTURES;
-
   SamplingPattern sampling_pattern = (SamplingPattern)get_enum(
       cscene, "sampling_pattern", SAMPLING_NUM_PATTERNS, SAMPLING_PATTERN_TABULATED_SOBOL);
 
   switch (sampling_pattern) {
     case SAMPLING_PATTERN_AUTOMATIC:
-      if (is_vertex_baking) {
-        /* When baking vertex colors, the "pixels" in the output are unrelated to their neighbors,
-         * so blue-noise sampling makes no sense. */
-        sampling_pattern = SAMPLING_PATTERN_TABULATED_SOBOL;
-      }
-      else if (!background) {
+      if (!background) {
         /* For interactive rendering, ensure that the first sample is in itself
          * blue-noise-distributed for smooth viewport navigation. */
         sampling_pattern = SAMPLING_PATTERN_BLUE_NOISE_FIRST;
@@ -394,6 +385,17 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
       }
       break;
   }
+
+  const bool is_vertex_baking = scene->bake_manager->get_baking() &&
+                                b_scene.render().bake().target() !=
+                                    BL::BakeSettings::target_IMAGE_TEXTURES;
+  scene->bake_manager->set_use_seed(is_vertex_baking);
+  if (is_vertex_baking) {
+    /* When baking vertex colors, the "pixels" in the output are unrelated to their neighbors,
+     * so blue-noise sampling makes no sense. */
+    sampling_pattern = SAMPLING_PATTERN_TABULATED_SOBOL;
+  }
+
   integrator->set_sampling_pattern(sampling_pattern);
 
   int samples = 1;
@@ -614,12 +616,7 @@ void BlenderSync::sync_images()
   }
   /* Free buffers used by images which are not needed for render. */
   for (BL::Image &b_image : b_data.images) {
-    /* TODO(sergey): Consider making it an utility function to check
-     * whether image is considered builtin.
-     */
-    const bool is_builtin = b_image.packed_file() ||
-                            b_image.source() == BL::Image::source_GENERATED ||
-                            b_image.source() == BL::Image::source_MOVIE || b_engine.is_preview();
+    const bool is_builtin = image_is_builtin(b_image, b_engine);
     if (is_builtin == false) {
       b_image.buffers_free();
     }
@@ -673,6 +670,7 @@ static bool get_known_pass_type(BL::RenderPass &b_pass, PassType &type, PassMode
   MAP_PASS("AO", PASS_AO, false);
 
   MAP_PASS("BakePrimitive", PASS_BAKE_PRIMITIVE, false);
+  MAP_PASS("BakeSeed", PASS_BAKE_SEED, false);
   MAP_PASS("BakeDifferential", PASS_BAKE_DIFFERENTIAL, false);
 
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);

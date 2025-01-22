@@ -226,7 +226,7 @@ void file_tile_boundbox(const ARegion *region, FileLayout *layout, int file, rct
 /**
  * If \a path leads to a .blend, remove the trailing slash (if needed).
  */
-void file_path_to_ui_path(const char *path, char *r_pathi, int max_size);
+void file_path_to_ui_path(const char *path, char *r_path, int r_path_maxncpy);
 
 /* asset_catalog_tree_view.cc */
 
@@ -240,19 +240,18 @@ void file_create_asset_catalog_tree_view_in_layout(asset_system::AssetLibrary *a
 class AssetCatalogFilterSettings;
 
 AssetCatalogFilterSettings *file_create_asset_catalog_filter_settings();
-void file_delete_asset_catalog_filter_settings(
-    AssetCatalogFilterSettings **filter_settings_handle);
+void file_delete_asset_catalog_filter_settings(AssetCatalogFilterSettings **filter_settings);
 /**
  * \return True if the file list should update its filtered results
  * (e.g. because filtering parameters changed).
  */
 bool file_set_asset_catalog_filter_settings(
-    AssetCatalogFilterSettings *filter_settings_handle,
+    AssetCatalogFilterSettings *filter_settings,
     eFileSel_Params_AssetCatalogVisibility catalog_visibility,
     const ::bUUID &catalog_id);
-void file_ensure_updated_catalog_filter_data(AssetCatalogFilterSettings *filter_settings_handle,
+void file_ensure_updated_catalog_filter_data(AssetCatalogFilterSettings *filter_settings,
                                              const asset_system::AssetLibrary *asset_library);
 bool file_is_asset_visible_in_catalog_filter_settings(
-    const AssetCatalogFilterSettings *filter_settings_handle, const AssetMetaData *asset_data);
+    const AssetCatalogFilterSettings *filter_settings, const AssetMetaData *asset_data);
 
 }  // namespace blender::ed::asset_browser

@@ -227,7 +227,7 @@ static void data_from_gpu_stack_list(ListBase *sockets, bNodeStack **ns, GPUNode
   }
 }
 
-bool blender::bke::nodeSupportsActiveFlag(const bNode *node, int sub_activity)
+bool blender::bke::node_supports_active_flag(const bNode *node, int sub_activity)
 {
   BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   switch (sub_activity) {
@@ -258,7 +258,7 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
         return node;
       }
     }
-    else if (!inactivenode && blender::bke::nodeSupportsActiveFlag(node, sub_activity)) {
+    else if (!inactivenode && blender::bke::node_supports_active_flag(node, sub_activity)) {
       inactivenode = node;
     }
     else if (node->type == NODE_GROUP) {
@@ -301,12 +301,12 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
 
 namespace blender::bke {
 
-bNode *nodeGetActiveTexture(bNodeTree *ntree)
+bNode *node_get_active_texture(bNodeTree *ntree)
 {
   return node_get_active(ntree, NODE_ACTIVE_TEXTURE);
 }
 
-bNode *nodeGetActivePaintCanvas(bNodeTree *ntree)
+bNode *node_get_active_paint_canvas(bNodeTree *ntree)
 {
   return node_get_active(ntree, NODE_ACTIVE_PAINT_CANVAS);
 }
@@ -403,16 +403,16 @@ void node_shader_gpu_tex_mapping(GPUMaterial *mat,
 
 void get_XYZ_to_RGB_for_gpu(XYZ_to_RGB *data)
 {
-  const float *xyz_to_rgb = IMB_colormanagement_get_xyz_to_scene_linear();
-  data->r[0] = xyz_to_rgb[0];
-  data->r[1] = xyz_to_rgb[3];
-  data->r[2] = xyz_to_rgb[6];
-  data->g[0] = xyz_to_rgb[1];
-  data->g[1] = xyz_to_rgb[4];
-  data->g[2] = xyz_to_rgb[7];
-  data->b[0] = xyz_to_rgb[2];
-  data->b[1] = xyz_to_rgb[5];
-  data->b[2] = xyz_to_rgb[8];
+  blender::float3x3 xyz_to_rgb = IMB_colormanagement_get_xyz_to_scene_linear();
+  data->r[0] = xyz_to_rgb[0][0];
+  data->r[1] = xyz_to_rgb[1][0];
+  data->r[2] = xyz_to_rgb[2][0];
+  data->g[0] = xyz_to_rgb[0][1];
+  data->g[1] = xyz_to_rgb[1][1];
+  data->g[2] = xyz_to_rgb[2][1];
+  data->b[0] = xyz_to_rgb[0][2];
+  data->b[1] = xyz_to_rgb[1][2];
+  data->b[2] = xyz_to_rgb[2][2];
 }
 
 bool node_socket_not_zero(const GPUNodeStack &socket)

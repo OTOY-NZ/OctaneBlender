@@ -28,7 +28,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
@@ -97,5 +97,5 @@ void register_node_type_image_aov_output(void)
   ntype.updatefunc = (0);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

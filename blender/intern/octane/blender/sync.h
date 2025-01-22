@@ -138,16 +138,17 @@ class BlenderSync {
 
   /* get parameters */
   static SceneParams get_scene_params(BL::Scene &b_scene, bool background);
-  static SessionParams get_session_params(
-      BL::RenderEngine &b_engine,
-      BL::Preferences &b_userpref,
-      BL::Scene &b_scene,
-      BL::ViewLayer &b_viewlayer,
-      bool background,
-      int width,
-      int height,
-      ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type =
-          ::OctaneEngine::SceneExportTypes::NONE);
+  static SessionParams get_session_params(BL::RenderEngine &b_engine,
+                                          BL::Preferences &b_userpref,
+                                          BL::Scene &b_scene,
+                                          BL::ViewLayer &b_viewlayer,
+                                          bool background,
+                                          int width,
+                                          int height,
+                                          ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum
+                                              export_type = ::OctaneEngine::SceneExportTypes::NONE,
+                                          int export_frame_start = 0,
+                                          int export_frame_end = 0);
   static bool get_session_pause(BL::Scene &b_scene, bool background);
   static BufferParams get_buffer_params(BL::RenderSettings &b_render,
                                         BL::SpaceView3D &b_v3d,

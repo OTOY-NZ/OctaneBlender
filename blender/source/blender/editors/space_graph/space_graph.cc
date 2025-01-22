@@ -333,17 +333,19 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
     ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
   }
 
-  /* scrollers */
-  const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-  /* FIXME: args for scrollers depend on the type of data being shown. */
-  UI_view2d_scrollers_draw(v2d, &scroller_mask);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    /* scrollers */
+    const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+    /* FIXME: args for scrollers depend on the type of data being shown. */
+    UI_view2d_scrollers_draw(v2d, &scroller_mask);
 
-  /* scale numbers */
-  {
-    rcti rect;
-    BLI_rcti_init(
-        &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+    /* scale numbers */
+    {
+      rcti rect;
+      BLI_rcti_init(
+          &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
+      UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+    }
   }
 }
 
@@ -553,7 +555,6 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
         &RNA_FModifierGenerator,
         &RNA_FModifierLimits,
         &RNA_FModifierNoise,
-        &RNA_FModifierPython,
         &RNA_FModifierStepped,
     };
 
@@ -672,6 +673,8 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
   /* loop over F-Curves, assigning colors */
   for (ale = static_cast<bAnimListElem *>(anim_data.first), i = 0; ale; ale = ale->next, i++) {
+    BLI_assert_msg(ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE),
+                   "Expecting only FCurves when using the ANIMFILTER_FCURVESONLY filter");
     FCurve *fcu = (FCurve *)ale->data;
 
     /* set color of curve here */
@@ -867,6 +870,22 @@ static void graph_space_subtype_item_extend(bContext * /*C*/,
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
 }
 
+static blender::StringRefNull graph_space_name_get(const ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
+  const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
+  return item.name;
+}
+
+static int graph_space_icon_get(const ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
+  const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
+  return item.icon;
+}
+
 static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceGraph *sipo = (SpaceGraph *)sl;
@@ -913,6 +932,8 @@ void ED_spacetype_ipo()
   st->space_subtype_item_extend = graph_space_subtype_item_extend;
   st->space_subtype_get = graph_space_subtype_get;
   st->space_subtype_set = graph_space_subtype_set;
+  st->space_name_get = graph_space_name_get;
+  st->space_icon_get = graph_space_icon_get;
   st->blend_read_data = graph_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = graph_space_blend_write;

@@ -10,23 +10,17 @@
 
 #include "GPU_index_buffer.hh"
 
-#include "vk_bindable_resource.hh"
 #include "vk_buffer.hh"
 
 namespace blender::gpu {
 
-class VKIndexBuffer : public IndexBuf, public VKBindableResource {
+class VKIndexBuffer : public IndexBuf {
   VKBuffer buffer_;
 
  public:
   void upload_data() override;
 
   void bind_as_ssbo(uint binding) override;
-  void bind(VKContext &context);
-  void add_to_descriptor_set(AddToDescriptorSetContext &data,
-                             int binding,
-                             shader::ShaderCreateInfo::Resource::BindType bind_type,
-                             const GPUSamplerState sampler_state) override;
 
   void read(uint32_t *data) const override;
 
@@ -34,14 +28,20 @@ class VKIndexBuffer : public IndexBuf, public VKBindableResource {
 
   VkBuffer vk_handle() const
   {
-    return buffer_.vk_handle();
+    return buffer_get().vk_handle();
   }
+  VkIndexType vk_index_type() const
+  {
+    return to_vk_index_type(index_type_);
+  }
+
+  void ensure_updated();
 
  private:
   void strip_restart_indices() override;
   void allocate();
-  void ensure_updated();
   VKBuffer &buffer_get();
+  const VKBuffer &buffer_get() const;
 };
 
 static inline VKIndexBuffer *unwrap(IndexBuf *index_buffer)

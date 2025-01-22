@@ -137,8 +137,8 @@ static void extract_lines_mesh(const MeshRenderData &mr,
               for (const int corner : face) {
                 const int edge = corner_edges[corner];
                 if (!used[edge]) {
-                  data[edge] = edge_from_corners(face, corner);
                   used[edge] = true;
+                  data[edge] = edge_from_corners(face, corner);
                 }
               }
             }
@@ -156,9 +156,10 @@ static void extract_lines_mesh(const MeshRenderData &mr,
               const IndexRange face = faces[face_index];
               for (const int corner : face) {
                 const int edge = corner_edges[corner];
-                if (map[edge] != -1) {
-                  data[map[edge]] = edge_from_corners(face, corner);
+                const int vbo_index = map[edge];
+                if (vbo_index != -1) {
                   map[edge] = -1;
+                  data[vbo_index] = edge_from_corners(face, corner);
                 }
               }
             }
@@ -265,11 +266,11 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
   }
 
   gpu::VertBuf *flags = GPU_vertbuf_calloc();
-  GPU_vertbuf_init_with_format(flags, &format);
+  GPU_vertbuf_init_with_format(*flags, format);
 
-  GPU_vertbuf_data_alloc(flags, loose_edges_num);
+  GPU_vertbuf_data_alloc(*flags, loose_edges_num);
 
-  MutableSpan<uint> flags_data(static_cast<uint *>(GPU_vertbuf_get_data(flags)), loose_edges_num);
+  MutableSpan<uint> flags_data = flags->data<uint>();
 
   switch (mr.extract_type) {
     case MR_EXTRACT_MESH: {

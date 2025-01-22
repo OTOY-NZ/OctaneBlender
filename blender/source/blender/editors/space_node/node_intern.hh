@@ -46,7 +46,7 @@ struct NestedTreePreviews;
 struct bNodeLinkDrag {
   /** Links dragged by the operator. */
   Vector<bNodeLink> links;
-  /** Which side if the links is fixed. */
+  /** Which side of the links is fixed. */
   eNodeSocketInOut in_out;
 
   /** Draw handler for the tooltip icon when dragging a link in empty space. */
@@ -88,13 +88,6 @@ struct SpaceNode_Runtime {
 
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
-
-  /**
-   * Indicates that the compositing tree in the space needs to be re-evaluated using the
-   * auto-compositing pipeline.
-   * Takes priority over the regular compositing.
-   */
-  bool recalc_auto_compositing;
 
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
@@ -309,10 +302,13 @@ void NODE_OT_group_ungroup(wmOperatorType *ot);
 void NODE_OT_group_separate(wmOperatorType *ot);
 void NODE_OT_group_edit(wmOperatorType *ot);
 
+void NODE_OT_default_group_width_set(wmOperatorType *ot);
+
 /* `node_relationships.cc` */
 
 void update_multi_input_indices_for_removed_links(bNode &node);
 bool all_links_muted(const bNodeSocket &socket);
+/** Get the "main" socket based on the node declaration or an heuristic. */
 bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out);
 
 void NODE_OT_link(wmOperatorType *ot);
@@ -339,8 +335,6 @@ float2 node_link_calculate_multi_input_position(const float2 &socket_position,
                                                 int total_inputs);
 
 float node_socket_calculate_height(const bNodeSocket &socket);
-
-void snode_set_context(const bContext &C);
 
 bool composite_node_active(bContext *C);
 /** Operator poll callback. */
@@ -405,7 +399,8 @@ void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout);
+                                               uiLayout &layout,
+                                               StringRefNull placeholder = "");
 
 /* `node_context_path.cc` */
 

@@ -8,12 +8,13 @@
 
 #pragma once
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "DNA_ID.h"
 
 #include "IO_orientation.hh"
 
+struct Mesh;
 struct bContext;
 struct ReportList;
 
@@ -48,3 +49,5 @@ struct STLExportParams {
 
 void STL_import(bContext *C, const STLImportParams *import_params);
 void STL_export(bContext *C, const STLExportParams *export_params);
+
+Mesh *STL_import_mesh(const STLImportParams *import_params);

@@ -6,6 +6,7 @@
  * \ingroup gpu
  */
 
+#include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 
@@ -23,6 +24,10 @@ class VKImmediate;
 
 using AttributeMask = uint16_t;
 
+/* TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
+ * API be compatible with both #VKBatch and #VKImmediate. */
+/* TODO: In steam of storing the bindings/attributes we should add a data structure that can store
+ * them. Building the bindings/attributes should be done inside #VKPipelinePool. */
 class VKVertexAttributeObject {
  public:
   bool is_valid = false;
@@ -39,21 +44,13 @@ class VKVertexAttributeObject {
   VKVertexAttributeObject();
   void clear();
 
-  void bind(VKContext &context);
+  void bind(render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings) const;
 
   /** Copy assignment operator. */
   VKVertexAttributeObject &operator=(const VKVertexAttributeObject &other);
 
   void update_bindings(const VKContext &context, VKBatch &batch);
   void update_bindings(VKImmediate &immediate);
-
-  /**
-   * Ensure that all Vertex Buffers are uploaded to the GPU.
-   *
-   * This is a separate step as uploading could flush the graphics pipeline making the state
-   * inconsistent.
-   */
-  void ensure_vbos_uploaded() const;
 
   void debug_print() const;
 
@@ -68,9 +65,6 @@ class VKVertexAttributeObject {
                        const VKShaderInterface &interface,
                        AttributeMask &r_occupied_attributes,
                        const bool use_instancing);
-
-  void bind_vbos(VKContext &context);
-  void bind_buffers(VKContext &context);
 };
 
 }  // namespace blender::gpu

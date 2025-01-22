@@ -51,7 +51,7 @@ def resolve_object_mesh_data_octane_name(_object, scene, is_viewport):
     return "{object_data_name}{type_tag}".format(object_data_name=object_data_name, type_tag=type_tag)
 
 
-def resolve_object_data_octane_name(_object, scene, is_viewport):
+def resolve_object_data_octane_name(_object, scene, is_viewport, name_postfix):
     is_modified = _object.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
     modifier_tag = _object.name if is_modified else ""
     ob_data = _object.data
@@ -69,9 +69,9 @@ def resolve_object_data_octane_name(_object, scene, is_viewport):
             is_octane_geo = octane_geo_property.is_octane_geo_used() if octane_geo_property is not None else False
             if is_infinite_plane:
                 type_tag = INFINITE_PLANE_TAG
-            elif octane_property.enable_mesh_volume:
+            elif getattr(octane_property, "enable_mesh_volume", False):
                 type_tag = MESH_VOLUME_TAG
-            elif octane_property.enable_mesh_volume_sdf:
+            elif getattr(octane_property, "enable_mesh_volume_sdf", False):
                 type_tag = MESH_VOLUME_SDF_TAG
             elif is_octane_geo:
                 object_data_name = octane_geo_property.get_octane_geo_name()
@@ -93,7 +93,8 @@ def resolve_object_data_octane_name(_object, scene, is_viewport):
                 type_tag = VOLUME_SDF_TAG
             else:
                 type_tag = VOLUME_TAG
-    return "{object_data_name}{type_tag}".format(object_data_name=object_data_name, type_tag=type_tag)
+    return "{object_data_name}{type_tag}{name_postfix}".format(object_data_name=object_data_name,
+                                                               type_tag=type_tag, name_postfix=name_postfix)
 
 
 def resolve_scatter_octane_name(instance_object, _scene, _is_viewport):

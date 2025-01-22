@@ -35,7 +35,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
 
       geometry::split_edges(
-          *geometry_set.get_mesh_for_write(), mask, params.get_output_propagation_info("Mesh"));
+          *geometry_set.get_mesh_for_write(), mask, params.get_attribute_filter("Mesh"));
     }
   });
 
@@ -49,7 +49,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_SPLIT_EDGES, "Split Edges", NODE_CLASS_GEOMETRY);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

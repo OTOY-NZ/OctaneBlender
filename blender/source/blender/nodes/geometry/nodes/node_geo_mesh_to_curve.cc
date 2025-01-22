@@ -39,7 +39,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     bke::CurvesGeometry curves = geometry::mesh_to_curve_convert(
-        *mesh, selection, params.get_output_propagation_info("Curve"));
+        *mesh, selection, params.get_attribute_filter("Curve"));
     geometry_set.replace_curves(bke::curves_new_nomain(std::move(curves)));
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
   });
@@ -54,7 +54,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_MESH_TO_CURVE, "Mesh to Curve", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

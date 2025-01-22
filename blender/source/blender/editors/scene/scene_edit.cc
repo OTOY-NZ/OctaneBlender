@@ -130,7 +130,7 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
 
   /* kill running jobs */
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_ANY);
+  WM_jobs_kill_all_from_owner(wm, scene);
 
   if (scene->id.prev) {
     scene_new = static_cast<Scene *>(scene->id.prev);
@@ -192,7 +192,7 @@ static void view_layer_remove_unset_nodetrees(const Main *bmain, Scene *scene, V
        sce = static_cast<Scene *>(sce->id.next))
   {
     if (sce->nodetree) {
-      blender::bke::BKE_nodetree_remove_layer_n(sce->nodetree, scene, act_layer_index);
+      blender::bke::node_tree_remove_layer_n(sce->nodetree, scene, act_layer_index);
     }
   }
 }

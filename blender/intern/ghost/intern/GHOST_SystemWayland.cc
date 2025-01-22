@@ -272,6 +272,9 @@ enum {
 };
 // #define BTN_TASK 0x117 /* UNUSED. */
 
+#define BTN_RANGE_MIN BTN_LEFT
+#define BTN_RANGE_MAX BTN_BACK
+
 /**
  * Tablet events.
  *
@@ -291,9 +294,17 @@ enum {
 
 /**
  * Keyboard scan-codes.
+ *
+ * From `linux/input-event-codes.h`.
  */
 enum {
   KEY_GRAVE = 41,
+  /**
+   * Sometimes called OEM 102, used for German `GrLess` key.
+   * For the common case this key will be mapped using #XKB_KEY_less.
+   * Use a scan-code to prevent the key being unknown.
+   */
+  KEY_102ND = 86,
 
 #ifdef USE_NON_LATIN_KB_WORKAROUND
   KEY_1 = 2,
@@ -475,11 +486,13 @@ struct GWL_Cursor {
  * Collect tablet event data before the frame callback runs.
  */
 enum class GWL_TabletTool_EventTypes {
-  Unset = -1,
-
   Motion = 0,
   Pressure,
   Tilt,
+
+  Wheel,
+
+  /* NOTE: Keep buttons last (simplifies switch statement). */
 
   /* Left mouse button. */
   Stylus0_Down,
@@ -494,8 +507,7 @@ enum class GWL_TabletTool_EventTypes {
   Stylus3_Down,
   Stylus3_Up,
 
-  Wheel,
-#define GWL_TabletTool_FrameTypes_NUM (int(GWL_TabletTool_EventTypes::Wheel) + 1)
+#define GWL_TabletTool_FrameTypes_NUM (int(GWL_TabletTool_EventTypes::Stylus3_Up) + 1)
 };
 
 static const GHOST_TButton gwl_tablet_tool_ebutton[] = {
@@ -536,7 +548,7 @@ struct GWL_TabletTool {
    */
   struct {
     GWL_TabletTool_EventTypes frame_types[GWL_TabletTool_FrameTypes_NUM] = {
-        GWL_TabletTool_EventTypes::Unset,
+        GWL_TabletTool_EventTypes::Motion, /* Dummy, never used. */
     };
     int frame_types_num = 0;
     int frame_types_mask = 0;
@@ -695,6 +707,103 @@ struct GWL_SeatStatePointer {
 
   GHOST_Buttons buttons = GHOST_Buttons();
 };
+
+enum class GWL_Pointer_EventTypes {
+  Motion = 0,
+
+  /**
+   * Wheel & smooth scroll.
+   *
+   * \note The logic for scrolling is quite involved.
+   * This event is more of a catch-all that scrolling needs to be computed.
+   */
+  Scroll,
+
+  /* NOTE: Keep buttons last (simplifies switch statement). */
+
+  /* #BTN_LEFT mouse button. */
+  Button0_Down,
+  Button0_Up,
+  /* #BTN_RIGHT mouse button. */
+  Button1_Down,
+  Button1_Up,
+  /* #BTN_MIDDLE mouse button. */
+  Button2_Down,
+  Button2_Up,
+  /* #BTN_SIDE mouse button. */
+  Button3_Down,
+  Button3_Up,
+  /* #BTN_EXTRA mouse button. */
+  Button4_Down,
+  Button4_Up,
+  /* #BTN_FORWARD mouse button. */
+  Button5_Down,
+  Button5_Up,
+  /* #BTN_BACK mouse button. */
+  Button6_Down,
+  Button6_Up,
+
+#define GWL_SeatStatePointer_EventTypes_NUM (int(GWL_Pointer_EventTypes::Button6_Up) + 1)
+};
+
+static const GHOST_TButton gwl_pointer_events_ebutton[] = {
+    GHOST_kButtonMaskLeft,    /* `Button0_*` / #BTN_LEFT. */
+    GHOST_kButtonMaskRight,   /* `Button1_*` / #BTN_RIGHT. */
+    GHOST_kButtonMaskMiddle,  /* `Button2_*` / #BTN_MIDDLE. */
+    GHOST_kButtonMaskButton4, /* `Button3_*` / #BTN_SIDE. */
+    GHOST_kButtonMaskButton5, /* `Button4_*` / #BTN_EXTRA. */
+    GHOST_kButtonMaskButton6, /* `Button5_*` / #BTN_FORWARD. */
+    GHOST_kButtonMaskButton7, /* `Button6_*` / #BTN_BACK. */
+};
+
+static_assert(ARRAY_SIZE(gwl_pointer_events_ebutton) ==
+                  GHOST_kButtonNum - (int(GHOST_kButtonMaskNone) + 1),
+              "Buttons missing");
+
+struct GWL_SeatStatePointer_Events {
+  /**
+   * Collect data before the #zwp_tablet_tool_v2_listener::frame runs.
+   */
+  struct {
+    GWL_Pointer_EventTypes frame_types[GWL_TabletTool_FrameTypes_NUM] = {
+        GWL_Pointer_EventTypes::Motion, /* Dummy, never used. */
+    };
+    uint64_t frame_event_ms[GWL_TabletTool_FrameTypes_NUM] = {0};
+    int frame_types_num = 0;
+    int frame_types_mask = 0;
+  } frame_pending;
+};
+
+static void gwl_pointer_handle_frame_event_add(GWL_SeatStatePointer_Events *pointer_events,
+                                               const GWL_Pointer_EventTypes ty,
+                                               const uint64_t event_ms)
+{
+  /* It's a quirk of WAYLAND that most scroll events don't have a time-stamp.
+   * Scroll events use their own time-stamp (see #GWL_SeatStatePointerScroll::event_ms usage).
+   * Ensure the API is used as intended. */
+  if (ty == GWL_Pointer_EventTypes::Scroll) {
+    GHOST_ASSERT(event_ms == 0, "Scroll events must not have a time-stamp");
+  }
+  else {
+    GHOST_ASSERT(event_ms != 0, "Non-scroll events must have a time-stamp");
+  }
+
+  const int ty_mask = 1 << int(ty);
+  /* Motion callback may run multiple times. */
+  if (pointer_events->frame_pending.frame_types_mask & ty_mask) {
+    return;
+  }
+  pointer_events->frame_pending.frame_types_mask |= ty_mask;
+  int i = pointer_events->frame_pending.frame_types_num++;
+  pointer_events->frame_pending.frame_types[i] = ty;
+  pointer_events->frame_pending.frame_event_ms[i] = event_ms;
+}
+
+static void gwl_pointer_handle_frame_event_reset(GWL_SeatStatePointer_Events *pointer_events)
+{
+  pointer_events->frame_pending.frame_types_num = 0;
+  pointer_events->frame_pending.frame_types_mask = 0;
+}
 
 /**
  * Support for converting smooth-scrolling as discrete steps.
@@ -1022,6 +1131,7 @@ struct GWL_Seat {
   uint32_t cursor_source_serial = 0;
 
   GWL_SeatStatePointer pointer;
+  GWL_SeatStatePointer_Events pointer_events;
   GWL_SeatStatePointerScroll pointer_scroll;
   GWL_SeatStatePointerGesture_Pinch pointer_gesture_pinch;
   bool use_pointer_scroll_smooth_as_discrete = false;
@@ -1454,8 +1564,10 @@ static void gwl_display_destroy(GWL_Display *display)
   }
 
 #ifdef WITH_OPENGL_BACKEND
-  if (eglGetDisplay) {
-    ::eglTerminate(eglGetDisplay(EGLNativeDisplayType(display->wl.display)));
+  if (display->wl.display) {
+    if (eglGetDisplay) {
+      ::eglTerminate(eglGetDisplay(EGLNativeDisplayType(display->wl.display)));
+    }
   }
 #endif
 
@@ -1494,6 +1606,13 @@ static int gwl_display_seat_index(GWL_Display *display, const GWL_Seat *seat)
   return index;
 }
 
+/**
+ * Callers must null check the return value unless it's known there is a seat.
+ *
+ * \note Running Blender in an instance of the Weston compositor
+ * called with `--backend=headless` causes there to be no seats.
+ * CMake's `WITH_UI_TESTS` does this.
+ */
 static GWL_Seat *gwl_display_seat_active_get(const GWL_Display *display)
 {
   if (UNLIKELY(display->seats.empty())) {
@@ -1763,6 +1882,7 @@ static void gwl_registry_entry_update_all(GWL_Display *display, const int interf
 /** \name Private Utility Functions
  * \{ */
 
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
 static const char *strchr_or_end(const char *str, const char ch)
 {
   const char *p = str;
@@ -1791,6 +1911,7 @@ static bool string_elem_split_by_delim(const char *haystack, const char delim, c
   }
   return false;
 }
+#endif /* WITH_GHOST_WAYLAND_LIBDECOR */
 
 static uint64_t sub_abs_u64(const uint64_t a, const uint64_t b)
 {
@@ -2022,6 +2143,7 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
 
       /* Uses the same physical key as #XKB_KEY_KP_Decimal for QWERTZ layout, see: #102287. */
       GXMAP(gkey, XKB_KEY_KP_Separator, GHOST_kKeyNumpadPeriod);
+      GXMAP(gkey, XKB_KEY_less, GHOST_kKeyGrLess);
 
       default:
         /* Rely on #xkb_map_gkey_or_scan_code to report when no key can be found. */
@@ -2049,6 +2171,10 @@ static GHOST_TKey xkb_map_gkey_or_scan_code(const xkb_keysym_t sym, const uint32
     switch (key) {
       case KEY_GRAVE: {
         gkey = GHOST_kKeyAccentGrave;
+        break;
+      }
+      case KEY_102ND: {
+        gkey = GHOST_kKeyGrLess;
         break;
       }
       default: {
@@ -2142,6 +2268,9 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
     CASE_CURSOR(GHOST_kStandardCursorZoomIn, "zoom-in");
     CASE_CURSOR(GHOST_kStandardCursorZoomOut, "zoom-out");
     CASE_CURSOR(GHOST_kStandardCursorMove, "move");
+    CASE_CURSOR(GHOST_kStandardCursorHandOpen, "hand1");
+    CASE_CURSOR(GHOST_kStandardCursorHandClosed, "grabbing");
+    CASE_CURSOR(GHOST_kStandardCursorHandPoint, "hand2");
     CASE_CURSOR(GHOST_kStandardCursorNSEWScroll, "all-scroll");
     CASE_CURSOR(GHOST_kStandardCursorNSScroll, "size_ver");
     CASE_CURSOR(GHOST_kStandardCursorEWScroll, "size_hor");
@@ -2157,6 +2286,9 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
     CASE_CURSOR(GHOST_kStandardCursorBottomRightCorner, "bottom_right_corner");
     CASE_CURSOR(GHOST_kStandardCursorBottomLeftCorner, "bottom_left_corner");
     CASE_CURSOR(GHOST_kStandardCursorCopy, "copy");
+    CASE_CURSOR(GHOST_kStandardCursorLeftHandle, "");
+    CASE_CURSOR(GHOST_kStandardCursorRightHandle, "");
+    CASE_CURSOR(GHOST_kStandardCursorBothHandles, "");
     CASE_CURSOR(GHOST_kStandardCursorCustom, "");
   }
 #undef CASE_CURSOR
@@ -3394,8 +3526,12 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
   std::lock_guard lock{seat->data_offer_dnd_mutex};
 
   /* No need to check this for null (as other callbacks do).
-   * because the the data-offer has not been accepted (actions set... etc). */
+   * because the data-offer has not been accepted (actions set... etc). */
   GWL_DataOffer *data_offer = seat->data_offer_dnd;
+
+  /* Take ownership of `data_offer` to prevent a double-free, see: #128766.
+   * The thread this function spawns is responsible for freeing it. */
+  seat->data_offer_dnd = nullptr;
 
   /* Use a blank string for  `mime_receive` to prevent crashes, although could also be `nullptr`.
    * Failure to set this to a known type just means the file won't have any special handling.
@@ -3430,9 +3566,6 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
     wl_data_offer_finish(data_offer->wl.id);
     wl_data_offer_destroy(data_offer->wl.id);
 
-    if (seat->data_offer_dnd == data_offer) {
-      seat->data_offer_dnd = nullptr;
-    }
     delete data_offer;
     data_offer = nullptr;
 
@@ -3635,7 +3768,9 @@ static bool update_cursor_scale(GWL_Cursor &cursor,
   if (scale > 0 && seat_state_pointer->theme_scale != scale) {
     seat_state_pointer->theme_scale = scale;
     if (!cursor.is_custom) {
-      wl_surface_set_buffer_scale(wl_surface_cursor, scale);
+      if (wl_surface_cursor) {
+        wl_surface_set_buffer_scale(wl_surface_cursor, scale);
+      }
     }
     wl_cursor_theme_destroy(cursor.wl.theme);
     cursor.wl.theme = wl_cursor_theme_load(
@@ -3789,16 +3924,10 @@ static void pointer_handle_motion(void *data,
   seat->pointer.xy[0] = surface_x;
   seat->pointer.xy[1] = surface_y;
 
-  if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
-    CLOG_INFO(LOG, 2, "motion");
-    GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-    const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
-    seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
-        event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
-  }
-  else {
-    CLOG_INFO(LOG, 2, "motion (skipped)");
-  }
+  CLOG_INFO(LOG, 2, "motion");
+
+  gwl_pointer_handle_frame_event_add(
+      &seat->pointer_events, GWL_Pointer_EventTypes::Motion, event_ms);
 }
 
 static void pointer_handle_button(void *data,
@@ -3809,53 +3938,35 @@ static void pointer_handle_button(void *data,
                                   const uint32_t state)
 {
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  const uint64_t event_ms = seat->system->ms_from_input_time(time);
 
   CLOG_INFO(LOG, 2, "button (button=%u, state=%u)", button, state);
 
-  GHOST_TEventType etype = GHOST_kEventUnknown;
+  /* Always set the serial, even if the button event is not sent. */
+  seat->data_source_serial = serial;
+
+  int button_release;
   switch (state) {
     case WL_POINTER_BUTTON_STATE_RELEASED:
-      etype = GHOST_kEventButtonUp;
+      button_release = 1;
       break;
     case WL_POINTER_BUTTON_STATE_PRESSED:
-      etype = GHOST_kEventButtonDown;
+      button_release = 0;
       break;
+    default: {
+      return;
+    }
   }
 
-  GHOST_TButton ebutton = GHOST_kButtonMaskLeft;
-  switch (button) {
-    case BTN_LEFT:
-      ebutton = GHOST_kButtonMaskLeft;
-      break;
-    case BTN_MIDDLE:
-      ebutton = GHOST_kButtonMaskMiddle;
-      break;
-    case BTN_RIGHT:
-      ebutton = GHOST_kButtonMaskRight;
-      break;
-    case BTN_SIDE:
-      ebutton = GHOST_kButtonMaskButton4;
-      break;
-    case BTN_EXTRA:
-      ebutton = GHOST_kButtonMaskButton5;
-      break;
-    case BTN_FORWARD:
-      ebutton = GHOST_kButtonMaskButton6;
-      break;
-    case BTN_BACK:
-      ebutton = GHOST_kButtonMaskButton7;
-      break;
+  const uint32_t button_index = button - BTN_RANGE_MIN;
+  if (button_index >= (BTN_RANGE_MAX - BTN_RANGE_MIN)) {
+    return;
   }
 
-  seat->data_source_serial = serial;
-  seat->pointer.buttons.set(ebutton, state == WL_POINTER_BUTTON_STATE_PRESSED);
+  const GWL_Pointer_EventTypes ty = GWL_Pointer_EventTypes(
+      int(GWL_Pointer_EventTypes::Button0_Down) + ((button_index * 2) + button_release));
 
-  if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
-    GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-    seat->system->pushEvent_maybe_pending(
-        new GHOST_EventButton(event_ms, etype, win, ebutton, GHOST_TABLET_DATA_NONE));
-  }
+  const uint64_t event_ms = seat->system->ms_from_input_time(time);
+  gwl_pointer_handle_frame_event_add(&seat->pointer_events, ty, event_ms);
 }
 
 static void pointer_handle_axis(void *data,
@@ -3876,123 +3987,185 @@ static void pointer_handle_axis(void *data,
     return;
   }
   seat->pointer_scroll.smooth_xy[index] = value;
+
+  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
 }
 
 static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
 {
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  const uint64_t event_ms = seat->pointer_scroll.has_event_ms ? seat->pointer_scroll.event_ms :
-                                                                seat->system->getMilliSeconds();
 
   CLOG_INFO(LOG, 2, "frame");
 
-  /* Handle value120 to discrete steps first. */
-  if (seat->pointer_scroll.discrete120_xy[0] || seat->pointer_scroll.discrete120_xy[1]) {
-    for (int i = 0; i < 2; i++) {
-      seat->pointer_scroll.discrete120_xy_accum[i] += seat->pointer_scroll.discrete120_xy[i];
-      seat->pointer_scroll.discrete120_xy[i] = 0;
-      /* The values will have been normalized so 120 represents a single click-step. */
-      seat->pointer_scroll.discrete_xy[i] = seat->pointer_scroll.discrete120_xy_accum[i] / 120;
-      seat->pointer_scroll.discrete120_xy_accum[i] -= seat->pointer_scroll.discrete_xy[i] * 120;
-    }
-  }
+  if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
+    GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+    for (int ty_index = 0; ty_index < seat->pointer_events.frame_pending.frame_types_num;
+         ty_index++)
+    {
+      const GWL_Pointer_EventTypes ty = seat->pointer_events.frame_pending.frame_types[ty_index];
+      const uint64_t event_ms = seat->pointer_events.frame_pending.frame_event_ms[ty_index];
+      switch (ty) {
+        /* Use motion for pressure and tilt as there are no explicit event types for these. */
+        case GWL_Pointer_EventTypes::Motion: {
+          const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
+          seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+              event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
+          break;
+        }
+        case GWL_Pointer_EventTypes::Scroll: {
+          GWL_SeatStatePointerScroll &ps = seat->pointer_scroll;
 
-  /* Multiple wheel events may have been generated and it's not known which.
-   * The logic here handles prioritizing how they should be handled. */
-  if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
-    /* We never want mouse wheel events to be treated as smooth scrolling as this
-     * causes mouse wheel scroll to orbit the view, see #120587.
-     * Although it could be supported if the event system would forward
-     * the source of the scroll action (a wheel or touch device).  */
-    seat->pointer_scroll.smooth_xy[0] = 0;
-    seat->pointer_scroll.smooth_xy[1] = 0;
-  }
-  else if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_FINGER) {
-    if (seat->use_pointer_scroll_smooth_as_discrete) {
-      GWL_SeatStatePointerScroll_SmoothAsDiscrete &smooth_as_discrete =
-          seat->pointer_scroll.smooth_as_discrete;
-      /* If discrete steps have been sent, use them as-is. */
-      if ((seat->pointer_scroll.discrete_xy[0] == 0) && (seat->pointer_scroll.discrete_xy[1] == 0))
-      {
-        /* Convert smooth to discrete. */
-        for (int i = 0; i < 2; i++) {
-          smooth_as_discrete.smooth_xy_accum[i] += seat->pointer_scroll.smooth_xy[i];
-          if (std::abs(smooth_as_discrete.smooth_xy_accum[i]) >= smooth_as_discrete_steps) {
-            seat->pointer_scroll.discrete_xy[i] = smooth_as_discrete.smooth_xy_accum[i] /
-                                                  smooth_as_discrete_steps;
-            smooth_as_discrete.smooth_xy_accum[i] -= seat->pointer_scroll.discrete_xy[i] *
-                                                     smooth_as_discrete_steps;
+          /* The scroll data is "interpreted" before generating the events,
+           * this is needed because data is accumulated
+           * with support for handling smooth scroll as discrete events (for example). */
+
+          /* Most scroll events have no time, use `ps.event_ms` instead.
+           * This is assigned for the scroll events that do set a time.
+           * In practice the values tends to be set but fall back to the current time. */
+          GHOST_ASSERT(event_ms == 0, "Scroll events are not expected to have a time!");
+          /* Handle value120 to discrete steps first. */
+          if (ps.discrete120_xy[0] || ps.discrete120_xy[1]) {
+            for (int i = 0; i < 2; i++) {
+              ps.discrete120_xy_accum[i] += ps.discrete120_xy[i];
+              ps.discrete120_xy[i] = 0;
+              /* The values will have been normalized so 120 represents a single click-step. */
+              ps.discrete_xy[i] = ps.discrete120_xy_accum[i] / 120;
+              ps.discrete120_xy_accum[i] -= ps.discrete_xy[i] * 120;
+            }
           }
+
+          /* Multiple wheel events may have been generated and it's not known which.
+           * The logic here handles prioritizing how they should be handled. */
+          if (ps.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
+            /* We never want mouse wheel events to be treated as smooth scrolling as this
+             * causes mouse wheel scroll to orbit the view, see #120587.
+             * Although it could be supported if the event system would forward
+             * the source of the scroll action (a wheel or touch device).  */
+            ps.smooth_xy[0] = 0;
+            ps.smooth_xy[1] = 0;
+          }
+          else if (ps.axis_source == WL_POINTER_AXIS_SOURCE_FINGER) {
+            if (seat->use_pointer_scroll_smooth_as_discrete) {
+              GWL_SeatStatePointerScroll_SmoothAsDiscrete &smooth_as_discrete =
+                  ps.smooth_as_discrete;
+              /* If discrete steps have been sent, use them as-is. */
+              if ((ps.discrete_xy[0] == 0) && (ps.discrete_xy[1] == 0)) {
+                /* Convert smooth to discrete. */
+                for (int i = 0; i < 2; i++) {
+                  smooth_as_discrete.smooth_xy_accum[i] += ps.smooth_xy[i];
+                  if (std::abs(smooth_as_discrete.smooth_xy_accum[i]) >= smooth_as_discrete_steps)
+                  {
+                    ps.discrete_xy[i] = smooth_as_discrete.smooth_xy_accum[i] /
+                                        smooth_as_discrete_steps;
+                    smooth_as_discrete.smooth_xy_accum[i] -= ps.discrete_xy[i] *
+                                                             smooth_as_discrete_steps;
+                  }
+                }
+              }
+              ps.smooth_xy[0] = 0;
+              ps.smooth_xy[1] = 0;
+            }
+          }
+
+          /* Both discrete and smooth events may be set at once, never generate events for both
+           * as this will be handling the same event in to different ways.
+           * Prioritize discrete axis events for the mouse wheel, otherwise smooth scroll. */
+          if (ps.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
+            if (ps.discrete_xy[0]) {
+              ps.smooth_xy[0] = 0;
+            }
+            if (ps.discrete_xy[1]) {
+              ps.smooth_xy[1] = 0;
+            }
+          }
+          else {
+            if (ps.smooth_xy[0]) {
+              ps.discrete_xy[0] = 0;
+            }
+            if (ps.smooth_xy[1]) {
+              ps.discrete_xy[1] = 0;
+            }
+          }
+
+          /* Done evaluating scroll input, generate the events. */
+
+          /* Discrete X axis currently unsupported. */
+          if (ps.discrete_xy[0] || ps.discrete_xy[1]) {
+            if (ps.discrete_xy[1]) {
+              seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
+                  ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
+                  win,
+                  -ps.discrete_xy[1]));
+            }
+            ps.discrete_xy[0] = 0;
+            ps.discrete_xy[1] = 0;
+          }
+
+          if (ps.smooth_xy[0] || ps.smooth_xy[1]) {
+            const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
+            seat->system->pushEvent_maybe_pending(new GHOST_EventTrackpad(
+                ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
+                win,
+                GHOST_kTrackpadEventScroll,
+                UNPACK2(event_xy),
+                /* NOTE: scaling the delta doesn't seem necessary.
+                 * NOTE: inverting delta gives correct results, see: QTBUG-85767.
+                 * NOTE: the preference to invert scrolling (in GNOME at least)
+                 * has already been applied so there is no need to read this preference. */
+                -wl_fixed_to_int(ps.smooth_xy[0]),
+                -wl_fixed_to_int(ps.smooth_xy[1]),
+                /* NOTE: GHOST does not support per-axis inversion.
+                 * Assume inversion is used or not. */
+                ps.inverted_xy[0] || ps.inverted_xy[1]));
+
+            ps.smooth_xy[0] = 0;
+            ps.smooth_xy[1] = 0;
+          }
+
+          ps.axis_source = WL_POINTER_AXIS_SOURCE_WHEEL;
+          ps.inverted_xy[0] = false;
+          ps.inverted_xy[1] = false;
+
+          ps.event_ms = 0;
+          ps.has_event_ms = false;
+
+          break;
+        }
+#ifdef NDEBUG
+        default:
+#else /* Warn when any events aren't handled (in debug builds). */
+        case GWL_Pointer_EventTypes::Button0_Down:
+        case GWL_Pointer_EventTypes::Button0_Up:
+        case GWL_Pointer_EventTypes::Button1_Down:
+        case GWL_Pointer_EventTypes::Button1_Up:
+        case GWL_Pointer_EventTypes::Button2_Down:
+        case GWL_Pointer_EventTypes::Button2_Up:
+        case GWL_Pointer_EventTypes::Button3_Down:
+        case GWL_Pointer_EventTypes::Button3_Up:
+        case GWL_Pointer_EventTypes::Button4_Down:
+        case GWL_Pointer_EventTypes::Button4_Up:
+        case GWL_Pointer_EventTypes::Button5_Down:
+        case GWL_Pointer_EventTypes::Button5_Up:
+        case GWL_Pointer_EventTypes::Button6_Down:
+        case GWL_Pointer_EventTypes::Button6_Up:
+#endif
+        {
+          const int button_enum_offset = int(ty) - int(GWL_Pointer_EventTypes::Button0_Down);
+          const int button_index = button_enum_offset / 2;
+          const bool button_down = (button_index * 2) == button_enum_offset;
+          const GHOST_TButton ebutton = gwl_pointer_events_ebutton[button_index];
+          const GHOST_TEventType etype = button_down ? GHOST_kEventButtonDown :
+                                                       GHOST_kEventButtonUp;
+          seat->pointer.buttons.set(ebutton, button_down);
+          seat->system->pushEvent_maybe_pending(
+              new GHOST_EventButton(event_ms, etype, win, ebutton, GHOST_TABLET_DATA_NONE));
+          break;
         }
       }
-      seat->pointer_scroll.smooth_xy[0] = 0;
-      seat->pointer_scroll.smooth_xy[1] = 0;
     }
   }
 
-  /* Both discrete and smooth events may be set at once, never generate events for both
-   * as this will be handling the same event in to different ways.
-   * Prioritize discrete axis events for the mouse wheel, otherwise smooth scroll. */
-  if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
-    if (seat->pointer_scroll.discrete_xy[0]) {
-      seat->pointer_scroll.smooth_xy[0] = 0;
-    }
-    if (seat->pointer_scroll.discrete_xy[1]) {
-      seat->pointer_scroll.smooth_xy[1] = 0;
-    }
-  }
-  else {
-    if (seat->pointer_scroll.smooth_xy[0]) {
-      seat->pointer_scroll.discrete_xy[0] = 0;
-    }
-    if (seat->pointer_scroll.smooth_xy[1]) {
-      seat->pointer_scroll.discrete_xy[1] = 0;
-    }
-  }
-
-  /* Discrete X axis currently unsupported. */
-  if (seat->pointer_scroll.discrete_xy[0] || seat->pointer_scroll.discrete_xy[1]) {
-    if (seat->pointer_scroll.discrete_xy[1]) {
-      if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
-        GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-        seat->system->pushEvent_maybe_pending(
-            new GHOST_EventWheel(event_ms, win, -seat->pointer_scroll.discrete_xy[1]));
-      }
-    }
-    seat->pointer_scroll.discrete_xy[0] = 0;
-    seat->pointer_scroll.discrete_xy[1] = 0;
-  }
-
-  if (seat->pointer_scroll.smooth_xy[0] || seat->pointer_scroll.smooth_xy[1]) {
-    if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
-      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-      const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
-      seat->system->pushEvent_maybe_pending(new GHOST_EventTrackpad(
-          event_ms,
-          win,
-          GHOST_kTrackpadEventScroll,
-          UNPACK2(event_xy),
-          /* NOTE: scaling the delta doesn't seem necessary.
-           * NOTE: inverting delta gives correct results, see: QTBUG-85767.
-           * NOTE: the preference to invert scrolling (in GNOME at least)
-           * has already been applied so there is no need to read this preference. */
-          -wl_fixed_to_int(seat->pointer_scroll.smooth_xy[0]),
-          -wl_fixed_to_int(seat->pointer_scroll.smooth_xy[1]),
-          /* NOTE: GHOST does not support per-axis inversion.
-           * Assume inversion is used or not. */
-          seat->pointer_scroll.inverted_xy[0] || seat->pointer_scroll.inverted_xy[1]));
-    }
-
-    seat->pointer_scroll.smooth_xy[0] = 0;
-    seat->pointer_scroll.smooth_xy[1] = 0;
-  }
-
-  seat->pointer_scroll.axis_source = WL_POINTER_AXIS_SOURCE_WHEEL;
-  seat->pointer_scroll.inverted_xy[0] = false;
-  seat->pointer_scroll.inverted_xy[1] = false;
-
-  seat->pointer_scroll.event_ms = 0;
-  seat->pointer_scroll.has_event_ms = false;
+  gwl_pointer_handle_frame_event_reset(&seat->pointer_events);
 }
 static void pointer_handle_axis_source(void *data,
                                        wl_pointer * /*wl_pointer*/,
@@ -4037,6 +4210,8 @@ static void pointer_handle_axis_discrete(void *data,
   }
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer_scroll.discrete_xy[index] = discrete;
+
+  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
 }
 static void pointer_handle_axis_value120(void *data,
                                          wl_pointer * /*wl_pointer*/,
@@ -4051,6 +4226,8 @@ static void pointer_handle_axis_value120(void *data,
   }
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer_scroll.discrete120_xy[index] = value120;
+
+  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
 }
 #ifdef WL_POINTER_AXIS_RELATIVE_DIRECTION_ENUM /* Requires WAYLAND 1.22 or newer. */
 static void pointer_handle_axis_relative_direction(void *data,
@@ -4151,7 +4328,7 @@ static void gesture_pinch_handle_begin(void *data,
   /* Reset defaults. */
   seat->pointer_gesture_pinch = GWL_SeatStatePointerGesture_Pinch{};
 
-  GHOST_WindowWayland *win = nullptr;
+  const GHOST_WindowWayland *win = nullptr;
   if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
     win = ghost_wl_surface_user_data(wl_surface_focus);
   }
@@ -4660,7 +4837,7 @@ static void tablet_tool_handle_button(void *data,
 
   seat->data_source_serial = serial;
 
-  GWL_TabletTool_EventTypes ty = GWL_TabletTool_EventTypes::Unset;
+  GWL_TabletTool_EventTypes ty = GWL_TabletTool_EventTypes::Motion;
   switch (button) {
     case BTN_STYLUS: {
       ty = is_press ? GWL_TabletTool_EventTypes::Stylus1_Down :
@@ -4679,7 +4856,7 @@ static void tablet_tool_handle_button(void *data,
     }
   }
 
-  if (ty != GWL_TabletTool_EventTypes::Unset) {
+  if (ty != GWL_TabletTool_EventTypes::Motion) {
     gwl_tablet_tool_frame_event_add(tablet_tool, ty);
   }
 }
@@ -4698,13 +4875,9 @@ static void tablet_tool_handle_frame(void *data,
     GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
     bool has_motion = false;
 
-    for (int i = 0; i < tablet_tool->frame_pending.frame_types_num; i++) {
-      const GWL_TabletTool_EventTypes ty = tablet_tool->frame_pending.frame_types[i];
+    for (int ty_index = 0; ty_index < tablet_tool->frame_pending.frame_types_num; ty_index++) {
+      const GWL_TabletTool_EventTypes ty = tablet_tool->frame_pending.frame_types[ty_index];
       switch (ty) {
-        case GWL_TabletTool_EventTypes::Unset: {
-          GHOST_ASSERT(0, "Event types should never be Unset");
-          break;
-        }
         /* Use motion for pressure and tilt as there are no explicit event types for these. */
         case GWL_TabletTool_EventTypes::Motion:
         case GWL_TabletTool_EventTypes::Pressure:
@@ -4727,6 +4900,9 @@ static void tablet_tool_handle_frame(void *data,
           has_motion = true;
           break;
         }
+#ifdef NDEBUG
+        default:
+#else /* Warn when any events aren't handled (in debug builds). */
         case GWL_TabletTool_EventTypes::Stylus0_Down:
         case GWL_TabletTool_EventTypes::Stylus0_Up:
         case GWL_TabletTool_EventTypes::Stylus1_Down:
@@ -4734,7 +4910,9 @@ static void tablet_tool_handle_frame(void *data,
         case GWL_TabletTool_EventTypes::Stylus2_Down:
         case GWL_TabletTool_EventTypes::Stylus2_Up:
         case GWL_TabletTool_EventTypes::Stylus3_Down:
-        case GWL_TabletTool_EventTypes::Stylus3_Up: {
+        case GWL_TabletTool_EventTypes::Stylus3_Up:
+#endif
+        {
           const int button_enum_offset = int(ty) - int(GWL_TabletTool_EventTypes::Stylus0_Down);
           const int button_index = button_enum_offset / 2;
           const bool button_down = (button_index * 2) == button_enum_offset;
@@ -4885,7 +5063,7 @@ static void keyboard_handle_keymap(void *data,
 
   CLOG_INFO(LOG, 2, "keymap");
 
-  /* Reset in case there was a previous non-zero active layout for the the last key-map.
+  /* Reset in case there was a previous non-zero active layout for the last key-map.
    * Note that this is set later by `wl_keyboard_listener::modifiers`, it's possible that handling
    * the first modifier will run #xkb_state_update_mask again (if the active layout is non-zero)
    * however as this is only done when the layout changed, it's harmless.
@@ -7752,6 +7930,10 @@ static constexpr const char *ghost_wl_mime_img_png = "image/png";
 
 GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage(void) const
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
   if (UNLIKELY(!seat)) {
     return GHOST_kFailure;
@@ -7821,6 +8003,8 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
                                             IB_rect,
                                             nullptr,
                                             "<clipboard>");
+        free(thread_result.data);
+
         if (ibuf) {
           *r_width = ibuf->x;
           *r_height = ibuf->y;
@@ -8118,7 +8302,8 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context);
+                                                   debug_context,
+                                                   gpuSettings.preferred_device);
 
       if (context->initializeDrawingContext()) {
         context->setUserData(wl_surface);
@@ -8245,7 +8430,8 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
       is_dialog,
       ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
       exclusive,
-      (gpuSettings.flags & GHOST_gpuDebugContext) != 0);
+      (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
+      gpuSettings.preferred_device);
 
   if (window) {
     if (window->getValid()) {
@@ -8318,6 +8504,10 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_check(const GHOST_TStandardCurs
 {
   /* No need to lock `server_mutex`. */
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  if (UNLIKELY(!seat)) {
+    return GHOST_kFailure;
+  }
+
   const wl_cursor *wl_cursor = gwl_seat_cursor_find_from_shape(seat, cursorShape, nullptr);
   if (wl_cursor == nullptr) {
     return GHOST_kFailure;
@@ -8444,7 +8634,9 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_visibility_set(const bool visible)
 
 GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
 {
-  GHOST_ASSERT(has_wl_trackpad_physical_direction != -1,
+  /* It's possible there are no seats, ignore the value in this case. */
+  GHOST_ASSERT(((gwl_display_seat_active_get(display_) == nullptr) ||
+                (has_wl_trackpad_physical_direction != -1)),
                "The trackpad direction was expected to be initialized");
 
   return GHOST_TCapabilityFlag(
@@ -8470,7 +8662,9 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
           /* This flag will eventually be removed. */
-          (has_wl_trackpad_physical_direction ? 0 : GHOST_kCapabilityTrackpadPhysicalDirection)));
+          ((has_wl_trackpad_physical_direction == 1) ?
+               0 :
+               GHOST_kCapabilityTrackpadPhysicalDirection)));
 }
 
 bool GHOST_SystemWayland::cursor_grab_use_software_display_get(const GHOST_TGrabCursorMode mode)
@@ -8932,11 +9126,12 @@ void GHOST_SystemWayland::seat_active_set(const GWL_Seat *seat)
 wl_seat *GHOST_SystemWayland::wl_seat_active_get_with_input_serial(uint32_t &serial)
 {
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
-  if (seat) {
-    serial = seat->data_source_serial;
-    return seat->wl.seat;
+  if (UNLIKELY(!seat)) {
+    return nullptr;
   }
-  return nullptr;
+
+  serial = seat->data_source_serial;
+  return seat->wl.seat;
 }
 
 bool GHOST_SystemWayland::window_surface_unref(const wl_surface *wl_surface)
@@ -9010,24 +9205,20 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
 
   for (GWL_Seat *seat : display_->seats) {
     if (seat->pointer.outputs.count(output)) {
-      if (seat->cursor.wl.surface_cursor != nullptr) {
-        update_cursor_scale(seat->cursor,
-                            seat->system->wl_shm_get(),
-                            &seat->pointer,
-                            seat->cursor.wl.surface_cursor);
-      }
+      update_cursor_scale(seat->cursor,
+                          seat->system->wl_shm_get(),
+                          &seat->pointer,
+                          seat->cursor.wl.surface_cursor);
     }
 
     if (seat->tablet.outputs.count(output)) {
       for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
         GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
             zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-        if (tablet_tool->wl.surface_cursor != nullptr) {
-          update_cursor_scale(seat->cursor,
-                              seat->system->wl_shm_get(),
-                              &seat->tablet,
-                              tablet_tool->wl.surface_cursor);
-        }
+        update_cursor_scale(seat->cursor,
+                            seat->system->wl_shm_get(),
+                            &seat->tablet,
+                            tablet_tool->wl.surface_cursor);
       }
     }
   }

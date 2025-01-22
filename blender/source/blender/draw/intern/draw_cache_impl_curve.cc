@@ -468,15 +468,15 @@ static void curve_create_curves_pos(CurveRenderData *rdata, gpu::VertBuf *vbo_cu
   }
 
   const int vert_len = curve_render_data_wire_verts_len_get(rdata);
-  GPU_vertbuf_init_with_format(vbo_curves_pos, &format);
-  GPU_vertbuf_data_alloc(vbo_curves_pos, vert_len);
+  GPU_vertbuf_init_with_format(*vbo_curves_pos, format);
+  GPU_vertbuf_data_alloc(*vbo_curves_pos, vert_len);
 
   const bke::CurvesGeometry &curves = rdata->curve_eval->geometry.wrap();
   const Span<float3> positions = curves.evaluated_positions();
   GPU_vertbuf_attr_fill(vbo_curves_pos, attr_id.pos, positions.data());
 }
 
-static void curve_create_attribute(CurveRenderData *rdata, gpu::VertBuf *vbo_attr)
+static void curve_create_attribute(CurveRenderData *rdata, gpu::VertBuf &vbo_attr)
 {
   if (rdata->curve_eval == nullptr) {
     return;
@@ -488,15 +488,14 @@ static void curve_create_attribute(CurveRenderData *rdata, gpu::VertBuf *vbo_att
   }
 
   const int vert_len = curve_render_data_wire_verts_len_get(rdata);
-  GPU_vertbuf_init_with_format(vbo_attr, &format);
+  GPU_vertbuf_init_with_format(vbo_attr, format);
   GPU_vertbuf_data_alloc(vbo_attr, vert_len);
 
   const bke::CurvesGeometry &curves = rdata->curve_eval->geometry.wrap();
   curves.ensure_can_interpolate_to_evaluated();
   const VArraySpan colors = *curves.attributes().lookup<ColorGeometry4f>(".viewer",
                                                                          bke::AttrDomain::Point);
-  ColorGeometry4f *vbo_data = static_cast<ColorGeometry4f *>(GPU_vertbuf_get_data(vbo_attr));
-  curves.interpolate_to_evaluated(colors, MutableSpan<ColorGeometry4f>{vbo_data, vert_len});
+  curves.interpolate_to_evaluated(colors, vbo_attr.data<ColorGeometry4f>());
 }
 
 static void curve_create_curves_lines(CurveRenderData *rdata, gpu::IndexBuf *ibo_curve_lines)
@@ -533,7 +532,7 @@ static void curve_create_curves_lines(CurveRenderData *rdata, gpu::IndexBuf *ibo
 }
 
 static void curve_create_edit_curves_nor(CurveRenderData *rdata,
-                                         gpu::VertBuf *vbo_curves_nor,
+                                         gpu::VertBuf &vbo_curves_nor,
                                          const Scene *scene)
 {
   const bool do_hq_normals = (scene->r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
@@ -550,19 +549,19 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
     attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     attr_id.rad = GPU_vertformat_attr_add(&format, "rad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     attr_id.nor = GPU_vertformat_attr_add(
-        &format, "nor", GPU_COMP_I10, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan = GPU_vertformat_attr_add(
-        &format, "tan", GPU_COMP_I10, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format, "tan", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
 
     attr_id.pos_hq = GPU_vertformat_attr_add(&format_hq, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     attr_id.rad_hq = GPU_vertformat_attr_add(&format_hq, "rad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     attr_id.nor_hq = GPU_vertformat_attr_add(
-        &format_hq, "nor", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format_hq, "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan_hq = GPU_vertformat_attr_add(
-        &format_hq, "tan", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format_hq, "tan", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
   }
 
-  const GPUVertFormat *format_ptr = do_hq_normals ? &format_hq : &format;
+  const GPUVertFormat &format_ptr = do_hq_normals ? format_hq : format;
 
   int verts_len_capacity = curve_render_data_normal_len_get(rdata) * 2;
   int vbo_len_used = 0;
@@ -596,14 +595,14 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
       GPU_normal_convert_v3(&pnor, nor, do_hq_normals);
       GPU_normal_convert_v3(&ptan, bevp->dir, do_hq_normals);
       /* Only set attributes for one vertex. */
-      GPU_vertbuf_attr_set(vbo_curves_nor, pos_id, vbo_len_used, bevp->vec);
-      GPU_vertbuf_attr_set(vbo_curves_nor, rad_id, vbo_len_used, &bevp->radius);
-      GPU_vertbuf_attr_set(vbo_curves_nor, nor_id, vbo_len_used, &pnor);
-      GPU_vertbuf_attr_set(vbo_curves_nor, tan_id, vbo_len_used, &ptan);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, pos_id, vbo_len_used, bevp->vec);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, rad_id, vbo_len_used, &bevp->radius);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
       vbo_len_used++;
 
       /* Skip the other vertex (it does not need to be offsetted). */
-      GPU_vertbuf_attr_set(vbo_curves_nor, attr_id.pos, vbo_len_used, bevp->vec);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, attr_id.pos, vbo_len_used, bevp->vec);
       vbo_len_used++;
 
       bevp += skip + 1;
@@ -661,7 +660,7 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
   if (format_pos.attr_len == 0) {
     /* initialize vertex formats */
     attr_id.pos = GPU_vertformat_attr_add(&format_pos, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    attr_id.data = GPU_vertformat_attr_add(&format_data, "data", GPU_COMP_U8, 1, GPU_FETCH_INT);
+    attr_id.data = GPU_vertformat_attr_add(&format_data, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
   }
 
   int verts_len_capacity = curve_render_data_overlay_verts_len_get(rdata);
@@ -672,12 +671,12 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
 #define DRW_TEST_ASSIGN_IBO(v) (v = (DRW_ibo_requested(v) ? (v) : nullptr))
 
   if (DRW_TEST_ASSIGN_VBO(vbo_pos)) {
-    GPU_vertbuf_init_with_format(vbo_pos, &format_pos);
-    GPU_vertbuf_data_alloc(vbo_pos, verts_len_capacity);
+    GPU_vertbuf_init_with_format(*vbo_pos, format_pos);
+    GPU_vertbuf_data_alloc(*vbo_pos, verts_len_capacity);
   }
   if (DRW_TEST_ASSIGN_VBO(vbo_data)) {
-    GPU_vertbuf_init_with_format(vbo_data, &format_data);
-    GPU_vertbuf_data_alloc(vbo_data, verts_len_capacity);
+    GPU_vertbuf_init_with_format(*vbo_data, format_data);
+    GPU_vertbuf_data_alloc(*vbo_data, verts_len_capacity);
   }
 
   GPUIndexBufBuilder elb_verts, *elbp_verts = nullptr;
@@ -716,7 +715,7 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
           GPU_indexbuf_add_line_verts(elbp_lines, vbo_len_used + 1, vbo_len_used + 2);
         }
         if (vbo_data) {
-          const uint8_t vflag[3] = {
+          const uint32_t vflag[3] = {
               beztriple_vflag_get(rdata, bezt->f1, bezt->h1, a, nu_id, true, handle_selected),
               beztriple_vflag_get(rdata, bezt->f2, bezt->h1, a, nu_id, false, handle_selected),
               beztriple_vflag_get(rdata, bezt->f3, bezt->h2, a, nu_id, true, handle_selected),
@@ -757,7 +756,7 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
           }
         }
         if (vbo_data) {
-          uint8_t vflag = bpoint_vflag_get(rdata, bp->f1, a, nu_id, u);
+          uint32_t vflag = bpoint_vflag_get(rdata, bp->f1, a, nu_id, u);
           GPU_vertbuf_attr_set(vbo_data, attr_id.data, vbo_len_used, &vflag);
         }
         if (vbo_pos) {
@@ -776,10 +775,10 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
   }
   if (vbo_len_used != verts_len_capacity) {
     if (vbo_pos != nullptr) {
-      GPU_vertbuf_data_resize(vbo_pos, vbo_len_used);
+      GPU_vertbuf_data_resize(*vbo_pos, vbo_len_used);
     }
     if (vbo_data != nullptr) {
-      GPU_vertbuf_data_resize(vbo_data, vbo_len_used);
+      GPU_vertbuf_data_resize(*vbo_data, vbo_len_used);
     }
   }
 }
@@ -892,7 +891,7 @@ void DRW_curve_batch_cache_create_requested(Object *ob, const Scene *scene)
     curve_create_curves_pos(rdata, cache->ordered.curves_pos);
   }
   if (DRW_vbo_requested(cache->ordered.attr_viewer)) {
-    curve_create_attribute(rdata, cache->ordered.attr_viewer);
+    curve_create_attribute(rdata, *cache->ordered.attr_viewer);
   }
   if (DRW_ibo_requested(cache->ibo.curves_lines)) {
     curve_create_curves_lines(rdata, cache->ibo.curves_lines);
@@ -904,7 +903,7 @@ void DRW_curve_batch_cache_create_requested(Object *ob, const Scene *scene)
         rdata, cache->edit.pos, cache->edit.data, cache->ibo.edit_verts, cache->ibo.edit_lines);
   }
   if (DRW_vbo_requested(cache->edit.curves_nor)) {
-    curve_create_edit_curves_nor(rdata, cache->edit.curves_nor, scene);
+    curve_create_edit_curves_nor(rdata, *cache->edit.curves_nor, scene);
   }
 
   curve_render_data_free(rdata);

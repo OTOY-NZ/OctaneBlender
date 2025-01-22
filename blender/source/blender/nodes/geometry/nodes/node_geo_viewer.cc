@@ -91,11 +91,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       /* If the source node has a geometry socket, connect it to the new viewer node as well. */
       LISTBASE_FOREACH (bNodeSocket *, socket, &params.node.outputs) {
         if (socket->type == SOCK_GEOMETRY && socket->is_visible()) {
-          bke::nodeAddLink(&params.node_tree,
-                           &params.node,
-                           socket,
-                           &node,
-                           static_cast<bNodeSocket *>(node.inputs.first));
+          bke::node_add_link(&params.node_tree,
+                             &params.node,
+                             socket,
+                             &node,
+                             static_cast<bNodeSocket *>(node.inputs.first));
           break;
         }
       }
@@ -135,8 +135,7 @@ static void node_rna(StructRNA *srna)
                     "Domain to evaluate the field on",
                     rna_enum_attribute_domain_with_auto_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point),
-                    enums::domain_experimental_grease_pencil_version3_fn);
+                    int(AttrDomain::Point));
 }
 
 static void node_register()
@@ -153,7 +152,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.get_extra_info = node_extra_info;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

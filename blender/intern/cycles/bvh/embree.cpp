@@ -178,9 +178,8 @@ void BVHEmbree::build(Progress &progress,
   rtcCommitScene(scene);
 }
 
-const char *BVHEmbree::get_last_error_message()
+const char *BVHEmbree::get_error_string(RTCError error_code)
 {
-  const RTCError error_code = rtcGetDeviceError(rtc_device);
   switch (error_code) {
     case RTC_ERROR_NONE:
       return "no error";
@@ -203,7 +202,9 @@ const char *BVHEmbree::get_last_error_message()
 }
 
 #  if defined(WITH_EMBREE_GPU) && RTC_VERSION >= 40302
-bool BVHEmbree::offload_scenes_to_gpu(const vector<RTCScene> &scenes)
+/* offload_scenes_to_gpu() uses rtcGetDeviceError() which also resets Embree error status,
+ * we propagate its value so it doesn't get lost. */
+RTCError BVHEmbree::offload_scenes_to_gpu(const vector<RTCScene> &scenes)
 {
   /* Having BVH on GPU is more performance-critical than texture data.
    * In order to ensure good performance even when running out of GPU
@@ -216,10 +217,11 @@ bool BVHEmbree::offload_scenes_to_gpu(const vector<RTCScene> &scenes)
     rtcCommitScene(embree_scene);
     /* In case of any errors from Embree, we should stop
      * the execution and propagate the error. */
-    if (rtcGetDeviceError(rtc_device) != RTC_ERROR_NONE)
-      return false;
+    RTCError error_code = rtcGetDeviceError(rtc_device);
+    if (error_code != RTC_ERROR_NONE)
+      return error_code;
   }
-  return true;
+  return RTC_ERROR_NONE;
 }
 #  endif
 
@@ -388,11 +390,9 @@ void BVHEmbree::set_tri_vertex_buffer(RTCGeometry geom_id, const Mesh *mesh, con
     }
     else {
       if (!rtc_device_is_sycl) {
-        /* NOTE(sirgienko) Embree requires padding for VERTEX layout as last buffer element
-         * must be readable using 16-byte SSE load instructions. Because of this, we are
-         * artificially increasing shared buffer size by 1 - it shouldn't cause any memory
-         * access violation as this last element is not accessed directly since no triangle
-         * can reference it. */
+        static_assert(sizeof(float3) == 16,
+                      "Embree requires that each buffer element be readable with 16-byte SSE load "
+                      "instructions");
         rtcSetSharedGeometryBuffer(geom_id,
                                    RTC_BUFFER_TYPE_VERTEX,
                                    t,
@@ -400,7 +400,7 @@ void BVHEmbree::set_tri_vertex_buffer(RTCGeometry geom_id, const Mesh *mesh, con
                                    verts,
                                    0,
                                    sizeof(float3),
-                                   num_verts + 1);
+                                   num_verts);
       }
       else {
         /* NOTE(sirgienko): If the Embree device is a SYCL device, then Embree execution will

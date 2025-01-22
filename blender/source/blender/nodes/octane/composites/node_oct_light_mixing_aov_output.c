@@ -367,5 +367,5 @@ void register_node_type_light_mixing_aov_output(void)
   ntype.updatefunc = (0);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

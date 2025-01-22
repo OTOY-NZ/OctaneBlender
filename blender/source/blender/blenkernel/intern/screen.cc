@@ -13,6 +13,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include <fmt/format.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -49,7 +51,7 @@
 #include "../editors/asset/ED_asset_shelf.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 using blender::Span;
@@ -168,7 +170,7 @@ IDTypeInfo IDType_ID_SCR = {
     /*name_plural*/ N_("screens"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_SCREEN,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ nullptr,
@@ -320,7 +322,7 @@ static void panel_list_copy(ListBase *newlb, const ListBase *lb)
 
     BLI_listbase_clear(&new_panel->layout_panel_states);
     LISTBASE_FOREACH (LayoutPanelState *, src_state, &old_panel->layout_panel_states) {
-      LayoutPanelState *new_state = MEM_new<LayoutPanelState>(__func__, *src_state);
+      LayoutPanelState *new_state = MEM_cnew<LayoutPanelState>(__func__, *src_state);
       new_state->idname = BLI_strdup(src_state->idname);
       BLI_addtail(&new_panel->layout_panel_states, new_state);
     }
@@ -549,8 +551,10 @@ static void area_region_panels_free_recursive(Panel *panel)
 void BKE_area_region_panels_free(ListBase *panels)
 {
   LISTBASE_FOREACH_MUTABLE (Panel *, panel, panels) {
-    /* Free custom data just for parent panels to avoid a double free. */
-    MEM_SAFE_FREE(panel->runtime->custom_data_ptr);
+    /* Delete custom data just for parent panels to avoid a double deletion. */
+    if (panel->runtime->custom_data_ptr) {
+      MEM_delete(panel->runtime->custom_data_ptr);
+    }
     area_region_panels_free_recursive(panel);
   }
   BLI_listbase_clear(panels);
@@ -876,6 +880,26 @@ ScrArea *BKE_screen_find_area_from_space(const bScreen *screen, const SpaceLink 
   return nullptr;
 }
 
+std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr)
+{
+  if (GS(ptr->owner_id->name) != ID_SCR) {
+    BLI_assert_unreachable();
+    return std::nullopt;
+  }
+
+  const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
+  const SpaceLink *link = static_cast<const SpaceLink *>(ptr->data);
+
+  int area_index;
+  LISTBASE_FOREACH_INDEX (const ScrArea *, area, &screen->areabase, area_index) {
+    const int space_index = BLI_findindex(&area->spacedata, link);
+    if (space_index != -1) {
+      return fmt::format("areas[{}].spaces[{}]", area_index, space_index);
+    }
+  }
+  return std::nullopt;
+}
+
 ScrArea *BKE_screen_find_big_area(const bScreen *screen, const int spacetype, const short min)
 {
   ScrArea *big = nullptr;
@@ -1182,6 +1206,10 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
   }
 
   BLO_read_struct_list(reader, uiPreview, &region->ui_previews);
+  LISTBASE_FOREACH (uiPreview *, ui_preview, &region->ui_previews) {
+    ui_preview->id_session_uid = MAIN_ID_SESSION_UID_UNSET;
+    ui_preview->tag = 0;
+  }
 
   if (spacetype == SPACE_EMPTY) {
     /* unknown space type, don't leak regiondata */
@@ -1194,7 +1222,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
   else {
     if (spacetype == SPACE_VIEW3D) {
       if (region->regiontype == RGN_TYPE_WINDOW) {
-        BLO_read_data_address(reader, &region->regiondata);
+        BLO_read_struct(reader, RegionView3D, &region->regiondata);
 
         if (region->regiondata == nullptr) {
           /* To avoid crashing on some old files. */

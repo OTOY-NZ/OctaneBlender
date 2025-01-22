@@ -19,6 +19,15 @@ class Device;
 class RenderBuffers;
 class Progress;
 
+bool use_optix_denoiser(Device *denoiser_device, const DenoiseParams &params);
+
+bool use_gpu_oidn_denoiser(Device *denoiser_device, const DenoiseParams &params);
+
+DenoiseParams get_effective_denoise_params(Device *denoiser_device,
+                                           Device *cpu_fallback_device,
+                                           const DenoiseParams &params,
+                                           Device *&single_denoiser_device);
+
 /* Implementation of a specific denoising algorithm.
  *
  * This class takes care of breaking down denoising algorithm into a series of device calls or to
@@ -34,7 +43,7 @@ class Denoiser {
    *   This is checked in debug builds.
    * - The device might be MultiDevice.
    * - If Denoiser from params is not supported by provided denoise device, then Blender will
-       fallback on the OIDN CPU denoising and use provided cpu_fallback_device. */
+   *   fallback on the OIDN CPU denoising and use provided cpu_fallback_device. */
   static unique_ptr<Denoiser> create(Device *denoise_device,
                                      Device *cpu_fallback_device,
                                      const DenoiseParams &params);

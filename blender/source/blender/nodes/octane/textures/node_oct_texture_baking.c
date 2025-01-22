@@ -174,5 +174,5 @@ void register_node_type_tex_oct_baking(void)
   // node_octane_baking_tex_conversion_verify);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_baking() */

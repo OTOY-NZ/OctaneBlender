@@ -6,18 +6,12 @@
  * \ingroup edtransform
  */
 
-#include <cfloat>
-
-#include "DNA_windowmanager_types.h"
-
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
-#include "GPU_state.hh"
 
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
@@ -26,21 +20,19 @@
 #include "BKE_scene.hh"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
-#include "WM_types.hh"
 
+#include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_transform_snap_object_context.hh"
 #include "ED_uvedit.hh"
-#include "ED_view3d.hh"
 
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "SEQ_sequencer.hh"
-
-#include "MEM_guardedalloc.h"
 
 #include "transform.hh"
 #include "transform_constraints.hh"
@@ -167,6 +159,10 @@ bool transformModeUseSnap(const TransInfo *t)
   }
   ToolSettings *ts = t->settings;
   if (t->mode == TFM_TRANSLATION) {
+    /* VSE preview snapping should also not depend on the 3D viewport. */
+    if (t->spacetype == SPACE_SEQ) {
+      return true;
+    }
     return (ts->snap_transform_mode_flag & SCE_SNAP_TRANSFORM_MODE_TRANSLATE) != 0;
   }
   if (t->mode == TFM_ROTATION) {
@@ -357,11 +353,31 @@ void drawSnapping(TransInfo *t)
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(col);
     float pixelx = BLI_rctf_size_x(&region->v2d.cur) / BLI_rcti_size_x(&region->v2d.mask);
-    immRectf(pos,
-             t->tsnap.snap_target[0] - pixelx,
-             region->v2d.cur.ymax,
-             t->tsnap.snap_target[0] + pixelx,
-             region->v2d.cur.ymin);
+
+    if (region->regiontype == RGN_TYPE_PREVIEW) {
+      if (t->tsnap.direction & DIR_GLOBAL_X) {
+        immRectf(pos,
+                 t->tsnap.snap_target[0] - pixelx,
+                 region->v2d.cur.ymax,
+                 t->tsnap.snap_target[0] + pixelx,
+                 region->v2d.cur.ymin);
+      }
+      if (t->tsnap.direction & DIR_GLOBAL_Y) {
+        immRectf(pos,
+                 region->v2d.cur.xmin,
+                 t->tsnap.snap_target[1] - pixelx,
+                 region->v2d.cur.xmax,
+                 t->tsnap.snap_target[1] + pixelx);
+      }
+    }
+    else {
+      immRectf(pos,
+               t->tsnap.snap_target[0] - pixelx,
+               region->v2d.cur.ymax,
+               t->tsnap.snap_target[0] + pixelx,
+               region->v2d.cur.ymin);
+    }
+
     immUnbindProgram();
     GPU_blend(GPU_BLEND_NONE);
   }
@@ -411,7 +427,7 @@ static bool applyFaceProject(TransInfo *t, TransDataContainer *tc, TransData *td
   SnapObjectParams snap_object_params{};
   snap_object_params.snap_target_select = t->tsnap.target_operation;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
-  snap_object_params.use_occlusion_test = false;
+  snap_object_params.occlusion_test = SNAP_OCCLUSION_ALWAYS;
   snap_object_params.use_backface_culling = (t->tsnap.flag & SCE_SNAP_BACKFACE_CULLING) != 0;
 
   eSnapMode hit = ED_transform_snap_object_project_view3d(t->tsnap.object_context,
@@ -474,7 +490,7 @@ static void applyFaceNearest(TransInfo *t, TransDataContainer *tc, TransData *td
   SnapObjectParams snap_object_params{};
   snap_object_params.snap_target_select = t->tsnap.target_operation;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
-  snap_object_params.use_occlusion_test = false;
+  snap_object_params.occlusion_test = SNAP_OCCLUSION_ALWAYS;
   snap_object_params.use_backface_culling = false;
   snap_object_params.face_nearest_steps = t->tsnap.face_nearest_steps;
   snap_object_params.keep_on_same_target = t->tsnap.flag & SCE_SNAP_KEEP_ON_SAME_OBJECT;
@@ -648,23 +664,49 @@ static bool bm_face_is_snap_target(BMFace *f, void * /*user_data*/)
   return true;
 }
 
-static eSnapFlag snap_flag_from_spacetype(TransInfo *t)
+short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **r_prop = nullptr)
 {
   ToolSettings *ts = t->settings;
   switch (t->spacetype) {
     case SPACE_VIEW3D:
-      return eSnapFlag(ts->snap_flag);
+      if (r_prop) {
+        *r_prop = &rna_ToolSettings_use_snap;
+      }
+      return &ts->snap_flag;
     case SPACE_NODE:
-      return eSnapFlag(ts->snap_flag_node);
+      if (r_prop) {
+        *r_prop = &rna_ToolSettings_use_snap_node;
+      }
+      return &ts->snap_flag_node;
     case SPACE_IMAGE:
-      return eSnapFlag(ts->snap_uv_flag);
+      if (r_prop) {
+        *r_prop = &rna_ToolSettings_use_snap_uv;
+      }
+      return &ts->snap_uv_flag;
     case SPACE_SEQ:
-      return eSnapFlag(ts->snap_flag_seq);
+      if (r_prop) {
+        *r_prop = &rna_ToolSettings_use_snap_sequencer;
+      }
+      return &ts->snap_flag_seq;
     case SPACE_GRAPH:
     case SPACE_ACTION:
     case SPACE_NLA:
-      return eSnapFlag(ts->snap_flag_anim);
+      if (r_prop) {
+        *r_prop = &rna_ToolSettings_use_snap_anim;
+      }
+      return &ts->snap_flag_anim;
   }
+  /* #SPACE_EMPTY.
+   * It can happen when the operator is called via a handle in `bpy.app.handlers`. */
+  return nullptr;
+}
+
+static eSnapFlag snap_flag_from_spacetype(TransInfo *t)
+{
+  if (short *snap_flag = transform_snap_flag_from_spacetype_ptr(t)) {
+    return eSnapFlag(*snap_flag);
+  }
+
   /* #SPACE_EMPTY.
    * It can happen when the operator is called via a handle in `bpy.app.handlers`. */
   return eSnapFlag(0);
@@ -815,6 +857,44 @@ static void initSnappingMode(TransInfo *t)
   }
 }
 
+void transform_snap_grid_init(const TransInfo *t, float r_snap[3], float *r_snap_precision)
+{
+  /* Default values. */
+  r_snap[0] = r_snap[1] = 1.0f;
+  r_snap[2] = 0.0f;
+  *r_snap_precision = 0.1f;
+
+  if (t->spacetype == SPACE_VIEW3D) {
+    /* Used by incremental snap. */
+    if (t->region->regiondata) {
+      View3D *v3d = static_cast<View3D *>(t->area->spacedata.first);
+      r_snap[0] = r_snap[1] = r_snap[2] = ED_view3d_grid_view_scale(
+          t->scene, v3d, t->region, nullptr);
+    }
+  }
+  else if (t->spacetype == SPACE_IMAGE) {
+    SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
+    const View2D *v2d = &t->region->v2d;
+    int grid_size = SI_GRID_STEPS_LEN;
+    float zoom_factor = ED_space_image_zoom_level(v2d, grid_size);
+    float grid_steps_x[SI_GRID_STEPS_LEN];
+    float grid_steps_y[SI_GRID_STEPS_LEN];
+
+    ED_space_image_grid_steps(sima, grid_steps_x, grid_steps_y, grid_size);
+    /* Snapping value based on what type of grid is used (adaptive-subdividing or custom-grid). */
+    r_snap[0] = ED_space_image_increment_snap_value(grid_size, grid_steps_x, zoom_factor);
+    r_snap[1] = ED_space_image_increment_snap_value(grid_size, grid_steps_y, zoom_factor);
+    *r_snap_precision = 0.5f;
+  }
+  else if (t->spacetype == SPACE_CLIP) {
+    r_snap[0] = r_snap[1] = 0.125f;
+    *r_snap_precision = 0.5f;
+  }
+  else if (t->spacetype == SPACE_NODE) {
+    r_snap[0] = r_snap[1] = ED_node_grid_size();
+  }
+}
+
 void initSnapping(TransInfo *t, wmOperator *op)
 {
   ToolSettings *ts = t->settings;
@@ -932,7 +1012,7 @@ void initSnapping(TransInfo *t, wmOperator *op)
   t->tsnap.source_operation = snap_source;
 
   initSnappingMode(t);
-
+  transform_snap_grid_init(t, t->snap_spatial, &t->snap_spatial_precision);
   transform_snap_flag_from_modifiers_set(t);
 }
 
@@ -1519,8 +1599,11 @@ static eSnapMode snapObjectsTransform(
 {
   SnapObjectParams snap_object_params{};
   snap_object_params.snap_target_select = t->tsnap.target_operation;
+  snap_object_params.grid_size = (t->modifiers & MOD_PRECISION) ?
+                                     t->snap_spatial[0] * t->snap_spatial_precision :
+                                     t->snap_spatial[0];
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
-  snap_object_params.use_occlusion_test = true;
+  snap_object_params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
   snap_object_params.use_backface_culling = (t->tsnap.flag & SCE_SNAP_BACKFACE_CULLING) != 0;
 
   float *prev_co = (t->tsnap.status & SNAP_SOURCE_FOUND) ? t->tsnap.snap_source : t->center_global;

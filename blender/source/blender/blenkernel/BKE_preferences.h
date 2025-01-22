@@ -16,7 +16,6 @@ extern "C" {
 #include "BLI_sys_types.h"
 
 struct BlendWriter;
-struct BlendReader;
 struct UserDef;
 struct bUserExtensionRepo;
 struct bUserAssetLibrary;
@@ -160,8 +159,7 @@ bool BKE_preferences_asset_shelf_settings_is_catalog_path_enabled(const UserDef 
 /**
  * Enable a catalog path for a asset shelf identified by \a shelf_idname. Will create the shelf
  * settings in the Preferences if necessary.
- * \return Return true if the catalog was newly enabled. The Preferences should be tagged as dirty
- * then.
+ * \return true if the catalog was newly enabled. The Preferences should be tagged as dirty then.
  */
 bool BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(UserDef *userdef,
                                                                       const char *shelf_idname,

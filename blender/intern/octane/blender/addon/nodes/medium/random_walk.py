@@ -273,7 +273,7 @@ class OctaneRandomWalk(bpy.types.Node, OctaneBaseNode):
     ]
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000011, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000013, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
     a_volume_use_percentage_step: BoolProperty(name="Volume use percentage step", default=True, update=OctaneBaseNode.update_node_tree, description="The flag indicating if the step length is stored in percentage")
 
     def init(self, context):  # noqa

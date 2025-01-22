@@ -76,7 +76,7 @@ TreeElementOverridesBase::TreeElementOverridesBase(TreeElement &legacy_te, ID &i
 
 StringRefNull TreeElementOverridesBase::get_warning() const
 {
-  if (id.flag & LIB_LIB_OVERRIDE_RESYNC_LEFTOVER) {
+  if (id.flag & ID_FLAG_LIB_OVERRIDE_RESYNC_LEFTOVER) {
     return RPT_("This override data-block is not needed anymore, but was detected as user-edited");
   }
 
@@ -359,7 +359,10 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
       elem_path = new_path;
     }
   }
-  BLI_freelistN(&path_elems);
+  LISTBASE_FOREACH_MUTABLE (PropertyElemRNA *, elem, &path_elems) {
+    MEM_delete(elem);
+  }
+  BLI_listbase_clear(&path_elems);
 
   /* Special case: Overriding collections, e.g. adding or removing items. In this case we add
    * elements for all collection items to show full context, and indicate which ones were

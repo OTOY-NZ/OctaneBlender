@@ -253,5 +253,5 @@ void register_node_type_composite_aov_output(void)
   ntype.updatefunc = (node_shader_update_oct_composite_aov_output);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

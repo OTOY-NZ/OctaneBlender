@@ -26,9 +26,10 @@
 /** \name View Zoom Operator
  * \{ */
 
-/* #viewdolly_modal_keymap has an exact copy of this, apply fixes to both. */
 void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 {
+  /* NOTE: #viewdolly_modal_keymap has an exact copy of this, apply fixes to both. */
+
   static const EnumPropertyItem modal_items[] = {
       {VIEW_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
       {VIEW_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -57,7 +58,7 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
  * (coords compatible w/ #wmEvent.xy). Use when not nullptr.
  */
 static void view_zoom_to_window_xy_camera(Scene *scene,
-                                          Depsgraph *depsgraph,
+                                          const Depsgraph *depsgraph,
                                           View3D *v3d,
                                           ARegion *region,
                                           float dfac,
@@ -78,13 +79,13 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     float pt_dst[2];
     float delta_px[2];
 
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &camera_frame_old, false);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &camera_frame_old);
     BLI_rctf_translate(&camera_frame_old, region->winrct.xmin, region->winrct.ymin);
 
     rv3d->camzoom = camzoom_new;
     CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &camera_frame_new, false);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &camera_frame_new);
     BLI_rctf_translate(&camera_frame_new, region->winrct.xmin, region->winrct.ymin);
 
     BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src);
@@ -382,7 +383,7 @@ static int viewzoom_modal_impl(bContext *C,
 }
 
 static void view_zoom_apply_step(bContext *C,
-                                 Depsgraph *depsgraph,
+                                 const Depsgraph *depsgraph,
                                  Scene *scene,
                                  ScrArea *area,
                                  ARegion *region,

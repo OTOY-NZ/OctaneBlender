@@ -20,7 +20,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "BLF_api.hh"
 
@@ -426,7 +426,7 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
 
 tSlider *ED_slider_create(bContext *C)
 {
-  tSlider *slider = static_cast<tSlider *>(MEM_callocN(sizeof(tSlider), "tSlider"));
+  tSlider *slider = MEM_new<tSlider>(__func__);
   slider->scene = CTX_data_scene(C);
   slider->area = CTX_wm_area(C);
   slider->region_header = CTX_wm_region(C);
@@ -558,7 +558,7 @@ void ED_slider_destroy(bContext *C, tSlider *slider)
   }
   ED_area_status_text(slider->area, nullptr);
   ED_workspace_status_text(C, nullptr);
-  MEM_freeN(slider);
+  MEM_delete(slider);
 }
 
 /* Setters & Getters */
@@ -889,7 +889,7 @@ void ED_region_image_metadata_draw(
   GPU_matrix_translate_2f(x, y);
   GPU_matrix_scale_2f(zoomx, zoomy);
 
-  BLF_size(blf_mono_font, style->widgetlabel.points * UI_SCALE_FAC);
+  BLF_size(blf_mono_font, style->widget.points * UI_SCALE_FAC);
 
   /* *** upper box*** */
 

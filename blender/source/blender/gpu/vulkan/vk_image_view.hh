@@ -20,15 +20,26 @@ struct VKImageViewInfo {
   eImageViewUsage usage;
   IndexRange layer_range;
   IndexRange mip_range;
-  char swizzle[4];
+  union {
+    char swizzle[4];
+    uint32_t swizzle_data;
+  };
   bool use_stencil;
   bool use_srgb;
+  /**
+   * When binding an image to a shader it needs to match the operations used inside the shader.
+   *
+   * If an shader accesses an image via an image view using the operation should match the view.
+   * arrayed will ensure the right image view is created.
+   */
+  VKImageViewArrayed arrayed;
 
   bool operator==(const VKImageViewInfo &other) const
   {
     return usage == other.usage && layer_range == other.layer_range &&
-           mip_range == other.mip_range && strncmp(swizzle, other.swizzle, sizeof(swizzle)) &&
-           use_stencil == other.use_stencil && use_srgb == other.use_srgb;
+           mip_range == other.mip_range && swizzle_data == other.swizzle_data &&
+           use_stencil == other.use_stencil && use_srgb == other.use_srgb &&
+           arrayed == other.arrayed;
   }
 };
 

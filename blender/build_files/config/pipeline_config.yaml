@@ -14,12 +14,10 @@ buildbot:
         version: '12.1.1'
     hip:
         version: '5.7.32000'
-    hiprt:
-        version: '2.0.e1ff193'
     optix:
-        version: '7.3.0'
+        version: '7.4.0'
     ocloc:
-        version: '101.5518p0'
+        version: '101.5972'
     cmake:
         default:
             version: any

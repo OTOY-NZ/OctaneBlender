@@ -12,6 +12,7 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_packedFile_types.h"
 #include "DNA_session_uid_types.h"
 
 #ifdef __cplusplus
@@ -520,7 +521,11 @@ typedef struct BevelModifierData {
   /** Curve info for the custom profile */
   struct CurveProfile *custom_profile;
 
-  void *_pad2;
+  /** Custom bevel edge weight name. */
+  char edge_weight_name[64];
+
+  /** Custom bevel vertex weight name. */
+  char vertex_weight_name[64];
 } BevelModifierData;
 
 /** #BevelModifierData.flags and BevelModifierData.lim_flags */
@@ -2399,6 +2404,33 @@ typedef struct NodesModifierDataBlock {
   char _pad[4];
 } NodesModifierDataBlock;
 
+typedef struct NodesModifierBakeFile {
+  const char *name;
+  /* May be null if the file is empty. */
+  PackedFile *packed_file;
+
+#ifdef __cplusplus
+  blender::Span<std::byte> data() const
+  {
+    if (this->packed_file) {
+      return blender::Span{static_cast<const std::byte *>(this->packed_file->data),
+                           this->packed_file->size};
+    }
+    return {};
+  }
+#endif
+} NodesModifierBakeFile;
+
+/**
+ * A packed bake. The format is the same as if the bake was stored on disk.
+ */
+typedef struct NodesModifierPackedBake {
+  int meta_files_num;
+  int blob_files_num;
+  NodesModifierBakeFile *meta_files;
+  NodesModifierBakeFile *blob_files;
+} NodesModifierPackedBake;
+
 typedef struct NodesModifierBake {
   /** An id that references a nested node in the node tree. Also see #bNestedNodeRef. */
   int id;
@@ -2406,7 +2438,9 @@ typedef struct NodesModifierBake {
   uint32_t flag;
   /** #NodesModifierBakeMode. */
   uint8_t bake_mode;
-  char _pad[7];
+  /** #NodesModifierBakeTarget. */
+  int8_t bake_target;
+  char _pad[6];
   /**
    * Directory where the baked data should be stored. This is only used when
    * `NODES_MODIFIER_BAKE_CUSTOM_PATH` is set.
@@ -2429,6 +2463,10 @@ typedef struct NodesModifierBake {
   int data_blocks_num;
   int active_data_block;
   NodesModifierDataBlock *data_blocks;
+  NodesModifierPackedBake *packed;
+
+  void *_pad2;
+  int64_t bake_size;
 } NodesModifierBake;
 
 typedef struct NodesModifierPanel {
@@ -2447,10 +2485,25 @@ typedef enum NodesModifierBakeFlag {
   NODES_MODIFIER_BAKE_CUSTOM_PATH = 1 << 1,
 } NodesModifierBakeFlag;
 
+typedef enum NodesModifierBakeTarget {
+  NODES_MODIFIER_BAKE_TARGET_INHERIT = 0,
+  NODES_MODIFIER_BAKE_TARGET_PACKED = 1,
+  NODES_MODIFIER_BAKE_TARGET_DISK = 2,
+} NodesModifierBakeTarget;
+
 typedef enum NodesModifierBakeMode {
   NODES_MODIFIER_BAKE_MODE_ANIMATION = 0,
   NODES_MODIFIER_BAKE_MODE_STILL = 1,
 } NodesModifierBakeMode;
+
+typedef enum GeometryNodesModifierPanel {
+  NODES_MODIFIER_PANEL_OUTPUT_ATTRIBUTES = 0,
+  NODES_MODIFIER_PANEL_MANAGE = 1,
+  NODES_MODIFIER_PANEL_BAKE = 2,
+  NODES_MODIFIER_PANEL_NAMED_ATTRIBUTES = 3,
+  NODES_MODIFIER_PANEL_BAKE_DATA_BLOCKS = 4,
+  NODES_MODIFIER_PANEL_WARNINGS = 5,
+} GeometryNodesModifierPanel;
 
 typedef struct NodesModifierData {
   ModifierData modifier;
@@ -2462,8 +2515,10 @@ typedef struct NodesModifierData {
   char *bake_directory;
   /** NodesModifierFlag. */
   int8_t flag;
+  /** #NodesModifierBakeTarget. */
+  int8_t bake_target;
 
-  char _pad[3];
+  char _pad[2];
   int bakes_num;
   NodesModifierBake *bakes;
 
@@ -3070,15 +3125,6 @@ struct LineartCache;
 typedef struct GreasePencilLineartModifierData {
   ModifierData modifier;
 
-  /* [Important] Note on legacy material/layer selection variables:
-   *
-   * Now uses the layer/material variables in the `influence`
-   * field above, thus old layer/material fields are obsolete.
-   *
-   * Do not change any of the data below since the layout of these
-   * data is currently shared with the old line art modifier.
-   * See `BKE_grease_pencil_lineart_wrap_v3` for how it works. */
-
   uint16_t edge_types; /* line type enable flags, bits in eLineartEdgeFlag */
 
   /** Object or Collection, from #eGreasePencilLineartSource. */
@@ -3094,15 +3140,12 @@ typedef struct GreasePencilLineartModifierData {
   struct Object *source_object;
   struct Collection *source_collection;
 
-  /* These are redundant in GPv3, see above for explanations. */
   struct Material *target_material;
   char target_layer[64];
 
   /**
    * These two variables are to pass on vertex group information from mesh to strokes.
    * `vgname` specifies which vertex groups our strokes from source_vertex_group will go to.
-   *
-   * These are redundant in GPv3, see above for explanations.
    */
   char source_vertex_group[64];
   char vgname[64];
@@ -3176,6 +3219,9 @@ typedef struct GreasePencilLineartModifierData {
 
   /* Keep a pointer to the render buffer so we can call destroy from #ModifierData. */
   struct LineartData *la_data_ptr;
+
+  /* Points to a `LineartModifierRuntime`, which includes the object dependency list. */
+  void *runtime;
 } GreasePencilLineartModifierData;
 
 typedef struct GreasePencilArmatureModifierData {

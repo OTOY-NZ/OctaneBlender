@@ -16,7 +16,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -38,6 +38,7 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "COM_algorithm_extract_alpha.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -94,7 +95,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
 
   /* Replace if types don't match. */
   if (sock && sock->type != type) {
-    blender::bke::nodeRemoveSocket(ntree, node, sock);
+    blender::bke::node_remove_socket(ntree, node, sock);
     sock = nullptr;
   }
 
@@ -105,7 +106,8 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
           ntree, node, &cmp_node_rlayers_out[rres_index], SOCK_OUT);
     }
     else {
-      sock = blender::bke::nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
+      sock = blender::bke::node_add_static_socket(
+          ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
     NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
@@ -365,7 +367,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
     sock_next = sock->next;
     if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
       sock->flag &= ~SOCK_HIDDEN;
-      blender::bke::nodeSetSocketAvailability(ntree, sock, true);
+      blender::bke::node_set_socket_availability(ntree, sock, true);
     }
     else {
       bNodeLink *link;
@@ -376,10 +378,10 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
         MEM_freeN(sock->storage);
-        blender::bke::nodeRemoveSocket(ntree, node, sock);
+        blender::bke::node_remove_socket(ntree, node, sock);
       }
       else {
-        blender::bke::nodeSetSocketAvailability(ntree, sock, false);
+        blender::bke::node_set_socket_availability(ntree, sock, false);
       }
     }
   }
@@ -456,41 +458,22 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    GPUTexture *image_texture = context().cache_manager().cached_images.get(
+    Result *cached_image = context().cache_manager().cached_images.get(
         context(), get_image(), get_image_user(), get_pass_name(identifier));
 
     Result &result = get_result(identifier);
-    if (!image_texture) {
+    if (!cached_image || !cached_image->is_allocated()) {
       result.allocate_invalid();
       return;
     }
 
-    const ResultPrecision precision = Result::precision(GPU_texture_format(image_texture));
-
-    /* Alpha is mot an actual pass, but one that is extracted from the combined pass. So we need to
-     * extract it using a shader. */
-    if (identifier != "Alpha") {
-      result.set_precision(precision);
-      result.wrap_external(image_texture);
-      return;
+    /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
+    if (identifier == "Alpha") {
+      extract_alpha(context(), *cached_image, result);
     }
-
-    GPUShader *shader = context().get_shader("compositor_convert_color_to_alpha", precision);
-    GPU_shader_bind(shader);
-
-    const int input_unit = GPU_shader_get_sampler_binding(shader, "input_tx");
-    GPU_texture_bind(image_texture, input_unit);
-
-    const int2 size = int2(GPU_texture_width(image_texture), GPU_texture_height(image_texture));
-    result.allocate_texture(Domain(size));
-
-    result.bind_as_image(shader, "output_img");
-
-    compute_dispatch_threads_at_least(shader, size);
-
-    GPU_shader_unbind();
-    GPU_texture_unbind(image_texture);
-    result.unbind_as_image();
+    else {
+      cached_image->pass_through(result);
+    }
   }
 
   /* Get the name of the pass corresponding to the output with the given identifier. */
@@ -533,7 +516,7 @@ void register_node_type_cmp_image()
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** RENDER RESULT ******************** */
@@ -640,16 +623,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   bNode *node = (bNode *)ptr->data;
   uiLayout *col, *row;
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "scene",
-               nullptr,
-               nullptr,
-               nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
-               false,
-               nullptr);
+  uiTemplateID(layout, C, ptr, "scene", nullptr, nullptr, nullptr);
 
   if (!node->id) {
     return;
@@ -719,6 +693,9 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
+      context().populate_meta_data_for_pass(
+          scene, view_layer, output->identifier, result.meta_data);
+
       GPUTexture *pass_texture = context().get_input_texture(
           scene, view_layer, output->identifier);
       if (output->type == SOCK_FLOAT) {
@@ -750,7 +727,8 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    GPUShader *shader = context().get_shader(shader_name);
+    const ResultPrecision precision = Result::precision(GPU_texture_format(pass_texture));
+    GPUShader *shader = context().get_shader(shader_name, precision);
     GPU_shader_bind(shader);
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
@@ -762,10 +740,7 @@ class RenderLayerOperation : public NodeOperation {
     const int input_unit = GPU_shader_get_sampler_binding(shader, "input_tx");
     GPU_texture_bind(pass_texture, input_unit);
 
-    /* Depth passes always need to be stored in full precision. */
-    if (GPU_texture_has_depth_format(pass_texture)) {
-      result.set_precision(ResultPrecision::Full);
-    }
+    result.set_precision(precision);
 
     const int2 compositing_region_size = context().get_compositing_region_size();
     result.allocate_texture(Domain(compositing_region_size));
@@ -807,5 +782,5 @@ void register_node_type_cmp_rlayers()
   ntype.initfunc = node_cmp_rlayers_outputs;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -15,7 +15,6 @@ VKCommandBufferWrapper::VKCommandBufferWrapper()
 {
   vk_command_pool_create_info_ = {};
   vk_command_pool_create_info_.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  vk_command_pool_create_info_.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   vk_command_pool_create_info_.queueFamilyIndex = 0;
 
   vk_command_buffer_allocate_info_ = {};
@@ -26,6 +25,7 @@ VKCommandBufferWrapper::VKCommandBufferWrapper()
 
   vk_command_buffer_begin_info_ = {};
   vk_command_buffer_begin_info_.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  vk_command_buffer_begin_info_.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
   vk_fence_create_info_ = {};
   vk_fence_create_info_.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -45,14 +45,14 @@ VKCommandBufferWrapper::VKCommandBufferWrapper()
 VKCommandBufferWrapper::~VKCommandBufferWrapper()
 {
   VK_ALLOCATION_CALLBACKS;
-  VKDevice &device = VKBackend::get().device_get();
+  VKDevice &device = VKBackend::get().device;
 
   if (vk_command_pool_ != VK_NULL_HANDLE) {
-    vkDestroyCommandPool(device.device_get(), vk_command_pool_, vk_allocation_callbacks);
+    vkDestroyCommandPool(device.vk_handle(), vk_command_pool_, vk_allocation_callbacks);
     vk_command_pool_ = VK_NULL_HANDLE;
   }
   if (vk_fence_ != VK_NULL_HANDLE) {
-    vkDestroyFence(device.device_get(), vk_fence_, vk_allocation_callbacks);
+    vkDestroyFence(device.vk_handle(), vk_fence_, vk_allocation_callbacks);
     vk_fence_ = VK_NULL_HANDLE;
   }
 }
@@ -60,10 +60,10 @@ VKCommandBufferWrapper::~VKCommandBufferWrapper()
 void VKCommandBufferWrapper::begin_recording()
 {
   VK_ALLOCATION_CALLBACKS;
-  VKDevice &device = VKBackend::get().device_get();
+  VKDevice &device = VKBackend::get().device;
   if (vk_command_pool_ == VK_NULL_HANDLE) {
     vk_command_pool_create_info_.queueFamilyIndex = device.queue_family_get();
-    vkCreateCommandPool(device.device_get(),
+    vkCreateCommandPool(device.vk_handle(),
                         &vk_command_pool_create_info_,
                         vk_allocation_callbacks,
                         &vk_command_pool_);
@@ -71,12 +71,11 @@ void VKCommandBufferWrapper::begin_recording()
     vk_command_pool_create_info_.queueFamilyIndex = 0;
   }
   if (vk_fence_ == VK_NULL_HANDLE) {
-    vkCreateFence(
-        device.device_get(), &vk_fence_create_info_, vk_allocation_callbacks, &vk_fence_);
+    vkCreateFence(device.vk_handle(), &vk_fence_create_info_, vk_allocation_callbacks, &vk_fence_);
   }
   BLI_assert(vk_command_buffer_ == VK_NULL_HANDLE);
   vkAllocateCommandBuffers(
-      device.device_get(), &vk_command_buffer_allocate_info_, &vk_command_buffer_);
+      device.vk_handle(), &vk_command_buffer_allocate_info_, &vk_command_buffer_);
 
   vkBeginCommandBuffer(vk_command_buffer_, &vk_command_buffer_begin_info_);
 }
@@ -86,18 +85,27 @@ void VKCommandBufferWrapper::end_recording()
   vkEndCommandBuffer(vk_command_buffer_);
 }
 
-void VKCommandBufferWrapper::submit_with_cpu_synchronization()
+void VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_fence)
 {
-  VKDevice &device = VKBackend::get().device_get();
-  vkResetFences(device.device_get(), 1, &vk_fence_);
-  vkQueueSubmit(device.queue_get(), 1, &vk_submit_info_, vk_fence_);
-  vk_command_buffer_ = VK_NULL_HANDLE;
+  if (vk_fence == VK_NULL_HANDLE) {
+    vk_fence = vk_fence_;
+  }
+  VKDevice &device = VKBackend::get().device;
+  vkResetFences(device.vk_handle(), 1, &vk_fence);
+  {
+    std::scoped_lock lock(device.queue_mutex_get());
+    vkQueueSubmit(device.queue_get(), 1, &vk_submit_info_, vk_fence);
+  }
+  vk_command_buffer_ = nullptr;
 }
 
-void VKCommandBufferWrapper::wait_for_cpu_synchronization()
+void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkFence vk_fence)
 {
-  VKDevice &device = VKBackend::get().device_get();
-  while (vkWaitForFences(device.device_get(), 1, &vk_fence_, true, UINT64_MAX) == VK_TIMEOUT) {
+  if (vk_fence == VK_NULL_HANDLE) {
+    vk_fence = vk_fence_;
+  }
+  VKDevice &device = VKBackend::get().device;
+  while (vkWaitForFences(device.vk_handle(), 1, &vk_fence, true, UINT64_MAX) == VK_TIMEOUT) {
   }
 }
 
@@ -184,6 +192,14 @@ void VKCommandBufferWrapper::dispatch(uint32_t group_count_x,
 void VKCommandBufferWrapper::dispatch_indirect(VkBuffer buffer, VkDeviceSize offset)
 {
   vkCmdDispatchIndirect(vk_command_buffer_, buffer, offset);
+}
+
+void VKCommandBufferWrapper::update_buffer(VkBuffer dst_buffer,
+                                           VkDeviceSize dst_offset,
+                                           VkDeviceSize data_size,
+                                           const void *p_data)
+{
+  vkCmdUpdateBuffer(vk_command_buffer_, dst_buffer, dst_offset, data_size, p_data);
 }
 
 void VKCommandBufferWrapper::copy_buffer(VkBuffer src_buffer,
@@ -317,22 +333,41 @@ void VKCommandBufferWrapper::push_constants(VkPipelineLayout layout,
 
 void VKCommandBufferWrapper::begin_rendering(const VkRenderingInfo *p_rendering_info)
 {
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   BLI_assert(device.functions.vkCmdBeginRendering);
   device.functions.vkCmdBeginRendering(vk_command_buffer_, p_rendering_info);
 }
 
 void VKCommandBufferWrapper::end_rendering()
 {
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   BLI_assert(device.functions.vkCmdEndRendering);
   device.functions.vkCmdEndRendering(vk_command_buffer_);
+}
+
+void VKCommandBufferWrapper::begin_query(VkQueryPool vk_query_pool,
+                                         uint32_t query_index,
+                                         VkQueryControlFlags vk_query_control_flags)
+{
+  vkCmdBeginQuery(vk_command_buffer_, vk_query_pool, query_index, vk_query_control_flags);
+}
+
+void VKCommandBufferWrapper::end_query(VkQueryPool vk_query_pool, uint32_t query_index)
+{
+  vkCmdEndQuery(vk_command_buffer_, vk_query_pool, query_index);
+}
+
+void VKCommandBufferWrapper::reset_query_pool(VkQueryPool vk_query_pool,
+                                              uint32_t first_query,
+                                              uint32_t query_count)
+{
+  vkCmdResetQueryPool(vk_command_buffer_, vk_query_pool, first_query, query_count);
 }
 
 void VKCommandBufferWrapper::begin_debug_utils_label(
     const VkDebugUtilsLabelEXT *vk_debug_utils_label)
 {
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   if (device.functions.vkCmdBeginDebugUtilsLabel) {
     device.functions.vkCmdBeginDebugUtilsLabel(vk_command_buffer_, vk_debug_utils_label);
   }
@@ -340,7 +375,7 @@ void VKCommandBufferWrapper::begin_debug_utils_label(
 
 void VKCommandBufferWrapper::end_debug_utils_label()
 {
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   if (device.functions.vkCmdEndDebugUtilsLabel) {
     device.functions.vkCmdEndDebugUtilsLabel(vk_command_buffer_);
   }

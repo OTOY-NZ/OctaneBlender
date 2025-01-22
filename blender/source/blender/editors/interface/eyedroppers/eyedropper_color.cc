@@ -13,22 +13,29 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_material_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
+#include "BKE_material.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "NOD_composite.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_define.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -44,6 +51,7 @@
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "RE_pipeline.h"
 
@@ -71,6 +79,7 @@ struct Eyedropper {
 
   bNode *crypto_node;
   CryptomatteSession *cryptomatte_session;
+  ViewportColorSampleSession *viewport_session;
 };
 
 static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
@@ -81,9 +90,33 @@ static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
 
 static bool eyedropper_init(bContext *C, wmOperator *op)
 {
-  Eyedropper *eye = MEM_cnew<Eyedropper>(__func__);
+  Eyedropper *eye = MEM_new<Eyedropper>(__func__);
 
-  uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+  PropertyRNA *prop;
+  if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
+      RNA_property_is_set(op->ptr, prop))
+  {
+    char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
+    BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
+    if (!prop_data_path || prop_data_path[0] == '\0') {
+      MEM_freeN(eye);
+      return false;
+    }
+    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+    if (!RNA_path_resolve(&ctx_ptr, prop_data_path, &eye->ptr, &eye->prop)) {
+      BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path);
+      MEM_freeN(eye);
+      return false;
+    }
+    eye->is_undo = true;
+  }
+  else {
+    uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+    if (but != nullptr) {
+      eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+    }
+  }
+
   const enum PropertySubType prop_subtype = eye->prop ? RNA_property_subtype(eye->prop) :
                                                         PropertySubType(0);
 
@@ -93,19 +126,16 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
       (RNA_property_type(eye->prop) != PROP_FLOAT) ||
       (ELEM(prop_subtype, PROP_COLOR, PROP_COLOR_GAMMA) == 0))
   {
-    MEM_freeN(eye);
+    MEM_delete(eye);
     return false;
   }
   op->customdata = eye;
-
-  eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
 
   float col[4];
   RNA_property_float_get_array(&eye->ptr, eye->prop, col);
   if (eye->ptr.type == &RNA_CompositorNodeCryptomatteV2) {
     eye->crypto_node = (bNode *)eye->ptr.data;
-    eye->cryptomatte_session = ntreeCompositCryptomatteSession(CTX_data_scene(C),
-                                                               eye->crypto_node);
+    eye->cryptomatte_session = ntreeCompositCryptomatteSession(eye->crypto_node);
     eye->cb_win = CTX_wm_window(C);
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
   }
@@ -143,10 +173,50 @@ static void eyedropper_exit(bContext *C, wmOperator *op)
     eye->cryptomatte_session = nullptr;
   }
 
-  MEM_SAFE_FREE(op->customdata);
+  if (eye->viewport_session) {
+    MEM_delete(eye->viewport_session);
+    eye->viewport_session = nullptr;
+  }
+
+  op->customdata = nullptr;
+  MEM_delete(eye);
 }
 
 /* *** eyedropper_color_ helper functions *** */
+
+static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
+                                                    const char *type_name,
+                                                    const int mval[2],
+                                                    float r_col[3])
+{
+  int material_slot = 0;
+  Object *object = ED_view3d_give_material_slot_under_cursor(C, mval, &material_slot);
+  if (!object) {
+    return false;
+  }
+
+  const ID *id = nullptr;
+  if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
+    id = &object->id;
+  }
+  else if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
+    Material *material = BKE_object_material_get(object, material_slot);
+    if (!material) {
+      return false;
+    }
+    id = &material->id;
+  }
+
+  if (!id) {
+    return false;
+  }
+
+  const char *name = &id->name[2];
+  const int name_length = BLI_strnlen(name, MAX_NAME - 2);
+  uint32_t cryptomatte_hash = BKE_cryptomatte_hash(name, name_length);
+  r_col[0] = BKE_cryptomatte_hash_to_float(cryptomatte_hash);
+  return true;
+}
 
 static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
                                                          const char *prefix,
@@ -177,6 +247,12 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
         !STREQLEN(render_pass->name, render_pass_name_prefix, sizeof(render_pass->name)))
     {
       BLI_assert(render_pass->channels == 4);
+
+      /* Pass was allocated but not rendered yet. */
+      if (!render_pass->ibuf) {
+        return false;
+      }
+
       const int x = int(fpos[0] * render_pass->rectx);
       const int y = int(fpos[1] * render_pass->recty);
       const int offset = 4 * (y * render_pass->rectx + x);
@@ -188,6 +264,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
 
   return false;
 }
+
 static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
                                                     const char *prefix,
                                                     const float fpos[2],
@@ -271,7 +348,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     ED_region_tag_redraw(CTX_wm_region(C));
   }
 
-  if (!area || !ELEM(area->spacetype, SPACE_IMAGE, SPACE_NODE, SPACE_CLIP)) {
+  if (!area || !ELEM(area->spacetype, SPACE_IMAGE, SPACE_NODE, SPACE_CLIP, SPACE_VIEW3D)) {
     return false;
   }
 
@@ -308,7 +385,9 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     }
   }
 
-  if (fpos[0] < 0.0f || fpos[1] < 0.0f || fpos[0] >= 1.0f || fpos[1] >= 1.0f) {
+  if (area->spacetype != SPACE_VIEW3D &&
+      (fpos[0] < 0.0f || fpos[1] < 0.0f || fpos[0] >= 1.0f || fpos[1] >= 1.0f))
+  {
     return false;
   }
 
@@ -322,10 +401,26 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
 
   /* TODO(jbakker): Migrate this file to cc and use std::string as return param. */
   char prefix[MAX_NAME + 1];
-  const Scene *scene = CTX_data_scene(C);
-  ntreeCompositCryptomatteLayerPrefix(scene, node, prefix, sizeof(prefix) - 1);
+  ntreeCompositCryptomatteLayerPrefix(node, prefix, sizeof(prefix) - 1);
   prefix[MAX_NAME] = '\0';
 
+  if (area->spacetype == SPACE_VIEW3D) {
+    wmWindow *win_prev = CTX_wm_window(C);
+    ScrArea *area_prev = CTX_wm_area(C);
+    ARegion *region_prev = CTX_wm_region(C);
+
+    CTX_wm_window_set(C, win);
+    CTX_wm_area_set(C, area);
+    CTX_wm_region_set(C, region);
+
+    const bool success = eyedropper_cryptomatte_sample_view3d_fl(C, prefix, mval, r_col);
+
+    CTX_wm_window_set(C, win_prev);
+    CTX_wm_area_set(C, area_prev);
+    CTX_wm_region_set(C, region_prev);
+
+    return success;
+  }
   if (node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER) {
     return eyedropper_cryptomatte_sample_render_fl(node, prefix, fpos, r_col);
   }
@@ -335,7 +430,10 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
   return false;
 }
 
-void eyedropper_color_sample_fl(bContext *C, const int event_xy[2], float r_col[3])
+void eyedropper_color_sample_fl(bContext *C,
+                                Eyedropper *eye,
+                                const int event_xy[2],
+                                float r_col[3])
 {
   ScrArea *area = nullptr;
 
@@ -369,6 +467,18 @@ void eyedropper_color_sample_fl(bContext *C, const int event_xy[2], float r_col[
       else if (area->spacetype == SPACE_CLIP) {
         SpaceClip *sc = static_cast<SpaceClip *>(area->spacedata.first);
         if (ED_space_clip_color_sample(sc, region, mval, r_col)) {
+          return;
+        }
+      }
+      else if (eye != nullptr && area->spacetype == SPACE_VIEW3D) {
+        /* Viewport color picking involves a fairly expensive operation to copy the GPU viewport
+         * back to the CPU, so to support smooth dragging with the eyedropper, we keep the copy
+         * around for the entire operation. */
+        if (eye->viewport_session == nullptr) {
+          eye->viewport_session = MEM_new<ViewportColorSampleSession>("viewport_session");
+          eye->viewport_session->init(region);
+        }
+        if (eye->viewport_session->sample(mval, r_col)) {
           return;
         }
       }
@@ -428,7 +538,7 @@ static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int even
     }
   }
   else {
-    eyedropper_color_sample_fl(C, event_xy, col);
+    eyedropper_color_sample_fl(C, eye, event_xy, col);
   }
 
   if (!eye->crypto_node) {
@@ -579,4 +689,14 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+
+  /* Paths relative to the context. */
+  PropertyRNA *prop;
+  prop = RNA_def_string(ot->srna,
+                        "prop_data_path",
+                        nullptr,
+                        0,
+                        "Data Path",
+                        "Path of property to be set with the depth");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }

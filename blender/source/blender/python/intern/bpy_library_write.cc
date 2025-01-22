@@ -14,12 +14,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_blendfile.hh"
 #include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
@@ -27,12 +28,14 @@
 
 #include "RNA_types.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_library.h" /* Declaration for #BPY_library_load_method_def */
-#include "bpy_rna.h"
+#include "bpy_capi_utils.hh"
+#include "bpy_library.hh" /* Declaration for #BPY_library_load_method_def */
+#include "bpy_rna.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+
+using namespace blender::bke::blendfile;
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -46,9 +49,9 @@ PyDoc_STRVAR(
     "      Indirectly referenced data-blocks will be expanded and written too.\n"
     "\n"
     "   :arg filepath: The path to write the blend-file.\n"
-    "   :type filepath: string or bytes\n"
-    "   :arg datablocks: set of data-blocks (:class:`bpy.types.ID` instances).\n"
-    "   :type datablocks: set\n"
+    "   :type filepath: str | bytes\n"
+    "   :arg datablocks: set of data-blocks.\n"
+    "   :type datablocks: set[:class:`bpy.types.ID`]\n"
     "   :arg path_remap: Optionally remap paths when writing the file:\n"
     "\n"
     "      - ``NONE`` No path manipulation (default).\n"
@@ -56,7 +59,7 @@ PyDoc_STRVAR(
     "      - ``RELATIVE_ALL`` Remap all paths to be relative to the new location.\n"
     "      - ``ABSOLUTE`` Make all paths absolute on writing.\n"
     "\n"
-    "   :type path_remap: string\n"
+    "   :type path_remap: str\n"
     "   :arg fake_user: When True, data-blocks will be written with fake-user flag enabled.\n"
     "   :type fake_user: bool\n"
     "   :arg compress: When True, write a compressed blend file.\n"
@@ -128,99 +131,50 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
 
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path_from_global());
 
-  BKE_blendfile_write_partial_begin(bmain_src);
+  PartialWriteContext partial_write_ctx{bmain_src->filepath};
+  const PartialWriteContext::IDAddOptions add_options{PartialWriteContext::IDAddOperations(
+      PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES |
+      (use_fake_user ? PartialWriteContext::IDAddOperations::SET_FAKE_USER : 0))};
 
-  /* array of ID's and backup any data we modify */
-  struct IDStore {
-    ID *id;
-    /* original values */
-    short id_flag;
-    short id_us;
-  } *id_store_array, *id_store;
-  int id_store_len = 0;
+  Py_ssize_t pos, hash;
+  PyObject *key;
+  ID *id = nullptr;
 
-  PyObject *ret;
-  int retval = 0;
-
-  /* collect all id data from the set and store in 'id_store_array' */
-  {
-    Py_ssize_t pos, hash;
-    PyObject *key;
-
-    id_store_array = static_cast<IDStore *>(
-        MEM_mallocN(sizeof(*id_store_array) * PySet_Size(datablocks), __func__));
-    id_store = id_store_array;
-
-    pos = hash = 0;
-    while (_PySet_NextEntry(datablocks, &pos, &key, &hash)) {
-
-      if (!pyrna_id_FromPyObject(key, &id_store->id)) {
-        PyErr_Format(PyExc_TypeError, "Expected an ID type, not %.200s", Py_TYPE(key)->tp_name);
-        ret = nullptr;
-        goto finally;
-      }
-      else {
-        id_store->id_flag = id_store->id->flag;
-        id_store->id_us = id_store->id->us;
-
-        if (use_fake_user) {
-          id_store->id->flag |= LIB_FAKEUSER;
-        }
-        id_store->id->us = 1;
-
-        BKE_blendfile_write_partial_tag_ID(id_store->id, true);
-
-        id_store_len += 1;
-        id_store++;
-      }
+  pos = hash = 0;
+  while (_PySet_NextEntry(datablocks, &pos, &key, &hash)) {
+    if (!pyrna_id_FromPyObject(key, &id)) {
+      PyErr_Format(PyExc_TypeError, "Expected an ID type, not %.200s", Py_TYPE(key)->tp_name);
+      return nullptr;
+    }
+    else {
+      partial_write_ctx.id_add(id, add_options, nullptr);
     }
   }
+  BLI_assert(partial_write_ctx.is_valid());
 
   /* write blend */
   ReportList reports;
 
   BKE_reports_init(&reports, RPT_STORE);
-  retval = BKE_blendfile_write_partial(
-      bmain_src, filepath_abs, write_flags, path_remap.value_found, &reports);
+  bool success = partial_write_ctx.write(
+      filepath_abs, write_flags, path_remap.value_found, reports);
 
-  /* cleanup state */
-  BKE_blendfile_write_partial_end(bmain_src);
-
-  if (retval) {
+  PyObject *py_return_value;
+  if (success) {
     BKE_reports_print(&reports, RPT_ERROR_ALL);
-    ret = Py_None;
-    Py_INCREF(ret);
+    py_return_value = Py_None;
+    Py_INCREF(py_return_value);
   }
   else {
     if (BPy_reports_to_error(&reports, PyExc_IOError, false) == 0) {
       PyErr_SetString(PyExc_IOError, "Unknown error writing library data");
     }
-    ret = nullptr;
+    py_return_value = nullptr;
   }
 
   BKE_reports_free(&reports);
 
-finally:
-
-  /* clear all flags for ID's added to the store (may run on error too) */
-  id_store = id_store_array;
-
-  for (int i = 0; i < id_store_len; id_store++, i++) {
-
-    if (use_fake_user) {
-      if ((id_store->id_flag & LIB_FAKEUSER) == 0) {
-        id_store->id->flag &= ~LIB_FAKEUSER;
-      }
-    }
-
-    id_store->id->us = id_store->id_us;
-
-    BKE_blendfile_write_partial_tag_ID(id_store->id, false);
-  }
-
-  MEM_freeN(id_store_array);
-
-  return ret;
+  return py_return_value;
 }
 
 #if (defined(__GNUC__) && !defined(__clang__))

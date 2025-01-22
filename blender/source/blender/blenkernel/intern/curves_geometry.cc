@@ -17,6 +17,7 @@
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_legacy.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_task.hh"
 
@@ -96,14 +97,16 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
     other.runtime->curve_offsets_sharing_info->add_user();
   }
 
-  CustomData_copy(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
-  CustomData_copy(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
+  CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
+  CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
 
   this->point_num = other.point_num;
   this->curve_num = other.curve_num;
 
   BKE_defgroup_copy_list(&this->vertex_group_names, &other.vertex_group_names);
   this->vertex_group_active_index = other.vertex_group_active_index;
+
+  this->attributes_active_index = other.attributes_active_index;
 
   this->runtime = MEM_new<CurvesGeometryRuntime>(
       __func__,
@@ -157,6 +160,9 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
 
   this->vertex_group_active_index = other.vertex_group_active_index;
   other.vertex_group_active_index = 0;
+
+  this->attributes_active_index = other.attributes_active_index;
+  other.attributes_active_index = 0;
 
   this->runtime = other.runtime;
   other.runtime = nullptr;
@@ -355,6 +361,9 @@ MutableSpan<float3> CurvesGeometry::positions_for_write()
 
 Span<int> CurvesGeometry::offsets() const
 {
+  if (this->curve_num == 0) {
+    return {};
+  }
   return {this->curve_offsets, this->curve_num + 1};
 }
 MutableSpan<int> CurvesGeometry::offsets_for_write()
@@ -1188,10 +1197,16 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
   return this->runtime->bounds_cache.data();
 }
 
-CurvesGeometry curves_copy_point_selection(
-    const CurvesGeometry &curves,
-    const IndexMask &points_to_copy,
-    const AnonymousAttributePropagationInfo &propagation_info)
+void CurvesGeometry::count_memory(MemoryCounter &memory) const
+{
+  memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
+  CustomData_count_memory(this->point_data, this->point_num, memory);
+  CustomData_count_memory(this->curve_data, this->curve_num, memory);
+}
+
+CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
+                                           const IndexMask &points_to_copy,
+                                           const AttributeFilter &attribute_filter)
 {
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
   Array<int> curve_point_counts(curves.curves_num(), 0);
@@ -1222,14 +1237,14 @@ CurvesGeometry curves_copy_point_selection(
       [&]() {
         gather_attributes(curves.attributes(),
                           AttrDomain::Point,
-                          propagation_info,
-                          {},
+                          AttrDomain::Point,
+                          attribute_filter,
                           points_to_copy,
                           dst_curves.attributes_for_write());
         gather_attributes(curves.attributes(),
                           AttrDomain::Curve,
-                          propagation_info,
-                          {},
+                          AttrDomain::Curve,
+                          attribute_filter,
                           curves_to_copy,
                           dst_curves.attributes_for_write());
       });
@@ -1245,7 +1260,7 @@ CurvesGeometry curves_copy_point_selection(
 }
 
 void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
-                                   const AnonymousAttributePropagationInfo &propagation_info)
+                                   const AttributeFilter &attribute_filter)
 {
   if (points_to_delete.is_empty()) {
     return;
@@ -1256,13 +1271,12 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   }
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
-  *this = curves_copy_point_selection(*this, points_to_copy, propagation_info);
+  *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
 }
 
-CurvesGeometry curves_copy_curve_selection(
-    const CurvesGeometry &curves,
-    const IndexMask &curves_to_copy,
-    const AnonymousAttributePropagationInfo &propagation_info)
+CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
+                                           const IndexMask &curves_to_copy,
+                                           const AttributeFilter &attribute_filter)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   CurvesGeometry dst_curves(0, curves_to_copy.size());
@@ -1277,15 +1291,19 @@ CurvesGeometry curves_copy_curve_selection(
 
   gather_attributes_group_to_group(src_attributes,
                                    AttrDomain::Point,
-                                   propagation_info,
-                                   {},
+                                   AttrDomain::Point,
+                                   attribute_filter,
                                    points_by_curve,
                                    dst_points_by_curve,
                                    curves_to_copy,
                                    dst_attributes);
 
-  gather_attributes(
-      src_attributes, AttrDomain::Curve, propagation_info, {}, curves_to_copy, dst_attributes);
+  gather_attributes(src_attributes,
+                    AttrDomain::Curve,
+                    AttrDomain::Curve,
+                    attribute_filter,
+                    curves_to_copy,
+                    dst_attributes);
 
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
@@ -1294,7 +1312,7 @@ CurvesGeometry curves_copy_curve_selection(
 }
 
 void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
-                                   const AnonymousAttributePropagationInfo &propagation_info)
+                                   const AttributeFilter &attribute_filter)
 {
   if (curves_to_delete.is_empty()) {
     return;
@@ -1305,7 +1323,7 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
   }
   IndexMaskMemory memory;
   const IndexMask curves_to_copy = curves_to_delete.complement(this->curves_range(), memory);
-  *this = curves_copy_curve_selection(*this, curves_to_copy, propagation_info);
+  *this = curves_copy_curve_selection(*this, curves_to_copy, attribute_filter);
 }
 
 template<typename T>
@@ -1350,24 +1368,24 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
 
   MutableAttributeAccessor attributes = this->attributes_for_write();
 
-  attributes.for_all([&](const AttributeIDRef &id, AttributeMetaData meta_data) {
-    if (meta_data.domain != AttrDomain::Point) {
-      return true;
+  attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain != AttrDomain::Point) {
+      return;
     }
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (bezier_handle_names.contains(id.name())) {
-      return true;
+    if (bezier_handle_names.contains(iter.name)) {
+      return;
     }
 
-    GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
+    GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
       reverse_curve_point_data<T>(*this, curves_to_reverse, attribute.span.typed<T>());
     });
     attribute.finish();
-    return true;
+    return;
   });
 
   /* In order to maintain the shape of Bezier curves, handle attributes must reverse, but also the
@@ -1410,6 +1428,14 @@ void CurvesGeometry::remove_attributes_based_on_types()
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
     attributes.remove(ATTR_RESOLUTION);
   }
+}
+
+CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
+{
+  CurvesGeometry curves(0, curve_num);
+  curves.point_num = point_num;
+  CustomData_free_layer_named(&curves.point_data, "position", 0);
+  return curves;
 }
 
 /** \} */

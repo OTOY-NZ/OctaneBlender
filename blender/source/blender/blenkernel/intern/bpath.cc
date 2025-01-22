@@ -28,54 +28,43 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_brush_types.h"
-#include "DNA_cachefile_types.h"
-#include "DNA_fluid_types.h"
-#include "DNA_freestyle_types.h"
-#include "DNA_image_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_movieclip_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_fluidsim_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_pointcache_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_text_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_vfont_types.h"
-#include "DNA_volume_types.h"
-
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
 
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
-#include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
-#include "BKE_vfont.hh"
 
 #include "BKE_bpath.hh" /* own include */
 
 #include "CLG_log.h"
-
-#include "SEQ_iterator.hh"
 
 #ifndef _MSC_VER
 #  include "BLI_strict_flags.h" /* Keep last. */
 #endif
 
 static CLG_LogRef LOG = {"bke.bpath"};
+
+/* -------------------------------------------------------------------- */
+/** \name Generic Utilities
+ * \{ */
+
+void BKE_bpath_summary_report(const BPathSummary &summary, ReportList *reports)
+{
+  BKE_reportf(reports,
+              summary.count_failed ? RPT_WARNING : RPT_INFO,
+              "Total files %d | Changed %d | Failed %d",
+              summary.count_total,
+              summary.count_changed,
+              summary.count_failed);
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Generic File Path Traversal API
@@ -103,7 +92,7 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
                                          sizeof(id->library_weak_reference->library_filepath));
   }
 
-  bNodeTree *embedded_node_tree = blender::bke::ntreeFromID(id);
+  bNodeTree *embedded_node_tree = blender::bke::node_tree_from_id(id);
   if (embedded_node_tree != nullptr) {
     BKE_bpath_foreach_path_id(bpath_data, &embedded_node_tree->id);
   }
@@ -229,13 +218,33 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data,
                                                 char * /*path_dst*/,
                                                 size_t /*path_dst_maxncpy*/,
-
                                                 const char *path_src)
 {
   ReportList *reports = (ReportList *)bpath_data->user_data;
 
   if (!BLI_exists(path_src)) {
-    BKE_reportf(reports, RPT_WARNING, "Path '%s' not found", path_src);
+    ID *owner_id = bpath_data->owner_id;
+    if (owner_id) {
+      if (ID_IS_LINKED(owner_id)) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Path '%s' not found, from linked data-block '%s' (from library '%s')",
+                    path_src,
+                    owner_id->name,
+                    owner_id->lib->runtime.filepath_abs);
+      }
+      else {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Path '%s' not found, from local data-block '%s'",
+                    path_src,
+                    owner_id->name);
+      }
+    }
+    else {
+      BKE_reportf(
+          reports, RPT_WARNING, "Path '%s' not found (no known owner data-block)", path_src);
+    }
   }
 
   return false;
@@ -428,9 +437,7 @@ struct BPathRebase_Data {
   const char *basedir_dst;
   ReportList *reports;
 
-  int count_tot;
-  int count_changed;
-  int count_failed;
+  BPathSummary summary;
 };
 
 static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
@@ -440,7 +447,7 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
 {
   BPathRebase_Data *data = (BPathRebase_Data *)bpath_data->user_data;
 
-  data->count_tot++;
+  data->summary.count_total++;
 
   if (!BLI_path_is_rel(path_src)) {
     /* Absolute, leave this as-is. */
@@ -451,7 +458,7 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
   BLI_strncpy(filepath, path_src, FILE_MAX);
   if (!BLI_path_abs(filepath, data->basedir_src)) {
     BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made absolute", path_src);
-    data->count_failed++;
+    data->summary.count_failed++;
     return false;
   }
 
@@ -461,14 +468,15 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
   BLI_path_rel(filepath, data->basedir_dst);
 
   BLI_strncpy(path_dst, filepath, path_dst_maxncpy);
-  data->count_changed++;
+  data->summary.count_changed++;
   return true;
 }
 
 void BKE_bpath_relative_rebase(Main *bmain,
                                const char *basedir_src,
                                const char *basedir_dst,
-                               ReportList *reports)
+                               ReportList *reports,
+                               BPathSummary *r_summary)
 {
   BPathRebase_Data data = {nullptr};
   const int flag = (BKE_BPATH_FOREACH_PATH_SKIP_LINKED | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE);
@@ -487,12 +495,9 @@ void BKE_bpath_relative_rebase(Main *bmain,
   path_data.user_data = &data;
   BKE_bpath_foreach_path_main(&path_data);
 
-  BKE_reportf(reports,
-              data.count_failed ? RPT_WARNING : RPT_INFO,
-              "Total files %d | Changed %d | Failed %d",
-              data.count_tot,
-              data.count_changed,
-              data.count_failed);
+  if (r_summary) {
+    *r_summary = data.summary;
+  }
 }
 
 /** \} */
@@ -505,9 +510,7 @@ struct BPathRemap_Data {
   const char *basedir;
   ReportList *reports;
 
-  int count_tot;
-  int count_changed;
-  int count_failed;
+  BPathSummary summary;
 };
 
 static bool relative_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
@@ -517,7 +520,7 @@ static bool relative_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
 {
   BPathRemap_Data *data = (BPathRemap_Data *)bpath_data->user_data;
 
-  data->count_tot++;
+  data->summary.count_total++;
 
   if (BLI_path_is_rel(path_src)) {
     return false; /* Already relative. */
@@ -536,12 +539,12 @@ static bool relative_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
                 path_src,
                 type_name,
                 id_name);
-    data->count_failed++;
+    data->summary.count_failed++;
     return false;
   }
 
   BLI_strncpy(path_dst, path_test, path_dst_maxncpy);
-  data->count_changed++;
+  data->summary.count_changed++;
   return true;
 }
 
@@ -552,7 +555,7 @@ static bool absolute_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
 {
   BPathRemap_Data *data = (BPathRemap_Data *)bpath_data->user_data;
 
-  data->count_tot++;
+  data->summary.count_total++;
 
   if (!BLI_path_is_rel(path_src)) {
     return false; /* Already absolute. */
@@ -570,19 +573,20 @@ static bool absolute_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
                 path_src,
                 type_name,
                 id_name);
-    data->count_failed++;
+    data->summary.count_failed++;
     return false;
   }
 
   BLI_strncpy(path_dst, path_test, path_dst_maxncpy);
-  data->count_changed++;
+  data->summary.count_changed++;
   return true;
 }
 
 static void bpath_absolute_relative_convert(Main *bmain,
                                             const char *basedir,
                                             ReportList *reports,
-                                            BPathForeachPathFunctionCallback callback_function)
+                                            BPathForeachPathFunctionCallback callback_function,
+                                            BPathSummary *r_summary)
 {
   BPathRemap_Data data = {nullptr};
   const int flag = BKE_BPATH_FOREACH_PATH_SKIP_LINKED;
@@ -603,22 +607,27 @@ static void bpath_absolute_relative_convert(Main *bmain,
   path_data.user_data = &data;
   BKE_bpath_foreach_path_main(&path_data);
 
-  BKE_reportf(reports,
-              data.count_failed ? RPT_WARNING : RPT_INFO,
-              "Total files %d | Changed %d | Failed %d",
-              data.count_tot,
-              data.count_changed,
-              data.count_failed);
+  if (r_summary) {
+    *r_summary = data.summary;
+  }
 }
 
-void BKE_bpath_relative_convert(Main *bmain, const char *basedir, ReportList *reports)
+void BKE_bpath_relative_convert(Main *bmain,
+                                const char *basedir,
+                                ReportList *reports,
+                                BPathSummary *r_summary)
 {
-  bpath_absolute_relative_convert(bmain, basedir, reports, relative_convert_foreach_path_cb);
+  bpath_absolute_relative_convert(
+      bmain, basedir, reports, relative_convert_foreach_path_cb, r_summary);
 }
 
-void BKE_bpath_absolute_convert(Main *bmain, const char *basedir, ReportList *reports)
+void BKE_bpath_absolute_convert(Main *bmain,
+                                const char *basedir,
+                                ReportList *reports,
+                                BPathSummary *r_summary)
 {
-  bpath_absolute_relative_convert(bmain, basedir, reports, absolute_convert_foreach_path_cb);
+  bpath_absolute_relative_convert(
+      bmain, basedir, reports, absolute_convert_foreach_path_cb, r_summary);
 }
 
 /** \} */

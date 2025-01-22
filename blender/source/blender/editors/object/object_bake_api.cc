@@ -20,7 +20,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -30,8 +30,8 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -576,7 +576,7 @@ static bool bake_object_check(const Scene *scene,
         continue;
       }
 
-      image->id.tag |= LIB_TAG_DOIT;
+      image->id.tag |= ID_TAG_DOIT;
     }
   }
 
@@ -650,7 +650,7 @@ static bool bake_objects_check(Main *bmain,
                                const eBakeTarget target)
 {
   /* error handling and tag (in case multiple materials share the same image) */
-  BKE_main_id_tag_idcode(bmain, ID_IM, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_idcode(bmain, ID_IM, ID_TAG_DOIT, false);
 
   if (is_selected_to_active) {
     int tot_objects = 0;
@@ -701,7 +701,7 @@ static bool bake_objects_check(Main *bmain,
 static void bake_targets_clear(Main *bmain, const bool is_tangent)
 {
   LISTBASE_FOREACH (Image *, image, &bmain->images) {
-    if ((image->id.tag & LIB_TAG_DOIT) != 0) {
+    if ((image->id.tag & ID_TAG_DOIT) != 0) {
       RE_bake_ibuf_clear(image, is_tangent);
     }
   }
@@ -751,7 +751,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
       MEM_callocN(sizeof(Image *) * targets->materials_num, __func__));
 
   /* Error handling and tag (in case multiple materials share the same image). */
-  BKE_main_id_tag_idcode(bkr->main, ID_IM, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_idcode(bkr->main, ID_IM, ID_TAG_DOIT, false);
 
   targets->images = nullptr;
 
@@ -763,7 +763,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
 
     /* Some materials have no image, we just ignore those cases.
      * Also setup each image only once. */
-    if (image && !(image->id.tag & LIB_TAG_DOIT)) {
+    if (image && !(image->id.tag & ID_TAG_DOIT)) {
       LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
         /* Add bake image. */
         targets->images = static_cast<BakeImage *>(
@@ -773,7 +773,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
         targets->images_num++;
       }
 
-      image->id.tag |= LIB_TAG_DOIT;
+      image->id.tag |= ID_TAG_DOIT;
     }
   }
 
@@ -1185,7 +1185,8 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
   const CustomDataLayer *active_color_layer = BKE_id_attributes_color_find(
       &mesh->id, mesh->active_color_attribute);
   BLI_assert(active_color_layer != nullptr);
-  const bke::AttrDomain domain = BKE_id_attribute_domain(&mesh->id, active_color_layer);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  const bke::AttrDomain domain = BKE_attribute_domain(owner, active_color_layer);
 
   const int channels_num = targets->channels_num;
   const bool is_noncolor = targets->is_noncolor;

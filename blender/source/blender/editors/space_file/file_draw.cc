@@ -47,8 +47,9 @@
 #include "DNA_windowmanager_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
+#include "ED_asset.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
@@ -127,7 +128,7 @@ static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const F
   return data;
 }
 
-static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, void *argN)
+static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
 {
   FileTooltipData *file_data = static_cast<FileTooltipData *>(argN);
   const SpaceFile *sfile = file_data->sfile;
@@ -178,7 +179,7 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
     }
 
     if (file->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-      char version_st[128] = {0};
+      char version_str[128] = {0};
       if (!thumb) {
         /* Load the thumbnail from cache if existing, but don't create if not. */
         thumb = IMB_thumb_read(full_path, THB_LARGE);
@@ -186,20 +187,23 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
       if (thumb) {
         /* Look for version in existing thumbnail if available. */
         IMB_metadata_get_field(
-            thumb->metadata, "Thumb::Blender::Version", version_st, sizeof(version_st));
+            thumb->metadata, "Thumb::Blender::Version", version_str, sizeof(version_str));
       }
 
-      if (!version_st[0] && !(file->attributes & FILE_ATTR_OFFLINE)) {
+      if (!version_str[0] && !(file->attributes & FILE_ATTR_OFFLINE)) {
         /* Load Blender version directly from the file. */
         short version = BLO_version_from_file(full_path);
         if (version != 0) {
-          SNPRINTF(version_st, "%d.%01d", version / 100, version % 100);
+          SNPRINTF(version_str, "%d.%01d", version / 100, version % 100);
         }
       }
 
-      if (version_st[0]) {
-        UI_tooltip_text_field_add(
-            tip, fmt::format("Blender {}", version_st), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+      if (version_str[0]) {
+        UI_tooltip_text_field_add(tip,
+                                  fmt::format("Blender {}", version_str),
+                                  {},
+                                  UI_TIP_STYLE_NORMAL,
+                                  UI_TIP_LC_NORMAL);
         UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
       }
     }
@@ -267,11 +271,11 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
       }
     }
 
-    char date_st[FILELIST_DIRENTRY_DATE_LEN], time_st[FILELIST_DIRENTRY_TIME_LEN];
+    char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
     bool is_today, is_yesterday;
     std::string day_string = ("");
     BLI_filelist_entry_datetime_to_string(
-        nullptr, file->time, false, time_st, date_st, &is_today, &is_yesterday);
+        nullptr, file->time, false, time_str, date_str, &is_today, &is_yesterday);
     if (is_today || is_yesterday) {
       day_string = (is_today ? N_("Today") : N_("Yesterday")) + std::string(" ");
     }
@@ -279,8 +283,8 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
                               fmt::format("{}: {}{}{}",
                                           N_("Modified"),
                                           day_string,
-                                          (is_today || is_yesterday) ? "" : date_st,
-                                          (is_today || is_yesterday) ? time_st : ""),
+                                          (is_today || is_yesterday) ? "" : date_str,
+                                          (is_today || is_yesterday) ? time_str : ""),
                               {},
                               UI_TIP_STYLE_NORMAL,
                               UI_TIP_LC_NORMAL);
@@ -331,13 +335,7 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
 static std::string file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
-  std::string complete_string = asset->get_name();
-  const AssetMetaData &meta_data = asset->get_metadata();
-  if (meta_data.description) {
-    complete_string += '\n';
-    complete_string += meta_data.description;
-  }
-  return complete_string;
+  return blender::ed::asset::asset_tooltip(*asset);
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
@@ -641,29 +639,46 @@ static void file_draw_preview(const FileList *files,
 
   if (!is_loading) {
     /* Don't show outer document image if loading - too flashy. */
-    IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
-    immDrawPixelsTexTiled_scaling(&state,
-                                  float(xco),
-                                  float(yco),
-                                  imb->x,
-                                  imb->y,
-                                  GPU_RGBA8,
-                                  true,
-                                  imb->byte_buffer.data,
-                                  scale,
-                                  scale,
-                                  1.0f,
-                                  1.0f,
-                                  document_img_col);
+    if (is_icon) {
+      /* Draw large folder or document icon. */
+      const int icon_large = (file->typeflag & FILE_TYPE_DIR) ? ICON_FILE_FOLDER_LARGE :
+                                                                ICON_FILE_LARGE;
+      uchar icon_col[4];
+      rgba_float_to_uchar(icon_col, document_img_col);
+      float icon_x = float(xco) + (file->typeflag & FILE_TYPE_DIR ? 0.0f : ex * -0.142f);
+      float icon_y = float(yco) + (file->typeflag & FILE_TYPE_DIR ? ex * -0.11f : 0.0f);
+      UI_icon_draw_ex(icon_x,
+                      icon_y,
+                      icon_large,
+                      icon_aspect / 4.0f / UI_SCALE_FAC,
+                      document_img_col[3],
+                      0.0f,
+                      icon_col,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+    }
+    else {
+      IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
+      immDrawPixelsTexTiled_scaling(&state,
+                                    float(xco),
+                                    float(yco),
+                                    imb->x,
+                                    imb->y,
+                                    GPU_RGBA8,
+                                    true,
+                                    imb->byte_buffer.data,
+                                    scale,
+                                    scale,
+                                    1.0f,
+                                    1.0f,
+                                    document_img_col);
+    }
   }
-
-  GPU_blend(GPU_BLEND_ALPHA);
 
   if (icon && is_icon) {
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
     float icon_x, icon_y;
-    const float icon_size = 16.0f / icon_aspect * UI_SCALE_FAC;
-    float icon_opacity = 0.3f;
+    float icon_opacity = 0.4f;
     uchar icon_color[4] = {0, 0, 0, 255};
     if (rgb_to_grayscale(document_img_col) < 0.5f) {
       icon_color[0] = 255;
@@ -676,12 +691,12 @@ static void file_draw_preview(const FileList *files,
       UI_GetThemeColor4ubv(TH_TEXT, icon_color);
     }
 
-    icon_x = xco + (ex / 2.0f) - (icon_size / 2.0f);
-    icon_y = yco + (ey / 2.0f) - (icon_size * ((file->typeflag & FILE_TYPE_DIR) ? 0.78f : 0.75f));
+    icon_x = xco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.31f : ex * 0.178f);
+    icon_y = yco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.19f : ex * 0.15f);
     UI_icon_draw_ex(icon_x,
                     icon_y,
                     is_loading ? ICON_TEMP : icon,
-                    icon_aspect / UI_SCALE_FAC,
+                    icon_aspect / UI_SCALE_FAC / (file->typeflag & FILE_TYPE_DIR ? 1.5f : 2.0f),
                     icon_opacity,
                     0.0f,
                     icon_color,
@@ -689,77 +704,46 @@ static void file_draw_preview(const FileList *files,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
-  if (is_link || is_offline) {
-    /* Icon at bottom to indicate it is a shortcut, link, alias, or offline. */
-    float icon_x, icon_y;
-    icon_x = xco + (2.0f * UI_SCALE_FAC);
-    icon_y = yco + (2.0f * UI_SCALE_FAC);
-    const int arrow = is_link ? ICON_LOOP_FORWARDS : ICON_INTERNET;
-    if (!is_icon) {
-      /* At very bottom-left if preview style. */
-      const uchar dark[4] = {0, 0, 0, 255};
-      const uchar light[4] = {255, 255, 255, 255};
-      UI_icon_draw_ex(icon_x + 1,
-                      icon_y - 1,
-                      arrow,
-                      1.0f / UI_SCALE_FAC,
-                      0.2f,
-                      0.0f,
-                      dark,
-                      false,
-                      UI_NO_ICON_OVERLAY_TEXT);
+  if (icon_aspect < 2.0f) {
+    const float icon_x = float(tile_draw_rect->xmin) + (3.0f * UI_SCALE_FAC);
+    const float icon_y = float(tile_draw_rect->ymin) + (17.0f * UI_SCALE_FAC);
+    const uchar light[4] = {255, 255, 255, 255};
+    if (is_offline) {
+      /* Icon at bottom to indicate the file is offline. */
       UI_icon_draw_ex(icon_x,
                       icon_y,
-                      arrow,
+                      ICON_INTERNET,
                       1.0f / UI_SCALE_FAC,
                       0.6f,
                       0.0f,
                       light,
-                      false,
+                      true,
                       UI_NO_ICON_OVERLAY_TEXT);
     }
-    else {
-      /* Link to folder or non-previewed file. */
-      uchar icon_color[4];
-      UI_GetThemeColor4ubv(TH_BACK, icon_color);
-      icon_x = xco + ((file->typeflag & FILE_TYPE_DIR) ? 0.14f : 0.23f) * scaledx;
-      icon_y = yco + ((file->typeflag & FILE_TYPE_DIR) ? 0.24f : 0.14f) * scaledy;
+    else if (is_link) {
+      /* Icon at bottom to indicate it is a shortcut, link, or alias. */
       UI_icon_draw_ex(icon_x,
                       icon_y,
-                      arrow,
-                      icon_aspect / UI_SCALE_FAC * 1.8f,
-                      0.3f,
+                      ICON_FILE_ALIAS,
+                      1.0f / UI_SCALE_FAC,
+                      0.6f,
                       0.0f,
-                      icon_color,
+                      nullptr,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
     }
-  }
-  else if (icon && ((!is_icon && !(file->typeflag & FILE_TYPE_FTFONT)) || is_loading)) {
-    /* Smaller, fainter icon at bottom-left for preview image thumbnail, but not for fonts. */
-    float icon_x, icon_y;
-    const uchar dark[4] = {0, 0, 0, 255};
-    const uchar light[4] = {255, 255, 255, 255};
-    icon_x = xco + (2.0f * UI_SCALE_FAC);
-    icon_y = yco + (2.0f * UI_SCALE_FAC);
-    UI_icon_draw_ex(icon_x + 1,
-                    icon_y - 1,
-                    icon,
-                    1.0f / UI_SCALE_FAC,
-                    0.2f,
-                    0.0f,
-                    dark,
-                    false,
-                    UI_NO_ICON_OVERLAY_TEXT);
-    UI_icon_draw_ex(icon_x,
-                    icon_y,
-                    icon,
-                    1.0f / UI_SCALE_FAC,
-                    0.6f,
-                    0.0f,
-                    light,
-                    false,
-                    UI_NO_ICON_OVERLAY_TEXT);
+    else if (icon && ((!is_icon && !(file->typeflag & FILE_TYPE_FTFONT)) || is_loading)) {
+      /* Smaller, fainter icon at bottom-left for preview image thumbnail, but not for fonts. */
+      UI_icon_draw_ex(icon_x,
+                      icon_y,
+                      icon,
+                      1.0f / UI_SCALE_FAC,
+                      0.6f,
+                      0.0f,
+                      light,
+                      true,
+                      UI_NO_ICON_OVERLAY_TEXT);
+    }
   }
 
   const bool is_current_main_data = filelist_file_get_id(file) != nullptr;
@@ -768,8 +752,8 @@ static void file_draw_preview(const FileList *files,
      * current file (from current #Main in fact). */
     float icon_x, icon_y;
     const uchar light[4] = {255, 255, 255, 255};
-    icon_x = xco + ex - UI_UNIT_X;
-    icon_y = yco + ey - UI_UNIT_Y;
+    icon_x = float(tile_draw_rect->xmax) - (16.0f * UI_SCALE_FAC);
+    icon_y = float(tile_draw_rect->ymax) - (20.0f * UI_SCALE_FAC);
     UI_icon_draw_ex(icon_x,
                     icon_y,
                     ICON_CURRENT_FILE,
@@ -777,12 +761,14 @@ static void file_draw_preview(const FileList *files,
                     0.6f,
                     0.0f,
                     light,
-                    false,
+                    true,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
   /* Contrasting outline around some preview types. */
   if (show_outline) {
+    GPU_blend(GPU_BLEND_ALPHA);
+
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -1145,7 +1131,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   bool do_drag;
   uchar text_col[4];
   const bool draw_columnheader = (params->display == FILE_VERTICALDISPLAY);
-  const float thumb_icon_aspect = std::min(64.0f / float(params->thumbnail_size), 2.0f);
+  const float thumb_icon_aspect = std::min(64.0f / float(params->thumbnail_size), 4.0f);
 
   numfiles = filelist_files_ensure(files);
 
@@ -1387,20 +1373,27 @@ void file_draw_list(const bContext *C, ARegion *region)
 
     const bool is_filtered = params->filter_search[0] != '\0';
 
-    uchar text_col[4];
-    UI_GetThemeColor4ubv(TH_TEXT, text_col);
+    uchar text_col_mod[4];
+    copy_v4_v4_uchar(text_col_mod, text_col);
     if (!is_filtered) {
-      text_col[3] /= 2;
+      text_col_mod[3] /= 2;
     }
 
-    const char *message = is_filtered ? IFACE_("No results match the search filter") :
-                                        IFACE_("No items");
+    const char *message = [&]() {
+      if (!filelist_is_ready(files)) {
+        return IFACE_("Loading...");
+      }
+      if (is_filtered) {
+        return IFACE_("No results match the search filter");
+      }
+      return IFACE_("No items");
+    }();
 
     UI_fontstyle_draw_simple(&style->widget,
                              tile_draw_rect.xmin + UI_UNIT_X,
                              tile_draw_rect.ymax - UI_UNIT_Y,
                              message,
-                             text_col);
+                             text_col_mod);
   }
 
   BLF_batch_draw_end();

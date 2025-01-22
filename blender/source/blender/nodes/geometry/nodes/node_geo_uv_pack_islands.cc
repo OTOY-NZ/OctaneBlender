@@ -73,6 +73,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                        mp_vkeys.data(),
                                        mp_co.data(),
                                        mp_uv.data(),
+                                       nullptr,
                                        mp_pin.data(),
                                        mp_select.data());
   });
@@ -144,7 +145,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_UV_PACK_ISLANDS, "Pack UV Islands", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

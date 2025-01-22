@@ -13,6 +13,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "BKE_appdir.hh"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
@@ -36,6 +37,8 @@
 Global G;
 UserDef U;
 
+char build_hash[16] = {'\0'};
+
 /* -------------------------------------------------------------------- */
 /** \name Stubs of BLI_imbuf_types.h
  * \{ */
@@ -52,6 +55,17 @@ struct ImBuf *IMB_allocImBuf(unsigned int /*x*/,
 {
   BLI_assert_unreachable();
   return nullptr;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Stubs of BLI_appdir.h
+ * \{ */
+
+bool BKE_appdir_folder_caches(char * /*path*/, size_t /*path_maxncpy*/)
+{
+  return false;
 }
 
 /** \} */
@@ -114,15 +128,6 @@ void BKE_paint_face_set_overlay_color_get(const int /*face_set*/,
   BLI_assert_unreachable();
 }
 
-bool paint_is_grid_face_hidden(blender::BoundedBitSpan /*grid_hidden*/,
-                               int /*gridsize*/,
-                               int /*x*/,
-                               int /*y*/)
-{
-  BLI_assert_unreachable();
-  return false;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -178,13 +183,14 @@ extern "C" void ntreeGPUMaterialNodes(struct bNodeTree * /*localtree*/,
   BLI_assert_unreachable();
 }
 
-struct bNodeTree *blender::bke::ntreeLocalize(struct bNodeTree * /*ntree*/, ID * /*new_owner_id*/)
+struct bNodeTree *blender::bke::node_tree_localize(struct bNodeTree * /*ntree*/,
+                                                   ID * /*new_owner_id*/)
 {
   BLI_assert_unreachable();
   return nullptr;
 }
 
-void blender::bke::ntreeFreeLocalTree(struct bNodeTree * /*ntree*/)
+void blender::bke::node_tree_free_local_tree(struct bNodeTree * /*ntree*/)
 {
   BLI_assert_unreachable();
 }

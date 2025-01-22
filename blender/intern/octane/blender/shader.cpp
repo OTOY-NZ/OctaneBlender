@@ -3673,6 +3673,10 @@ bool BlenderSync::use_geonodes_modifiers(BL::Object &b_ob)
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_NODES) {
       BL::NodesModifier nodes_mod(b_mod->ptr);
+      BL::NodeTree node_group = nodes_mod.node_group();
+      if (node_group.ptr.data == NULL) {
+        continue;
+      }
       std::string node_group_name = nodes_mod.node_group().name();
       bool is_auto_smooth_geonodes = string_startswith(node_group_name, "Smooth by Angle");
       if (is_auto_smooth_geonodes) {

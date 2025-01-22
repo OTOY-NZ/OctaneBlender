@@ -20,7 +20,7 @@
 
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
@@ -1077,6 +1077,28 @@ static void image_space_subtype_item_extend(bContext * /*C*/,
   RNA_enum_items_add(item, totitem, rna_enum_space_image_mode_items);
 }
 
+static blender::StringRefNull image_space_name_get(const ScrArea *area)
+{
+  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+  int index = RNA_enum_from_value(rna_enum_space_image_mode_items, sima->mode);
+  if (index < 0) {
+    index = SI_MODE_VIEW;
+  }
+  const EnumPropertyItem item = rna_enum_space_image_mode_items[index];
+  return item.name;
+}
+
+static int image_space_icon_get(const ScrArea *area)
+{
+  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+  int index = RNA_enum_from_value(rna_enum_space_image_mode_items, sima->mode);
+  if (index < 0) {
+    index = SI_MODE_VIEW;
+  }
+  const EnumPropertyItem item = rna_enum_space_image_mode_items[index];
+  return item.icon;
+}
+
 static void image_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
   SpaceImage *sima = (SpaceImage *)sl;
@@ -1132,6 +1154,8 @@ void ED_spacetype_image()
   st->space_subtype_item_extend = image_space_subtype_item_extend;
   st->space_subtype_get = image_space_subtype_get;
   st->space_subtype_set = image_space_subtype_set;
+  st->space_name_get = image_space_name_get;
+  st->space_icon_get = image_space_icon_get;
   st->blend_read_data = image_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = image_space_blend_write;
@@ -1204,6 +1228,7 @@ void ED_spacetype_image()
   art->free = asset::shelf::region_free;
   art->on_poll_success = asset::shelf::region_on_poll_success;
   art->listener = asset::shelf::region_listen;
+  art->message_subscribe = asset::shelf::region_message_subscribe;
   art->poll = asset::shelf::regions_poll;
   art->snap_size = asset::shelf::region_snap;
   art->on_user_resize = asset::shelf::region_on_user_resize;
@@ -1223,7 +1248,7 @@ void ED_spacetype_image()
   art->listener = asset::shelf::header_region_listen;
   art->context = asset::shelf::context;
   BLI_addhead(&st->regiontypes, art);
-  asset::shelf::header_regiontype_register(art, SPACE_IMAGE);
+  asset::shelf::types_register(art, SPACE_IMAGE);
 
   /* regions: hud */
   art = ED_area_type_hud(st->spaceid);

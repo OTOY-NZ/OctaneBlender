@@ -46,7 +46,7 @@ static Mesh *create_cube_mesh(const float3 size,
                               const int verts_x,
                               const int verts_y,
                               const int verts_z,
-                              const AttributeIDRef &uv_map_id)
+                              const std::optional<StringRef> &uv_map_id)
 {
   const int dimensions = (verts_x - 1 > 0) + (verts_y - 1 > 0) + (verts_z - 1 > 0);
   if (dimensions == 0) {
@@ -102,9 +102,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  AnonymousAttributeIDPtr uv_map_id = params.get_output_anonymous_attribute_id_if_needed("UV Map");
+  std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
-  Mesh *mesh = create_cube_mesh(size, verts_x, verts_y, verts_z, uv_map_id.get());
+  Mesh *mesh = create_cube_mesh(size, verts_x, verts_y, verts_z, uv_map_id);
   BKE_id_material_eval_ensure_default_slot(&mesh->id);
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
@@ -117,7 +118,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_CUBE, "Cube", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

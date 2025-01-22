@@ -17,7 +17,7 @@
 #  include "BLI_winstuff.h"
 #endif
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
@@ -33,7 +33,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "UI_interface.hh"
@@ -41,6 +41,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_asset.hh"
 #include "ED_userpref.hh"
 
 #include "MEM_guardedalloc.h"
@@ -136,7 +137,7 @@ static void PREFERENCES_OT_autoexec_path_remove(wmOperatorType *ot)
 /** \name Add Asset Library Operator
  * \{ */
 
-static int preferences_asset_library_add_exec(bContext * /*C*/, wmOperator *op)
+static int preferences_asset_library_add_exec(bContext *C, wmOperator *op)
 {
   char *path = RNA_string_get_alloc(op->ptr, "directory", nullptr, 0, nullptr);
   char dirname[FILE_MAXFILE];
@@ -152,6 +153,7 @@ static int preferences_asset_library_add_exec(bContext * /*C*/, wmOperator *op)
 
   /* There's no dedicated notifier for the Preferences. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
+  blender::ed::asset::list::clear_all_library(C);
 
   MEM_freeN(path);
   return OPERATOR_FINISHED;
@@ -204,7 +206,7 @@ static bool preferences_asset_library_remove_poll(bContext *C)
   return true;
 }
 
-static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *op)
+static int preferences_asset_library_remove_exec(bContext *C, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(
@@ -219,6 +221,7 @@ static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *o
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
+  blender::ed::asset::list::clear_all_library(C);
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
@@ -849,9 +852,9 @@ static bool associate_blend_poll(bContext *C)
 }
 
 #if !defined(__APPLE__)
-static bool associate_blend(bool do_register, bool all_users, char **error_msg)
+static bool associate_blend(bool do_register, bool all_users, char **r_error_msg)
 {
-  const bool result = WM_platform_associate_set(do_register, all_users, error_msg);
+  const bool result = WM_platform_associate_set(do_register, all_users, r_error_msg);
 #  ifdef WIN32
   if ((result == false) &&
       /* For some reason the message box isn't shown in this case. */

@@ -5,7 +5,6 @@
 import bpy
 from bpy.types import Operator
 from bpy.props import BoolProperty
-from bpy_extras.node_utils import find_base_socket_type, connect_sockets
 from bpy.app.translations import pgettext_data as data_
 
 from .node_editor.node_functions import (
@@ -206,6 +205,8 @@ class NODE_OT_connect_to_output(Operator, NodeEditorBase):
 
     def create_links(self, path, node, active_node_socket_id, socket_type):
         """Create links at each step in the node group path."""
+        from bpy_extras.node_utils import connect_sockets
+
         path = list(reversed(path))
         # Starting from the level of the active node.
         for path_index, path_element in enumerate(path[:-1]):
@@ -225,9 +226,11 @@ class NODE_OT_connect_to_output(Operator, NodeEditorBase):
 
             # Go up in the node group hierarchy.
             next_tree = path[path_index + 1].node_tree
-            node = next(n for n in next_tree.nodes
-                        if n.type == 'GROUP'
-                        and n.node_tree == tree)
+            node = next(
+                n for n in next_tree.nodes
+                if n.type == 'GROUP' and
+                n.node_tree == tree
+            )
             tree = next_tree
             active_node_socket_id = viewer_socket.identifier
         return node.outputs[active_node_socket_id]
@@ -240,6 +243,11 @@ class NODE_OT_connect_to_output(Operator, NodeEditorBase):
                 self.remove_socket(tree, socket)
 
     def invoke(self, context, event):
+        from bpy_extras.node_utils import (
+            find_base_socket_type,
+            connect_sockets,
+        )
+
         space = context.space_data
         # Ignore operator when running in wrong context.
         if self.run_in_geometry_nodes != (space.tree_type == 'GeometryNodeTree'):

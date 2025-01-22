@@ -4,7 +4,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -14,7 +14,7 @@
 #include "DNA_space_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -22,7 +22,7 @@
 
 namespace blender::ed::io {
 
-int filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
+int filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
 
   PropertyRNA *filepath_prop = RNA_struct_find_property(op->ptr, "filepath");

@@ -11,8 +11,6 @@
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
 
-shared uint shared_result;
-
 void mask_visibility_bit(uint view_id)
 {
   if (view_len > 1) {

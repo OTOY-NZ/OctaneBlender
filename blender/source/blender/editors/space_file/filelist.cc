@@ -303,6 +303,12 @@ enum {
   FL_NEED_SORTING = 1 << 4,
   FL_NEED_FILTERING = 1 << 5,
   FL_SORT_INVERT = 1 << 6,
+  /**
+   * By default, #filelist_file_cache_block() will attempt to load previews around the visible
+   * "window" of visible files. When this flag is set it won't do so, and each preview has to be
+   * queried through a #filelist_cache_previews_push() call.
+   */
+  FL_PREVIEWS_NO_AUTO_CACHE = 1 << 7,
 };
 
 /** #FileList.tags */
@@ -313,22 +319,15 @@ enum FileListTags {
   FILELIST_TAGS_NO_THREADS = (1 << 2),
 };
 
-#define SPECIAL_IMG_SIZE 256
-#define SPECIAL_IMG_ROWS 1
-#define SPECIAL_IMG_COLS 7
-
-enum {
-  SPECIAL_IMG_DOCUMENT = 0,
-  SPECIAL_IMG_DRIVE_DISC = 1,
-  SPECIAL_IMG_FOLDER = 2,
-  SPECIAL_IMG_PARENT = 3,
-  SPECIAL_IMG_DRIVE_FIXED = 4,
-  SPECIAL_IMG_DRIVE_ATTACHED = 5,
-  SPECIAL_IMG_DRIVE_REMOTE = 6,
-  SPECIAL_IMG_MAX,
+enum class SpecialFileImages {
+  Document,
+  Folder,
+  Parent,
+  /* Keep this last. */
+  _Max,
 };
 
-static ImBuf *gSpecialFileImages[SPECIAL_IMG_MAX];
+static ImBuf *gSpecialFileImages[int(SpecialFileImages::_Max)];
 
 static void filelist_readjob_main(FileListReadJob *job_params,
                                   bool *stop,
@@ -360,6 +359,8 @@ static int groupname_to_code(const char *group);
 
 static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size);
 static bool filelist_intern_entry_is_main_file(const FileListInternEntry *intern_entry);
+static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index);
+static bool filelist_file_preview_load_poll(const FileDirEntry *entry);
 
 /* ********** Sort helpers ********** */
 
@@ -632,7 +633,7 @@ static int compare_asset_catalog(void *user_data, const void *a1, const void *a2
     order = -1;
   }
   else if (catalog1 && catalog2) {
-    order = BLI_strcasecmp_natural(catalog1->path.name().c_str(), catalog2->path.name().c_str());
+    order = BLI_strcasecmp_natural(catalog1->path.c_str(), catalog2->path.c_str());
   }
 
   if (!order) {
@@ -1119,7 +1120,7 @@ void filelist_setlibrary(FileList *filelist, const AssetLibraryReference *asset_
   }
 
   if (!filelist->asset_library_ref) {
-    filelist->asset_library_ref = MEM_new<AssetLibraryReference>("filelist asset library");
+    filelist->asset_library_ref = MEM_cnew<AssetLibraryReference>("filelist asset library");
     *filelist->asset_library_ref = *asset_library_ref;
 
     filelist->flags |= FL_FORCE_RESET;
@@ -1132,50 +1133,11 @@ void filelist_setlibrary(FileList *filelist, const AssetLibraryReference *asset_
 
 /* ********** Icon/image helpers ********** */
 
-void filelist_init_icons()
-{
-  short x, y, k;
-  ImBuf *bbuf;
-  ImBuf *ibuf;
-
-  BLI_assert(G.background == false);
-
-#ifdef WITH_HEADLESS
-  bbuf = nullptr;
-#else
-  bbuf = IMB_ibImageFromMemory((const uchar *)datatoc_prvicons_png,
-                               datatoc_prvicons_png_size,
-                               IB_rect,
-                               nullptr,
-                               "<splash>");
-#endif
-  if (bbuf) {
-    for (y = 0; y < SPECIAL_IMG_ROWS; y++) {
-      for (x = 0; x < SPECIAL_IMG_COLS; x++) {
-        int tile = SPECIAL_IMG_COLS * y + x;
-        if (tile < SPECIAL_IMG_MAX) {
-          ibuf = IMB_allocImBuf(SPECIAL_IMG_SIZE, SPECIAL_IMG_SIZE, 32, IB_rect);
-          for (k = 0; k < SPECIAL_IMG_SIZE; k++) {
-            memcpy(
-                &ibuf->byte_buffer.data[4 * (k * SPECIAL_IMG_SIZE)],
-                &bbuf->byte_buffer
-                     .data[4 * ((k + y * SPECIAL_IMG_SIZE) * SPECIAL_IMG_SIZE * SPECIAL_IMG_COLS +
-                                x * SPECIAL_IMG_SIZE)],
-                SPECIAL_IMG_SIZE * sizeof(uint8_t) * 4);
-          }
-          gSpecialFileImages[tile] = ibuf;
-        }
-      }
-    }
-    IMB_freeImBuf(bbuf);
-  }
-}
-
 void filelist_free_icons()
 {
   BLI_assert(G.background == false);
 
-  for (int i = 0; i < SPECIAL_IMG_MAX; i++) {
+  for (int i = 0; i < int(SpecialFileImages::_Max); i++) {
     IMB_freeImBuf(gSpecialFileImages[i]);
     gSpecialFileImages[i] = nullptr;
   }
@@ -1186,7 +1148,7 @@ void filelist_file_get_full_path(const FileList *filelist,
                                  char r_filepath[/*FILE_MAX_LIBEXTRA*/])
 {
   if (file->asset) {
-    const std::string asset_path = file->asset->get_identifier().full_path();
+    const std::string asset_path = file->asset->full_path();
     BLI_strncpy(r_filepath, asset_path.c_str(), FILE_MAX_LIBEXTRA);
     return;
   }
@@ -1201,6 +1163,35 @@ bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEnt
    * with #FILE_ENTRY_PREVIEW_LOADING yet. */
   const bool filelist_ready = filelist_is_ready(filelist);
   return !filelist_ready || file->flags & FILE_ENTRY_PREVIEW_LOADING;
+}
+
+bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file)
+{
+  if (file->preview_icon_id) {
+    /* Already loaded. */
+    return false;
+  }
+
+  /* Wait with requests until file list reading is done, and previews may be loaded. */
+  if (!filelist_cache_previews_enabled(filelist)) {
+    return false;
+  }
+  /* #filelist_cache_previews_push() will repeat this, do here already to avoid lookup below. */
+  if (!filelist_file_preview_load_poll(file)) {
+    return false;
+  }
+
+  const int numfiles = filelist_files_ensure(filelist);
+  for (int i = 0; i < numfiles; i++) {
+    if (filelist->filelist_intern.filtered[i]->uid == file->uid) {
+      if (filelist_cache_previews_push(filelist, file, i)) {
+        return true;
+      }
+      break;
+    }
+  }
+
+  return false;
 }
 
 static FileDirEntry *filelist_geticon_get_file(FileList *filelist, const int index)
@@ -1222,20 +1213,29 @@ ImBuf *filelist_file_getimage(const FileDirEntry *file)
   return file->preview_icon_id ? BKE_icon_imbuf_get_buffer(file->preview_icon_id) : nullptr;
 }
 
+static ImBuf *filelist_ensure_special_file_image(SpecialFileImages image, int icon)
+{
+  ImBuf *ibuf = gSpecialFileImages[int(image)];
+  if (ibuf) {
+    return ibuf;
+  }
+  return gSpecialFileImages[int(image)] = UI_svg_icon_bitmap(icon, 256.0f, false);
+}
+
 ImBuf *filelist_geticon_image_ex(const FileDirEntry *file)
 {
   ImBuf *ibuf = nullptr;
 
   if (file->typeflag & FILE_TYPE_DIR) {
     if (FILENAME_IS_PARENT(file->relpath)) {
-      ibuf = gSpecialFileImages[SPECIAL_IMG_PARENT];
+      ibuf = filelist_ensure_special_file_image(SpecialFileImages::Parent, ICON_FILE_PARENT_LARGE);
     }
     else {
-      ibuf = gSpecialFileImages[SPECIAL_IMG_FOLDER];
+      ibuf = filelist_ensure_special_file_image(SpecialFileImages::Folder, ICON_FILE_FOLDER_LARGE);
     }
   }
   else {
-    ibuf = gSpecialFileImages[SPECIAL_IMG_DOCUMENT];
+    ibuf = filelist_ensure_special_file_image(SpecialFileImages::Document, ICON_FILE_LARGE);
   }
 
   return ibuf;
@@ -1650,25 +1650,22 @@ static void filelist_cache_previews_free(FileListEntryCache *cache)
   cache->flags &= ~FLC_PREVIEWS_ACTIVE;
 }
 
-static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index)
+/**
+ * Check if a preview for \a entry may be requested. Further conditions may apply, this just helps
+ * to skip plenty of entries where it's easy to tell that no valid preview will be available or is
+ * being loaded already.
+ */
+static bool filelist_file_preview_load_poll(const FileDirEntry *entry)
 {
-  FileListEntryCache *cache = &filelist->filelist_cache;
-
-  BLI_assert(cache->flags & FLC_PREVIEWS_ACTIVE);
-
-  if (entry->preview_icon_id) {
-    return;
-  }
-
   if (entry->flags & (FILE_ENTRY_INVALID_PREVIEW | FILE_ENTRY_PREVIEW_LOADING)) {
-    return;
+    return false;
   }
 
   if (!(entry->typeflag &
         (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT | FILE_TYPE_OBJECT_IO |
          FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB)))
   {
-    return;
+    return false;
   }
 
   /* If we know this is an external ID without a preview, skip loading the preview. Can save quite
@@ -1677,27 +1674,48 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
   if ((entry->typeflag & FILE_TYPE_BLENDERLIB) &&
       (entry->flags & FILE_ENTRY_BLENDERLIB_NO_PREVIEW))
   {
-    return;
+    return false;
   }
 
   /* External ID that is also a directory is never previewed. */
   if ((entry->typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_DIR)) ==
       (FILE_TYPE_BLENDERLIB | FILE_TYPE_DIR))
   {
-    return;
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * \return True if a new preview request was pushed, false otherwise (e.g. because the preview is
+ * already loaded, invalid or not supported).
+ */
+static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index)
+{
+  FileListEntryCache *cache = &filelist->filelist_cache;
+
+  BLI_assert(cache->flags & FLC_PREVIEWS_ACTIVE);
+
+  if (entry->preview_icon_id) {
+    return false;
+  }
+
+  if (!filelist_file_preview_load_poll(entry)) {
+    return false;
   }
 
   FileListInternEntry *intern_entry = filelist->filelist_intern.filtered[index];
   PreviewImage *preview_in_memory = intern_entry->local_data.preview_image;
   if (preview_in_memory && !BKE_previewimg_is_finished(preview_in_memory, ICON_SIZE_PREVIEW)) {
     /* Nothing to set yet. Wait for next call. */
-    return;
+    return false;
   }
 
   filelist_cache_preview_ensure_running(cache);
   entry->flags |= FILE_ENTRY_PREVIEW_LOADING;
 
-  FileListEntryPreview *preview = MEM_new<FileListEntryPreview>(__func__);
+  FileListEntryPreview *preview = MEM_cnew<FileListEntryPreview>(__func__);
   preview->index = index;
   preview->flags = entry->typeflag;
   preview->icon_id = 0;
@@ -1721,7 +1739,7 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
     }
     // printf("%s: %d - %s\n", __func__, preview->index, preview->filepath);
 
-    FileListEntryPreviewTaskData *preview_taskdata = MEM_new<FileListEntryPreviewTaskData>(
+    FileListEntryPreviewTaskData *preview_taskdata = MEM_cnew<FileListEntryPreviewTaskData>(
         __func__);
     preview_taskdata->preview = preview;
     BLI_task_pool_push(cache->previews_pool,
@@ -1731,6 +1749,8 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
                        filelist_cache_preview_freef);
   }
   cache->previews_todo_count++;
+
+  return true;
 }
 
 static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
@@ -2085,6 +2105,11 @@ void filelist_setrecursion(FileList *filelist, const int recursion_level)
     filelist->max_recursion = recursion_level;
     filelist->flags |= FL_FORCE_RESET;
   }
+}
+
+void filelist_set_no_preview_auto_cache(FileList *filelist)
+{
+  filelist->flags |= FL_PREVIEWS_NO_AUTO_CACHE;
 }
 
 bool filelist_needs_force_reset(const FileList *filelist)
@@ -2585,7 +2610,7 @@ bool filelist_file_cache_block(FileList *filelist, const int index)
 
   //  printf("Re-queueing previews...\n");
 
-  if (cache->flags & FLC_PREVIEWS_ACTIVE) {
+  if ((cache->flags & FLC_PREVIEWS_ACTIVE) && !(filelist->flags & FL_PREVIEWS_NO_AUTO_CACHE)) {
     /* Note we try to preview first images around given index - i.e. assumed visible ones. */
     int block_index = cache->block_cursor + (index - start_index);
     int offs_max = max_ii(end_index - index, index - start_index);
@@ -2606,6 +2631,11 @@ bool filelist_file_cache_block(FileList *filelist, const int index)
   //  printf("%s Finished!\n", __func__);
 
   return true;
+}
+
+bool filelist_cache_previews_enabled(const FileList *filelist)
+{
+  return (filelist->filelist_cache.flags & FLC_PREVIEWS_ACTIVE) != 0;
 }
 
 void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
@@ -2631,6 +2661,11 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 
     filelist_cache_previews_free(cache);
   }
+}
+
+void filelist_cache_previews_ensure_running(FileList *filelist)
+{
+  filelist_cache_preview_ensure_running(&filelist->filelist_cache);
 }
 
 bool filelist_cache_previews_update(FileList *filelist)
@@ -3246,8 +3281,9 @@ static void filelist_readjob_list_lib_add_datablock(FileListReadJob *job_params,
       if (job_params->load_asset_library) {
         /* Take ownership over the asset data (shallow copies into unique_ptr managed memory) to
          * pass it on to the asset system. */
-        std::unique_ptr metadata = std::make_unique<AssetMetaData>(*datablock_info->asset_data);
-        MEM_freeN(datablock_info->asset_data);
+        std::unique_ptr metadata = std::make_unique<AssetMetaData>(
+            std::move(*datablock_info->asset_data));
+        MEM_delete(datablock_info->asset_data);
         /* Give back a non-owning pointer, because the data-block info is still needed (e.g. to
          * update the asset index). */
         datablock_info->asset_data = metadata.get();
@@ -3590,7 +3626,7 @@ static void filelist_readjob_main_recursive(Main *bmain, FileList *filelist)
 #  endif
           //                  files->entry->nr = totbl + 1;
           files->entry->poin = id;
-          fake = id->flag & LIB_FAKEUSER;
+          fake = id->flag & ID_FLAG_FAKEUSER;
           if (ELEM(idcode, ID_MA, ID_TE, ID_LA, ID_WO, ID_IM)) {
             files->typeflag |= FILE_TYPE_IMAGE;
           }
@@ -3737,7 +3773,7 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
 
     BLI_stack_discard(todo_dirs);
 
-    /* ARRRG! We have to be very careful *not to use* common BLI_path_util helpers over
+    /* ARRRG! We have to be very careful *not to use* common `BLI_path_utils.hh` helpers over
      * entry->relpath itself (nor any path containing it), since it may actually be a datablock
      * name inside .blend file, which can have slashes and backslashes! See #46827.
      * Note that in the end, this means we 'cache' valid relative subdir once here,

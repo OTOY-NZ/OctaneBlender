@@ -162,6 +162,9 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
       case CTX_MODE_WEIGHT_GREASE_PENCIL:
         km_id = "Grease Pencil Weight Mode";
         break;
+      case CTX_MODE_VERTEX_GREASE_PENCIL:
+        km_id = "Grease Pencil Vertex Mode";
+        break;
     }
   }
   else if (sl->spacetype == SPACE_IMAGE) {
@@ -210,7 +213,6 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
 wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 {
   /* Op types purposely skipped for now:
-   *     BRUSH_OT
    *     BOID_OT
    *     BUTTONS_OT
    *     CONSTRAINT_OT
@@ -226,7 +228,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 
   /* Window. */
   if (STRPREFIX(opname, "WM_OT") || STRPREFIX(opname, "ED_OT_undo")) {
-    if (STREQ(opname, "WM_OT_tool_set_by_id")) {
+    if (STREQ(opname, "WM_OT_tool_set_by_id") || STREQ(opname, "WM_OT_call_asset_shelf_popover")) {
       km = WM_keymap_guess_from_context(C);
     }
 
@@ -336,27 +338,9 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(
         wm, "Paint Face Mask (Weight, Vertex, Texture)", SPACE_EMPTY, RGN_TYPE_WINDOW);
   }
-  else if (STRPREFIX(opname, "PAINT_OT")) {
+  else if (STRPREFIX(opname, "PAINT_OT") || STRPREFIX(opname, "BRUSH_OT")) {
     /* Check for relevant mode. */
-    switch (CTX_data_mode_enum(C)) {
-      case CTX_MODE_PAINT_WEIGHT:
-        km = WM_keymap_find_all(wm, "Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
-        break;
-      case CTX_MODE_PAINT_VERTEX:
-        km = WM_keymap_find_all(wm, "Vertex Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
-        break;
-      case CTX_MODE_PAINT_TEXTURE:
-        km = WM_keymap_find_all(wm, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
-        break;
-      case CTX_MODE_SCULPT:
-        km = WM_keymap_find_all(wm, "Sculpt", SPACE_EMPTY, RGN_TYPE_WINDOW);
-        break;
-      case CTX_MODE_SCULPT_CURVES:
-        km = WM_keymap_find_all(wm, "Sculpt Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);
-        break;
-      default:
-        break;
-    }
+    km = WM_keymap_guess_from_context(C);
   }
   /* General 2D View, not bound to a specific spacetype. */
   else if (STRPREFIX(opname, "VIEW2D_OT")) {

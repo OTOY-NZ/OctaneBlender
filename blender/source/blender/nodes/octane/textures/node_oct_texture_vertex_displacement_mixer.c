@@ -416,5 +416,5 @@ void register_node_type_tex_oct_vertex_displacement_mixer(void)
   ntype.updatefunc = (node_shader_update_oct_vertex_displacement_mixer);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_vertex_displacement_mixer() */

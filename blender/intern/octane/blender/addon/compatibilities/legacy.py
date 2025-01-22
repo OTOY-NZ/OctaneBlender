@@ -934,7 +934,8 @@ def _check_compatibility_octane_node_tree_29_15_1(node_tree):
         if octane_node_type == consts.NodeType.NT_TEX_COMPOSITE_LAYER_ADJUST_BRIGHTNESS:
             node.inputs["Luminance"].default_value *= 100.0
         if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
-            node.inputs["Brightness"].default_value *= 100.0
+            if 0 <= node.inputs["Brightness"].default_value < 100:
+                node.inputs["Brightness"].default_value *= 100.0
 
 
 def check_compatibility_octane_node_tree_28_0(file_version):

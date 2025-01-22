@@ -145,8 +145,9 @@ enum eContextObjectMode {
   CTX_MODE_PAINT_GREASE_PENCIL,
   CTX_MODE_SCULPT_GREASE_PENCIL,
   CTX_MODE_WEIGHT_GREASE_PENCIL,
+  CTX_MODE_VERTEX_GREASE_PENCIL,
 };
-#define CTX_MODE_NUM (CTX_MODE_WEIGHT_GREASE_PENCIL + 1)
+#define CTX_MODE_NUM (CTX_MODE_VERTEX_GREASE_PENCIL + 1)
 
 /* Context */
 
@@ -424,13 +425,6 @@ bool CTX_data_selected_pose_bones(const bContext *C, blender::Vector<PointerRNA>
 bool CTX_data_selected_pose_bones_from_active_object(const bContext *C,
                                                      blender::Vector<PointerRNA> *list);
 bool CTX_data_visible_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list);
-
-bGPdata *CTX_data_gpencil_data(const bContext *C);
-bGPDlayer *CTX_data_active_gpencil_layer(const bContext *C);
-bGPDframe *CTX_data_active_gpencil_frame(const bContext *C);
-bool CTX_data_visible_gpencil_layers(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_editable_gpencil_layers(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_editable_gpencil_strokes(const bContext *C, blender::Vector<PointerRNA> *list);
 
 const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C);
 class blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C);

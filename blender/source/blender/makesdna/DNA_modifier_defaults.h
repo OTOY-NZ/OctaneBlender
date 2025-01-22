@@ -52,6 +52,8 @@
     .miter_outer = MOD_BEVEL_MITER_SHARP, \
     .affect_type = MOD_BEVEL_AFFECT_EDGES, \
     .profile = 0.5f, \
+    .edge_weight_name = "bevel_weight_edge", \
+    .vertex_weight_name = "bevel_weight_vert", \
     .bevel_angle = DEG2RADF(30.0f), \
     .spread = 0.1f, \
     .defgrp_name = "", \
@@ -561,7 +563,9 @@
   }
 
 #define _DNA_DEFAULT_NodesModifierData \
-  { 0 }
+  { \
+    .bake_target = NODES_MODIFIER_BAKE_TARGET_PACKED, \
+  }
 
 #define _DNA_DEFAULT_SkinModifierData \
   { \

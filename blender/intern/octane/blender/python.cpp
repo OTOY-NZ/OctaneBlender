@@ -209,12 +209,14 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                                  height,
                                  export_type,
                                  export_path,
+                                 0,
+                                 0,
                                  dirty_resources);
   }
   else {
     /* offline session or preview render */
     session = new BlenderSession(
-        engine, preferences, data, export_type, export_path, dirty_resources);
+        engine, preferences, data, export_type, export_path, 0, 0, dirty_resources);
   }
 
   return PyLong_FromVoidPtr(session);
@@ -598,17 +600,19 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
 
 static PyObject *create_export_scene_func(PyObject * /*self*/, PyObject *args)
 {
-  int octane_export_type;
+  int octane_export_type, frame_start, frame_end;
   PyObject *pyscene, *pycontext, *pypreferences, *pydata, *py_path;
 
   if (!PyArg_ParseTuple(args,
-                        "OOOOOi",
+                        "OOOOOiii",
                         &pyscene,
                         &pycontext,
                         &pypreferences,
                         &pydata,
                         &py_path,
-                        &octane_export_type))
+                        &octane_export_type,
+                        &frame_start,
+                        &frame_end))
   {
     Py_RETURN_NONE;
   }
@@ -635,17 +639,20 @@ static PyObject *create_export_scene_func(PyObject * /*self*/, PyObject *args)
       preferences,
       data,
       path,
-      static_cast<BlenderSession::ExportType>(octane_export_type));
+      static_cast<BlenderSession::ExportType>(octane_export_type),
+      frame_start,
+      frame_end);
   if (session != NULL) {
     return PyLong_FromVoidPtr(session);
   }
   Py_RETURN_NONE;
 }
 
-static PyObject* export_current_frame_func(PyObject* /*self*/, PyObject* args) {
+static PyObject *export_current_frame_func(PyObject * /*self*/, PyObject *args)
+{
   PyObject *pysession, *pydata, *pydepsgraph;
 
-  if (!PyArg_ParseTuple(args, "OOO", &pysession, &pydata, & pydepsgraph))
+  if (!PyArg_ParseTuple(args, "OOO", &pysession, &pydata, &pydepsgraph))
     return NULL;
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
@@ -1194,7 +1201,7 @@ static PyMethodDef methods[] = {
     {"osl_compile", osl_compile_func, METH_VARARGS, ""},
     {"osl_update_node", osl_update_node_func, METH_VARARGS, ""},
     {"create_export_scene", create_export_scene_func, METH_VARARGS, ""},
-    {"export_current_frame", export_current_frame_func, METH_VARARGS, ""},    
+    {"export_current_frame", export_current_frame_func, METH_VARARGS, ""},
     {"export_localdb", export_localdb_func, METH_VARARGS, ""},
     {"heart_beat", heart_beat_func, METH_VARARGS, ""},
     {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},

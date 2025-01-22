@@ -20,10 +20,11 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_customdata.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
+#include "BKE_pointcloud.hh"
 
 #include "render/graph.h"
 #include "render/mesh.h"
@@ -43,9 +44,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "RNA_blender_cpp.h"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
+#include "RNA_blender_cpp.hh"
 
 OCT_NAMESPACE_BEGIN
 
@@ -295,6 +296,18 @@ static std::optional<BL::ByteColorAttribute> find_vertex_color_byte_color_attrib
   return std::nullopt;
 }
 
+static std::optional<BL::FloatVectorAttribute> find_point_cloud_velocity_attribute(
+    BL::PointCloud b_point_cloud)
+{
+  for (BL::Attribute &b_attribute : b_point_cloud.attributes) {
+    if (b_attribute.name() != "velocity") {
+      continue;
+    }
+    return BL::FloatVectorAttribute{b_attribute};
+  }
+  return std::nullopt;
+}
+
 static float4 hair_point_as_float4(BL::FloatVectorAttribute b_attr_position,
                                    std::optional<BL::FloatAttribute> b_attr_radius,
                                    const int index)
@@ -422,6 +435,52 @@ static void create_curves_hair(Scene *scene,
   }
 }
 
+static void create_point_cloud(Scene *scene,
+                               BL::Object &b_ob,
+                               Mesh *mesh,
+                               PointerRNA &oct_mesh,
+                               bool motion,
+                               float motion_time)
+{
+  if (b_ob.type() != BL::Object::type_POINTCLOUD) {
+    return;
+  }
+  BL::PointCloud b_pointcloud(b_ob.data());
+  const ::PointCloud &pointcloud = *static_cast<const ::PointCloud *>(b_pointcloud.ptr.data);
+  const blender::Span<blender::float3> b_positions = pointcloud.positions();
+  const blender::VArraySpan b_radius = *pointcloud.attributes().lookup<float>(
+      "radius", blender::bke::AttrDomain::Point);
+  if (b_positions.size() == 0 || b_positions.size() != b_radius.size()) {
+    mesh->octane_mesh.oMeshData.Clear();
+    mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+    mesh->empty = true;
+    return;
+  }
+  mesh->octane_mesh.oMeshData.bShowVertexData = false;
+  mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = true;
+  mesh->octane_mesh.oMeshData.f3SphereCenters.resize(b_positions.size());
+  mesh->octane_mesh.oMeshData.fSphereRadiuses.resize(b_radius.size());
+  for (const int i : b_positions.index_range()) {
+    mesh->octane_mesh.oMeshData.f3SphereCenters[i] = OctaneDataTransferObject::float_3(
+        b_positions[i][0], b_positions[i][1], b_positions[i][2]);
+    mesh->octane_mesh.oMeshData.fSphereRadiuses[i] = b_radius[i];
+  }
+  std::optional<BL::FloatVectorAttribute> b_attr_velocity = find_point_cloud_velocity_attribute(
+      b_pointcloud);
+  if (b_attr_velocity) {
+    mesh->octane_mesh.oMeshData.f3SphereSpeeds.resize(
+        mesh->octane_mesh.oMeshData.f3SphereCenters.size());
+    for (int i = 0; i < mesh->octane_mesh.oMeshData.f3SphereSpeeds.size(); i++) {
+      mesh->octane_mesh.oMeshData.f3SphereSpeeds[i] = get_octane_float3(
+          b_attr_velocity->data[i].vector(), false);
+    }
+  }
+  if (!motion) {
+    mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+    mesh->octane_mesh.oMeshData.bUpdate = true;
+  }
+}
+
 static const int *find_material_index_attribute(BL::Mesh b_mesh)
 {
   for (BL::Attribute &b_attribute : b_mesh.attributes) {
@@ -506,7 +565,7 @@ static void create_mesh(Scene *scene,
   int numngons = 0;
   const blender::bke::MeshNormalDomain normals_domain = dna_mesh.normals_domain(true);
   bool use_loop_normals = normals_domain == blender::bke::MeshNormalDomain::Corner &&
-                            (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
+                          (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
   bool use_uv = numfaces != 0 && b_mesh.uv_layers.length() != 0;
 
   if (mesh->octane_mesh.sOrbxPath.length() > 0) {
@@ -1237,7 +1296,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   std::string b_ob_name = b_ob.name();
   std::string b_ob_data_name = b_ob_data.name();
   std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
-   if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
+  if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
     mesh_name = object_mesh_name;
   }
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
@@ -1270,8 +1329,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
   bool is_octane_property_update = false;
   bool is_geometry_data_update = false;
-  std::string new_mesh_tag = generate_mesh_shader_tag(
-      used_shaders);
+  std::string new_mesh_tag = generate_mesh_shader_tag(used_shaders);
   octane_mesh->update_octane_geo_properties(b_ob.type(),
                                             oct_mesh,
                                             is_octane_property_update,
@@ -1693,6 +1751,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     else if (use_curves_as_octane_hair) {
       create_curves_hair(scene, b_ob, octane_mesh, oct_mesh, false, 0);
     }
+    else if (b_ob.type() == BL::Object::type_POINTCLOUD) {
+      create_point_cloud(scene, b_ob, octane_mesh, oct_mesh, false, 0);
+    }
     else {
       BL::Mesh b_mesh = object_to_mesh(b_data,
                                        b_ob,
@@ -1818,7 +1879,9 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
   if (b_fluid_domain.ptr.data != NULL)
     return;
 
-  if (b_ob.type() == BL::Object::type_CURVE) {
+  BL::Object::type_enum b_ob_type = b_ob.type();
+
+  if (b_ob_type == BL::Object::type_CURVE) {
     /* find shader indices */
     std::vector<Shader *> used_shaders;
     bool use_octane_vertex_displacement_subdvision = false;
@@ -1831,11 +1894,6 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
         scene, b_depsgraph, b_ob_info, b_ob, mesh, oct_mesh, used_shaders, true, motion_time);
     return;
   }
-
-  // if (b_ob.type() == BL::Object::type_CURVES) {
-  //  create_curves_hair(scene, b_ob, mesh, true, motion_time);
-  //  return;
-  //}
 
   b_mesh = object_to_mesh(b_data, b_ob, b_depsgraph, false, false, Mesh::SUBDIVISION_NONE);
 

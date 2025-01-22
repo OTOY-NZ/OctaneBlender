@@ -52,6 +52,9 @@ def draw_node_group_add_menu(context, layout):
                 ops = props.settings.add()
                 ops.name = "node_tree"
                 ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
+                ops = props.settings.add()
+                ops.name = "width"
+                ops.value = repr(group.default_group_node_width)
 
 
 def draw_assets_for_catalog(layout, catalog_path):
@@ -71,6 +74,13 @@ def add_simulation_zone(layout, label):
 
 def add_repeat_zone(layout, label):
     props = layout.operator("node.add_repeat_zone", text=label, text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+    return props
+
+
+def add_foreach_geometry_element_zone(layout, label):
+    props = layout.operator(
+        "node.add_foreach_geometry_element_zone", text=label, text_ctxt=i18n_contexts.default)
     props.use_transform = True
     return props
 

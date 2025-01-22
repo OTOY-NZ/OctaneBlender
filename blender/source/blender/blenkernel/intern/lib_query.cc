@@ -95,9 +95,16 @@ void BKE_lib_query_foreachid_process(LibraryForeachIDData *data, ID **id_pp, int
   callback_data.id_pointer = id_pp;
   callback_data.cb_flag = cb_flag;
   const int callback_return = data->callback(&callback_data);
+
   if (flag & IDWALK_READONLY) {
     BLI_assert(*(id_pp) == old_id);
   }
+  else {
+    BLI_assert_msg((callback_return & (IDWALK_RET_STOP_ITER | IDWALK_RET_STOP_RECURSION)) == 0,
+                   "Iteration over ID usages should not be interrupted by the callback in "
+                   "non-readonly cases");
+  }
+
   if (old_id && (flag & IDWALK_RECURSE)) {
     if (BLI_gset_add((data)->ids_handled, old_id)) {
       if (!(callback_return & IDWALK_RET_STOP_RECURSION)) {
@@ -113,6 +120,11 @@ void BKE_lib_query_foreachid_process(LibraryForeachIDData *data, ID **id_pp, int
 int BKE_lib_query_foreachid_process_flags_get(const LibraryForeachIDData *data)
 {
   return data->flag;
+}
+
+Main *BKE_lib_query_foreachid_process_main_get(const LibraryForeachIDData *data)
+{
+  return data->bmain;
 }
 
 int BKE_lib_query_foreachid_process_callback_flag_override(LibraryForeachIDData *data,
@@ -262,7 +274,7 @@ static bool library_foreach_ID_link(Main *bmain,
   {
     data.self_id = id;
     /* owner ID is same as self ID, except for embedded ID case. */
-    if (id->flag & LIB_EMBEDDED_DATA) {
+    if (id->flag & ID_FLAG_EMBEDDED_DATA) {
       if (flag & IDWALK_IGNORE_MISSING_OWNER_ID) {
         data.owner_id = owner_id ? owner_id : id;
       }
@@ -294,7 +306,7 @@ static bool library_foreach_ID_link(Main *bmain,
     if (inherit_data == nullptr) {
       data.cb_flag = ID_IS_LINKED(id) ? IDWALK_CB_INDIRECT_USAGE : 0;
       /* When an ID is defined as not reference-counting its ID usages, it should never do it. */
-      data.cb_flag_clear = (id->tag & LIB_TAG_NO_USER_REFCOUNT) ?
+      data.cb_flag_clear = (id->tag & ID_TAG_NO_USER_REFCOUNT) ?
                                IDWALK_CB_USER | IDWALK_CB_USER_ONE :
                                0;
     }
@@ -463,7 +475,7 @@ uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id,
   /* Casting to non const.
    * TODO(jbakker): We should introduce a ntree_id_has_tree function as we are actually not
    * interested in the result. */
-  if (blender::bke::ntreeFromID(const_cast<ID *>(owner_id))) {
+  if (blender::bke::node_tree_from_id(const_cast<ID *>(owner_id))) {
     return FILTER_ID_ALL;
   }
 
@@ -499,8 +511,8 @@ bool BKE_library_id_can_use_idtype(ID *owner_id, const short id_type_used)
 struct IDUsersIter {
   ID *id;
 
-  ListBase *lb_array[INDEX_ID_MAX];
-  int lb_idx;
+  // ListBase *lb_array[INDEX_ID_MAX]; /* UNUSED. */
+  // int lb_idx; /* UNUSED. */
 
   ID *curr_id;
   int count_direct, count_indirect; /* Set by callback. */
@@ -529,8 +541,8 @@ static int foreach_libblock_id_users_callback(LibraryIDLinkCallbackData *cb_data
           iter->id->name,
           (cb_flag & IDWALK_USER) ? 1 : 0,
           (cb_flag & IDWALK_USER_ONE) ? 1 : 0,
-          (iter->id->tag & LIB_TAG_EXTRAUSER) ? 1 : 0,
-          (iter->id->tag & LIB_TAG_EXTRAUSER_SET) ? 1 : 0,
+          (iter->id->tag & ID_TAG_EXTRAUSER) ? 1 : 0,
+          (iter->id->tag & ID_TAG_EXTRAUSER_SET) ? 1 : 0,
           (cb_flag & IDWALK_INDIRECT_USAGE) ? 1 : 0);
 #endif
       if (cb_flag & IDWALK_CB_INDIRECT_USAGE) {
@@ -723,7 +735,7 @@ static void lib_query_unused_ids_tag_id(ID *id, UnusedIDsData &data)
 static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
 {
   /* We should never deal with embedded, not-in-main IDs here. */
-  BLI_assert((id->flag & LIB_EMBEDDED_DATA) == 0);
+  BLI_assert((id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
 
   MainIDRelationsEntry *id_relations = static_cast<MainIDRelationsEntry *>(
       BLI_ghash_lookup(data.bmain->relations->relations_from_pointers, id));
@@ -747,7 +759,7 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
     return false;
   }
 
-  if ((id->flag & LIB_FAKEUSER) != 0) {
+  if ((id->flag & ID_FLAG_FAKEUSER) != 0) {
     /* This ID is forcefully kept around, and therefore never unused, no need to check it further.
      */
     id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
@@ -795,7 +807,7 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
     }
 
     ID *id_from = id_from_item->id_pointer.from;
-    if ((id_from->flag & LIB_EMBEDDED_DATA) != 0) {
+    if ((id_from->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
       /* Directly 'by-pass' to actual real ID owner. */
       id_from = BKE_id_owner_get(id_from);
       BLI_assert(id_from != nullptr);
@@ -982,8 +994,8 @@ static int foreach_libblock_used_linked_data_tag_clear_cb(LibraryIDLinkCallbackD
 
     /* If checked id is used by an assumed used ID,
      * then it is also used and not part of any linked archipelago. */
-    if (!(self_id->tag & LIB_TAG_DOIT) && ((*id_p)->tag & LIB_TAG_DOIT)) {
-      (*id_p)->tag &= ~LIB_TAG_DOIT;
+    if (!(self_id->tag & ID_TAG_DOIT) && ((*id_p)->tag & ID_TAG_DOIT)) {
+      (*id_p)->tag &= ~ID_TAG_DOIT;
       *is_changed = true;
     }
   }
@@ -997,11 +1009,11 @@ void BKE_library_unused_linked_data_set_tag(Main *bmain, const bool do_init_tag)
 
   if (do_init_tag) {
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      if (id->lib && (id->tag & LIB_TAG_INDIRECT) != 0) {
-        id->tag |= LIB_TAG_DOIT;
+      if (id->lib && (id->tag & ID_TAG_INDIRECT) != 0) {
+        id->tag |= ID_TAG_DOIT;
       }
       else {
-        id->tag &= ~LIB_TAG_DOIT;
+        id->tag &= ~ID_TAG_DOIT;
       }
     }
     FOREACH_MAIN_ID_END;
@@ -1011,7 +1023,7 @@ void BKE_library_unused_linked_data_set_tag(Main *bmain, const bool do_init_tag)
     do_loop = false;
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
       /* We only want to check that ID if it is currently known as used... */
-      if ((id->tag & LIB_TAG_DOIT) == 0) {
+      if ((id->tag & ID_TAG_DOIT) == 0) {
         BKE_library_foreach_ID_link(
             bmain, id, foreach_libblock_used_linked_data_tag_clear_cb, &do_loop, IDWALK_READONLY);
       }
@@ -1031,7 +1043,7 @@ void BKE_library_indirectly_used_data_tag_clear(Main *bmain)
 
     while (i--) {
       LISTBASE_FOREACH (ID *, id, lb_array[i]) {
-        if (!ID_IS_LINKED(id) || id->tag & LIB_TAG_DOIT) {
+        if (!ID_IS_LINKED(id) || id->tag & ID_TAG_DOIT) {
           /* Local or non-indirectly-used ID (so far), no need to check it further. */
           continue;
         }

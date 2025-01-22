@@ -82,7 +82,7 @@
 #include "BLI_threads.h"
 
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "IMB_allocimbuf.hh"
 #include "IMB_colormanagement.hh"
@@ -95,7 +95,7 @@ using namespace Imf;
 using namespace Imath;
 
 /* prototype */
-static struct ExrPass *imb_exr_get_pass(ListBase *lb, char *passname);
+static struct ExrPass *imb_exr_get_pass(ListBase *lb, const char *passname);
 static bool exr_has_multiview(MultiPartInputFile &file);
 static bool exr_has_multipart_file(MultiPartInputFile &file);
 static bool exr_has_alpha(MultiPartInputFile &file);
@@ -1158,7 +1158,7 @@ void IMB_exr_write_channels(void *handle)
     LISTBASE_FOREACH (ExrChannel *, echan, &data->channels) {
       /* Writing starts from last scan-line, stride negative. */
       if (echan->use_half_float) {
-        float *rect = echan->rect;
+        const float *rect = echan->rect;
         half *cur = current_rect_half;
         for (size_t i = 0; i < num_pixels; i++, cur++) {
           *cur = float_to_half_safe(rect[i * echan->xstride]);
@@ -1567,7 +1567,7 @@ static int imb_exr_split_channel_name(ExrChannel *echan,
   return 1;
 }
 
-static ExrLayer *imb_exr_get_layer(ListBase *lb, char *layname)
+static ExrLayer *imb_exr_get_layer(ListBase *lb, const char *layname)
 {
   ExrLayer *lay = (ExrLayer *)BLI_findstring(lb, layname, offsetof(ExrLayer, name));
 
@@ -1580,7 +1580,7 @@ static ExrLayer *imb_exr_get_layer(ListBase *lb, char *layname)
   return lay;
 }
 
-static ExrPass *imb_exr_get_pass(ListBase *lb, char *passname)
+static ExrPass *imb_exr_get_pass(ListBase *lb, const char *passname)
 {
   ExrPass *pass = (ExrPass *)BLI_findstring(lb, passname, offsetof(ExrPass, name));
 
@@ -2154,7 +2154,8 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
           size_t xstride = sizeof(float[4]);
           size_t ystride = -xstride * width;
 
-          imb_addrectfloatImBuf(ibuf, 4);
+          /* No need to clear image memory, it will be fully written below. */
+          imb_addrectfloatImBuf(ibuf, 4, false);
 
           /* Inverse correct first pixel for data-window
            * coordinates (- dw.min.y because of y flip). */

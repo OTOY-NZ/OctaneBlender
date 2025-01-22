@@ -64,19 +64,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttrDomain domain = AttrDomain(storage.domain);
   const GeometryNodeDeleteGeometryMode mode = (GeometryNodeDeleteGeometryMode)storage.mode;
 
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Geometry");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
 
   if (domain == AttrDomain::Instance) {
     bool is_error;
-    geometry::separate_geometry(geometry_set, domain, mode, selection, propagation_info, is_error);
+    geometry::separate_geometry(geometry_set, domain, mode, selection, attribute_filter, is_error);
   }
   else {
     geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
       bool is_error;
       /* Invert here because we want to keep the things not in the selection. */
       geometry::separate_geometry(
-          geometry_set, domain, mode, selection, propagation_info, is_error);
+          geometry_set, domain, mode, selection, attribute_filter, is_error);
     });
   }
 
@@ -106,8 +105,7 @@ static void node_rna(StructRNA *srna)
                     "Which domain to delete in",
                     rna_enum_attribute_domain_without_corner_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point),
-                    enums::domain_without_corner_experimental_grease_pencil_version3_fn);
+                    int(AttrDomain::Point));
 }
 
 static void node_register()
@@ -125,7 +123,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

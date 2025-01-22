@@ -19,11 +19,11 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h" /* BKE_pose_channel_find_name */
+#include "BKE_action.hh" /* BKE_pose_channel_find_name */
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lattice.hh"
 
 #include "BKE_modifier.hh"

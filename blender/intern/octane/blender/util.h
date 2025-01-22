@@ -21,7 +21,7 @@
 #include "DNA_meshdata_types.h"
 #include "MEM_guardedalloc.h"
 #include "RNA_access.hh"
-#include "RNA_blender_cpp.h"
+#include "RNA_blender_cpp.hh"
 #include "RNA_types.hh"
 #include "render/mesh.h"
 #include "render/osl.h"
@@ -37,20 +37,14 @@
 #include "util/vector.h"
 
 #include "BKE_mesh.hh"
+#include "BKE_image.hh"
+#include "BLI_path_utils.hh"
 
 /* Hacks to hook into Blender API
  * todo: clean this up ... */
 
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
-void BLI_path_split_dir_part(const char *filepath, char *dir, const size_t dir_maxncpy);
-bool BLI_path_frame(char *path, size_t path_maxncpy, int frame, int digits);
-const char *BLI_path_extension(const char *filepath);
-void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
-void BKE_image_user_file_path(void *iuser, void *ima, char *path);
-unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame, int tile);
-float *BKE_image_get_float_pixels_for_frame(void *image, int frame, int tile);
-struct Image *BKE_image_load_exists(struct Main *bmain, const char *filepath);
 }
 
 OCT_NAMESPACE_BEGIN
@@ -355,8 +349,10 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
   if (!load_tiled) {
     iuser.tile(0);
   }
-  BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
-  BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
+  BKE_image_user_frame_calc(
+      static_cast<Image *>(ima.ptr.data), static_cast<ImageUser *>(iuser.ptr.data), cfra);
+  BKE_image_user_file_path(
+      static_cast<ImageUser *>(iuser.ptr.data), static_cast<Image *>(ima.ptr.data), filepath);
 
   string filepath_str = std::string(filepath);
 #ifdef WIN32
@@ -372,18 +368,19 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
 
 static inline int image_user_frame_number(BL::ImageUser &iuser, BL::Image &ima, int cfra)
 {
-  BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
+  BKE_image_user_frame_calc(
+      static_cast<Image *>(ima.ptr.data), static_cast<ImageUser *>(iuser.ptr.data), cfra);
   return iuser.frame_current();
 }
 
 static inline unsigned char *image_get_pixels_for_frame(BL::Image &image, int frame, int tile)
 {
-  return BKE_image_get_pixels_for_frame(image.ptr.data, frame, tile);
+  return BKE_image_get_pixels_for_frame(static_cast<Image *>(image.ptr.data), frame, tile);
 }
 
 static inline float *image_get_float_pixels_for_frame(BL::Image &image, int frame, int tile)
 {
-  return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame, tile);
+  return BKE_image_get_float_pixels_for_frame(static_cast<Image *>(image.ptr.data), frame, tile);
 }
 
 static inline void render_add_metadata(BL::RenderResult &b_rr, string name, string value)

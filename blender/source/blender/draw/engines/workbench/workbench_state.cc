@@ -12,6 +12,7 @@
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pbvh_api.hh"
+
 #include "DEG_depsgraph_query.hh"
 #include "DNA_fluid_types.h"
 #include "ED_paint.hh"
@@ -31,8 +32,12 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  GPUTexture *viewport_tx = DRW_viewport_texture_list_get()->color;
-  resolution = int2(GPU_texture_width(viewport_tx), GPU_texture_height(viewport_tx));
+  if (assign_if_different(resolution, int2(float2(DRW_viewport_size_get())))) {
+    /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
+     * This is the case when dragging a window between two screen with different DPI settings.
+     * (See #128712) */
+    reset_taa = true;
+  }
 
   camera_object = camera_ob;
   if (camera_object == nullptr && v3d && rv3d) {
@@ -152,17 +157,6 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     reset_taa = true;
   }
 
-  bool _overlays_enabled = v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS);
-  /* Depth is always required in Wireframe mode. */
-  _overlays_enabled = _overlays_enabled || shading.type < OB_SOLID;
-  /* Some overlay passes can be rendered even with overlays disabled (See #116403). */
-  _overlays_enabled = _overlays_enabled || new_clip_state & DRW_STATE_CLIP_PLANES;
-  if (assign_if_different(overlays_enabled, _overlays_enabled)) {
-    /* Reset TAA when enabling overlays, since we won't have valid sample0 depth textures.
-     * (See #113741) */
-    reset_taa = true;
-  }
-
   if (reset_taa || samples_len <= 1) {
     sample = 0;
   }
@@ -244,7 +238,8 @@ ObjectState::ObjectState(const SceneState &scene_state,
   }
 
   if (sculpt_pbvh) {
-    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(*ob->sculpt->pbvh) != PBVH_FACES)
+    if (color_type == V3D_SHADING_TEXTURE_COLOR &&
+        bke::object::pbvh_get(*ob)->type() != bke::pbvh::Type::Mesh)
     {
       /* Force use of material color for sculpt. */
       color_type = V3D_SHADING_MATERIAL_COLOR;

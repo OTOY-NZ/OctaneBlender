@@ -52,7 +52,7 @@ def _enable(template_id, *, handle_error=None, ignore_not_found=False):
         # 1) try import
         try:
             mod = import_from_id(template_id, ignore_not_found=ignore_not_found)
-        except BaseException as ex:
+        except Exception as ex:
             handle_error(ex)
             return None
 
@@ -64,7 +64,7 @@ def _enable(template_id, *, handle_error=None, ignore_not_found=False):
         # 2) try run the modules register function
         try:
             mod.register()
-        except BaseException as ex:
+        except Exception as ex:
             print("Exception in module register(): {!r}".format(getattr(mod, "__file__", template_id)))
             handle_error(ex)
             del _modules[template_id]
@@ -84,10 +84,10 @@ def _disable(template_id, *, handle_error=None):
     Disables a template by name.
 
     :arg template_id: The name of the template and module.
-    :type template_id: string
+    :type template_id: str
     :arg handle_error: Called in the case of an error,
        taking an exception argument.
-    :type handle_error: function
+    :type handle_error: Callable[[Exception], None] | None
     """
 
     if handle_error is None:
@@ -105,7 +105,7 @@ def _disable(template_id, *, handle_error=None):
 
         try:
             mod.unregister()
-        except BaseException as ex:
+        except Exception as ex:
             print("Exception in module unregister(): {!r}".format(getattr(mod, "__file__", template_id)))
             handle_error(ex)
     else:

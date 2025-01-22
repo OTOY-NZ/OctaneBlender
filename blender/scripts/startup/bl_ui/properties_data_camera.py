@@ -7,6 +7,7 @@ from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bl_ui.utils import PresetPanel
+from .space_properties import PropertiesAnimationMixin
 
 
 class CameraButtonsPanel:
@@ -27,7 +28,6 @@ class CAMERA_PT_presets(PresetPanel, Panel):
     preset_add_operator = "camera.preset_add"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -40,7 +40,6 @@ class CAMERA_PT_safe_areas_presets(PresetPanel, Panel):
     preset_add_operator = "camera.safe_areas_preset_add"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -51,7 +50,6 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
     bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -74,7 +72,6 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
     bl_translation_context = i18n_contexts.id_camera
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -123,8 +120,17 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     col.prop(cam, "fisheye_polynomial_k2", text="K2")
                     col.prop(cam, "fisheye_polynomial_k3", text="K3")
                     col.prop(cam, "fisheye_polynomial_k4", text="K4")
+                elif cam.panorama_type == 'CENTRAL_CYLINDRICAL':
+                    sub = col.column(align=True)
+                    sub.prop(cam, "central_cylindrical_range_v_min", text="Height Min")
+                    sub.prop(cam, "central_cylindrical_range_v_max", text="Max")
+                    sub = col.column(align=True)
+                    sub.prop(cam, "central_cylindrical_range_u_min", text="Longitude Min")
+                    sub.prop(cam, "central_cylindrical_range_u_max", text="Max")
+                    sub = col.column(align=True)
+                    sub.prop(cam, "central_cylindrical_radius", text="Cylinder radius")
 
-            elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
+            elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
                 if cam.lens_unit == 'MILLIMETERS':
                     col.prop(cam, "lens")
                 elif cam.lens_unit == 'FOV':
@@ -148,7 +154,6 @@ class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -201,7 +206,6 @@ class DATA_PT_camera(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -234,7 +238,10 @@ class DATA_PT_camera(CameraButtonsPanel, Panel):
 class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
     bl_label = "Depth of Field"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw_header(self, context):
         cam = context.camera
@@ -267,7 +274,10 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
 class DATA_PT_camera_dof_aperture(CameraButtonsPanel, Panel):
     bl_label = "Aperture"
     bl_parent_id = "DATA_PT_camera_dof"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -293,7 +303,6 @@ class DATA_PT_camera_background_image(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -407,7 +416,6 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -445,7 +453,6 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -477,7 +484,6 @@ class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -512,7 +518,6 @@ class DATA_PT_camera_safe_areas_center_cut(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -538,10 +543,18 @@ class DATA_PT_camera_safe_areas_center_cut(CameraButtonsPanel, Panel):
         col.prop(safe_data, "action_center", slider=True)
 
 
+class DATA_PT_camera_animation(CameraButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+    _animated_id_context_property = "camera"
+
+
 class DATA_PT_custom_props_camera(CameraButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -586,6 +599,7 @@ classes = (
     DATA_PT_camera_background_image,
     DATA_PT_camera_display,
     DATA_PT_camera_display_composition_guides,
+    DATA_PT_camera_animation,
     DATA_PT_custom_props_camera,
 )
 

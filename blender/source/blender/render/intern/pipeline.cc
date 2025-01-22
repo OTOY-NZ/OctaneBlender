@@ -34,6 +34,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rect.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
@@ -48,9 +49,9 @@
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_image_save.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
@@ -220,16 +221,21 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
                                megs_peak_memory,
                                info_time_str,
                                rs->infostr);
-  fprintf(stdout, "%s\n", message);
 
-  /* Flush stdout to be sure python callbacks are printing stuff after blender. */
-  fflush(stdout);
+  if (!G.quiet) {
+    fprintf(stdout, "%s\n", message);
+
+    /* Flush stdout to be sure python callbacks are printing stuff after blender. */
+    fflush(stdout);
+  }
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
   BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, message);
 
-  fflush(stdout);
+  if (!G.quiet) {
+    fflush(stdout);
+  }
 
   MEM_freeN(message);
 
@@ -649,7 +655,7 @@ void RE_FreeAllPersistentData()
 static void re_gpu_texture_caches_free(Render *re)
 {
   /* Free persistent compositor that may be using these textures. */
-  if (re->gpu_compositor) {
+  if (re->compositor) {
     RE_compositor_free(*re);
   }
 
@@ -773,7 +779,8 @@ void RE_FreePersistentData(const Scene *scene)
 /** \name Initialize State
  * \{ */
 
-static void re_init_resolution(Render *re, Render *source, int winx, int winy, rcti *disprect)
+static void re_init_resolution(
+    Render *re, Render *source, int winx, int winy, const rcti *disprect)
 {
   re->winx = winx;
   re->winy = winy;
@@ -825,7 +832,7 @@ void RE_InitState(Render *re,
                   ViewLayer *single_layer,
                   int winx,
                   int winy,
-                  rcti *disprect)
+                  const rcti *disprect)
 {
   bool had_freestyle = (re->r.mode & R_EDGE_FRS) != 0;
 
@@ -1171,39 +1178,50 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   do_render_engine(resc);
 }
 
-/**
- * Helper call to detect if this scene needs a render,
- * or if there's a any render layer to render.
- */
-static bool compositor_needs_render(Scene *sce, const bool this_scene)
+/* Get the scene referenced by the given node if the node uses its render. Returns nullptr
+ * otherwise. */
+static Scene *get_scene_referenced_by_node(const bNode *node)
 {
-  bNodeTree *ntree = sce->nodetree;
+  if (node->flag & NODE_MUTED) {
+    return nullptr;
+  }
+
+  if (node->type == CMP_NODE_R_LAYERS) {
+    return reinterpret_cast<Scene *>(node->id);
+  }
+  else if (node->type == CMP_NODE_CRYPTOMATTE &&
+           node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
+  {
+    return reinterpret_cast<Scene *>(node->id);
+  }
+
+  return nullptr;
+}
+
+/* Returns true if the given scene needs a render, either because it doesn't use the compositor
+ * pipeline and thus needs a simple render, or that its compositor node tree requires the scene to
+ * be rendered. */
+static bool compositor_needs_render(Scene *scene)
+{
+  bNodeTree *ntree = scene->nodetree;
 
   if (ntree == nullptr) {
     return true;
   }
-  if (sce->use_nodes == false) {
+  if (scene->use_nodes == false) {
     return true;
   }
-  if ((sce->r.scemode & R_DOCOMP) == 0) {
+  if ((scene->r.scemode & R_DOCOMP) == 0) {
     return true;
   }
 
   for (const bNode *node : ntree->all_nodes()) {
-    if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
-      if (this_scene == 0 || node->id == nullptr || node->id == &sce->id) {
-        return true;
-      }
-    }
-
-    if (node->type == CMP_NODE_CRYPTOMATTE &&
-        node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER && (node->flag & NODE_MUTED) == 0)
-    {
-      if (this_scene == 0 || node->id == nullptr || node->id == &sce->id) {
-        return true;
-      }
+    Scene *node_scene = get_scene_referenced_by_node(node);
+    if (node_scene && node_scene == scene) {
+      return true;
     }
   }
+
   return false;
 }
 
@@ -1230,62 +1248,43 @@ static bool node_tree_has_composite_output(const bNodeTree *node_tree)
   return false;
 }
 
-/* Render all scenes within a compositor node tree. */
+/* Render all scenes references by the compositor of the given render's scene. */
 static void do_render_compositor_scenes(Render *re)
 {
-  int cfra = re->scene->r.cfra;
-  Scene *restore_scene = re->scene;
-
   if (re->scene->nodetree == nullptr) {
     return;
   }
 
-  bool changed_scene = false;
-
-  /* now foreach render-result node we do a full render */
-  /* results are stored in a way compositor will find it */
-  GSet *scenes_rendered = BLI_gset_ptr_new(__func__);
+  /* For each node that requires a scene we do a full render. Results are stored in a way
+   * compositor will find it. */
+  blender::Set<Scene *> scenes_rendered;
   for (bNode *node : re->scene->nodetree->all_nodes()) {
-    if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
-      if (node->id && node->id != (ID *)re->scene) {
-        Scene *scene = (Scene *)node->id;
-        if (!BLI_gset_haskey(scenes_rendered, scene) &&
-            render_scene_has_layers_to_render(scene, nullptr))
-        {
-          do_render_compositor_scene(re, scene, cfra);
-          BLI_gset_add(scenes_rendered, scene);
-          node->typeinfo->updatefunc(restore_scene->nodetree, node);
-
-          if (scene != re->scene) {
-            changed_scene = true;
-          }
-        }
-      }
+    Scene *node_scene = get_scene_referenced_by_node(node);
+    if (!node_scene) {
+      continue;
     }
 
-    if (node->type == CMP_NODE_CRYPTOMATTE &&
-        node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER && (node->flag & NODE_MUTED) == 0)
-    {
-      if (node->id && node->id != (ID *)re->scene) {
-        Scene *scene = (Scene *)node->id;
-        if (!BLI_gset_haskey(scenes_rendered, scene) &&
-            render_scene_has_layers_to_render(scene, nullptr))
-        {
-          do_render_compositor_scene(re, scene, cfra);
-          BLI_gset_add(scenes_rendered, scene);
-          node->typeinfo->updatefunc(restore_scene->nodetree, node);
-
-          if (scene != re->scene) {
-            changed_scene = true;
-          }
-        }
-      }
+    /* References the current scene, which was already rendered. */
+    if (node_scene == re->scene) {
+      continue;
     }
+
+    /* Scene already rendered as required by another node. */
+    if (scenes_rendered.contains(node_scene)) {
+      continue;
+    }
+
+    if (!render_scene_has_layers_to_render(node_scene, nullptr)) {
+      continue;
+    }
+
+    scenes_rendered.add_new(node_scene);
+    do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
+    node->typeinfo->updatefunc(re->scene->nodetree, node);
   }
-  BLI_gset_free(scenes_rendered, nullptr);
 
-  if (changed_scene) {
-    /* If rendered another scene, switch back to the current scene with compositing nodes. */
+  /* If another scene was rendered, switch back to the current scene. */
+  if (!scenes_rendered.is_empty()) {
     re->current_scene_update(re->scene);
   }
 }
@@ -1308,7 +1307,7 @@ static void do_render_compositor(Render *re)
   bNodeTree *ntree = re->pipeline_scene_eval->nodetree;
   bool update_newframe = false;
 
-  if (compositor_needs_render(re->pipeline_scene_eval, true)) {
+  if (compositor_needs_render(re->pipeline_scene_eval)) {
     /* render the frames
      * it could be optimized to render only the needed view
      * but what if a scene has a different number of views
@@ -2188,7 +2187,9 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       /* imbuf knows which rects are not part of ibuf */
       IMB_freeImBuf(ibuf);
     }
-    printf("Append frame %d\n", scene->r.cfra);
+    if (!G.quiet) {
+      printf("Append frame %d\n", scene->r.cfra);
+    }
   }
   else { /* R_IMF_VIEWS_STEREO_3D */
     const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
@@ -2286,16 +2287,21 @@ static bool do_write_image_or_movie(Render *re,
         filepath, sizeof(filepath), re->i.lastframetime - render_time);
     message = fmt::format("{} (Saving: {})", message, filepath);
   }
-  printf("%s\n", message.c_str());
-  /* Flush stdout to be sure python callbacks are printing stuff after blender. */
-  fflush(stdout);
+
+  if (!G.quiet) {
+    printf("%s\n", message.c_str());
+    /* Flush stdout to be sure python callbacks are printing stuff after blender. */
+    fflush(stdout);
+  }
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
   render_callback_exec_string(re, G_MAIN, BKE_CB_EVT_RENDER_STATS, message.c_str());
 
-  fputc('\n', stdout);
-  fflush(stdout);
+  if (!G.quiet) {
+    fputc('\n', stdout);
+    fflush(stdout);
+  }
 
   return ok;
 }
@@ -2477,7 +2483,9 @@ void RE_RenderAnim(Render *re,
       if (rd.mode & R_NO_OVERWRITE) {
         if (!is_multiview_name) {
           if (BLI_exists(filepath)) {
-            printf("skipping existing frame \"%s\"\n", filepath);
+            if (!G.quiet) {
+              printf("skipping existing frame \"%s\"\n", filepath);
+            }
             totskipped++;
             continue;
           }
@@ -2494,7 +2502,10 @@ void RE_RenderAnim(Render *re,
             BKE_scene_multiview_filepath_get(srv, filepath, filepath_view);
             if (BLI_exists(filepath_view)) {
               is_skip = true;
-              printf("skipping existing frame \"%s\" for view \"%s\"\n", filepath_view, srv->name);
+              if (!G.quiet) {
+                printf(
+                    "skipping existing frame \"%s\" for view \"%s\"\n", filepath_view, srv->name);
+              }
             }
           }
 

@@ -37,7 +37,9 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -45,7 +47,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
@@ -55,6 +57,7 @@
 #include "BKE_curve.hh"
 #include "BKE_curve_to_mesh.hh"
 #include "BKE_curves.h"
+#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_displist.h"
 #include "BKE_duplilist.hh"
@@ -82,7 +85,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -583,9 +586,8 @@ void add_generic_get_opts(bContext *C,
           break;
         case ALIGN_CURSOR: {
           const Scene *scene = CTX_data_scene(C);
-          float tmat[3][3];
-          BKE_scene_cursor_rot_to_mat3(&scene->cursor, tmat);
-          mat3_normalized_to_eul(r_rot, tmat);
+          const float3x3 tmat = scene->cursor.matrix<float3x3>();
+          mat3_normalized_to_eul(r_rot, tmat.ptr());
           RNA_float_set_array(op->ptr, "rotation", r_rot);
           break;
         }
@@ -1357,216 +1359,8 @@ void OBJECT_OT_empty_image_add(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add Gpencil (legacy) Operator
+/** \name Add Grease Pencil Operator
  * \{ */
-
-static bool object_gpencil_add_poll(bContext *C)
-{
-  Scene *scene = CTX_data_scene(C);
-  Object *obact = CTX_data_active_object(C);
-
-  if ((scene == nullptr) || !ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
-    return false;
-  }
-
-  if (obact && obact->type == OB_GPENCIL_LEGACY) {
-    if (obact->mode != OB_MODE_OBJECT) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static int object_gpencil_add_exec(bContext *C, wmOperator *op)
-{
-  Object *ob = CTX_data_active_object(C), *ob_orig = ob;
-  bGPdata *gpd = (ob && (ob->type == OB_GPENCIL_LEGACY)) ? static_cast<bGPdata *>(ob->data) :
-                                                           nullptr;
-
-  const int type = RNA_enum_get(op->ptr, "type");
-  const bool use_in_front = RNA_boolean_get(op->ptr, "use_in_front");
-  const bool use_lights = RNA_boolean_get(op->ptr, "use_lights");
-  const int stroke_depth_order = RNA_enum_get(op->ptr, "stroke_depth_order");
-  const float stroke_depth_offset = RNA_float_get(op->ptr, "stroke_depth_offset");
-
-  ushort local_view_bits;
-  float loc[3], rot[3];
-  bool newob = false;
-
-  /* NOTE: We use 'Y' here (not 'Z'), as. */
-  WM_operator_view3d_unit_defaults(C, op);
-  add_generic_get_opts(C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
-
-  /* Add new object if not currently editing a GP object. */
-  if ((gpd == nullptr) || (GPENCIL_ANY_MODE(gpd) == false)) {
-    const char *ob_name = nullptr;
-    switch (type) {
-      case GP_EMPTY: {
-        ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "GPencil");
-        break;
-      }
-      case GP_MONKEY: {
-        ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "Suzanne");
-        break;
-      }
-      case GP_STROKE: {
-        ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "Stroke");
-        break;
-      }
-      case GREASE_PENCIL_LINEART_OBJECT:
-      case GREASE_PENCIL_LINEART_SCENE:
-      case GREASE_PENCIL_LINEART_COLLECTION: {
-        ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "LineArt");
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-
-    ob = add_type(C, OB_GPENCIL_LEGACY, ob_name, loc, rot, true, local_view_bits);
-    gpd = static_cast<bGPdata *>(ob->data);
-    newob = true;
-  }
-  else {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_ADDED, nullptr);
-  }
-
-  /* create relevant geometry */
-  switch (type) {
-    case GP_EMPTY: {
-      float mat[4][4];
-
-      new_primitive_matrix(C, ob, loc, rot, nullptr, mat);
-      ED_gpencil_create_blank(C, ob, mat);
-      break;
-    }
-    case GP_STROKE: {
-      float radius = RNA_float_get(op->ptr, "radius");
-      float scale[3];
-      copy_v3_fl(scale, radius);
-      float mat[4][4];
-
-      new_primitive_matrix(C, ob, loc, rot, scale, mat);
-
-      ED_gpencil_create_stroke(C, ob, mat);
-      break;
-    }
-    case GP_MONKEY: {
-      float radius = RNA_float_get(op->ptr, "radius");
-      float scale[3];
-      copy_v3_fl(scale, radius);
-      float mat[4][4];
-
-      new_primitive_matrix(C, ob, loc, rot, scale, mat);
-
-      ED_gpencil_create_monkey(C, ob, mat);
-      break;
-    }
-    case GREASE_PENCIL_LINEART_SCENE:
-    case GREASE_PENCIL_LINEART_COLLECTION:
-    case GREASE_PENCIL_LINEART_OBJECT: {
-      float radius = RNA_float_get(op->ptr, "radius");
-      float scale[3];
-      copy_v3_fl(scale, radius);
-      float mat[4][4];
-
-      new_primitive_matrix(C, ob, loc, rot, scale, mat);
-
-      ED_gpencil_create_lineart(C, ob);
-
-      gpd = static_cast<bGPdata *>(ob->data);
-
-      /* Add Line Art modifier */
-      LineartGpencilModifierData *md = (LineartGpencilModifierData *)BKE_gpencil_modifier_new(
-          eGpencilModifierType_Lineart);
-      BLI_addtail(&ob->greasepencil_modifiers, md);
-      BKE_gpencil_modifier_unique_name(&ob->greasepencil_modifiers, (GpencilModifierData *)md);
-
-      if (type == GREASE_PENCIL_LINEART_COLLECTION) {
-        md->source_type = LINEART_SOURCE_COLLECTION;
-        md->source_collection = CTX_data_collection(C);
-      }
-      else if (type == GREASE_PENCIL_LINEART_OBJECT) {
-        md->source_type = LINEART_SOURCE_OBJECT;
-        md->source_object = ob_orig;
-      }
-      else {
-        /* Whole scene. */
-        md->source_type = LINEART_SOURCE_SCENE;
-      }
-      /* Only created one layer and one material. */
-      STRNCPY(md->target_layer, ((bGPDlayer *)gpd->layers.first)->info);
-      md->target_material = BKE_gpencil_material(ob, 1);
-      if (md->target_material) {
-        id_us_plus(&md->target_material->id);
-      }
-
-      if (use_lights) {
-        ob->dtx |= OB_USE_GPENCIL_LIGHTS;
-      }
-      else {
-        ob->dtx &= ~OB_USE_GPENCIL_LIGHTS;
-      }
-
-      /* Stroke object is drawn in front of meshes by default. */
-      if (use_in_front) {
-        ob->dtx |= OB_DRAW_IN_FRONT;
-      }
-      else {
-        if (stroke_depth_order == GP_DRAWMODE_3D) {
-          gpd->draw_mode = GP_DRAWMODE_3D;
-        }
-        md->stroke_depth_offset = stroke_depth_offset;
-      }
-
-      break;
-    }
-    default:
-      BKE_report(op->reports, RPT_WARNING, "Not implemented");
-      break;
-  }
-
-  /* If this is a new object, initialize default stuff (colors, etc.) */
-  if (newob) {
-    /* Set default viewport color to black. */
-    copy_v3_fl(ob->color, 0.0f);
-
-    ED_gpencil_add_defaults(C, ob);
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-static void object_add_ui(bContext * /*C*/, wmOperator *op)
-{
-  uiLayout *layout = op->layout;
-
-  uiLayoutSetPropSep(layout, true);
-
-  uiItemR(layout, op->ptr, "radius", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "align", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "location", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "type", UI_ITEM_NONE, nullptr, ICON_NONE);
-
-  int type = RNA_enum_get(op->ptr, "type");
-  if (ELEM(type,
-           GREASE_PENCIL_LINEART_COLLECTION,
-           GREASE_PENCIL_LINEART_OBJECT,
-           GREASE_PENCIL_LINEART_SCENE))
-  {
-    uiItemR(layout, op->ptr, "use_lights", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "use_in_front", UI_ITEM_NONE, nullptr, ICON_NONE);
-    bool in_front = RNA_boolean_get(op->ptr, "use_in_front");
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiLayoutSetActive(col, !in_front);
-    uiItemR(col, op->ptr, "stroke_depth_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, op->ptr, "stroke_depth_order", UI_ITEM_NONE, nullptr, ICON_NONE);
-  }
-}
 
 static EnumPropertyItem rna_enum_gpencil_add_stroke_depth_order_items[] = {
     {GP_DRAWMODE_2D,
@@ -1578,65 +1372,11 @@ static EnumPropertyItem rna_enum_gpencil_add_stroke_depth_order_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-void OBJECT_OT_gpencil_add(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Add Grease Pencil";
-  ot->description = "Add a Grease Pencil object to the scene";
-  ot->idname = "OBJECT_OT_gpencil_add";
-
-  /* api callbacks */
-  ot->invoke = WM_menu_invoke;
-  ot->exec = object_gpencil_add_exec;
-  ot->poll = object_gpencil_add_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  /* ui */
-  ot->ui = object_add_ui;
-
-  /* properties */
-  add_unit_props_radius(ot);
-  add_generic_props(ot, false);
-
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_gpencil_type_items, 0, "Type", "");
-  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-  RNA_def_boolean(ot->srna,
-                  "use_in_front",
-                  true,
-                  "Show In Front",
-                  "Show Line Art grease pencil in front of everything");
-  RNA_def_float(ot->srna,
-                "stroke_depth_offset",
-                0.05f,
-                0.0f,
-                FLT_MAX,
-                "Stroke Offset",
-                "Stroke offset for the Line Art modifier",
-                0.0f,
-                0.5f);
-  RNA_def_boolean(
-      ot->srna, "use_lights", false, "Use Lights", "Use lights for this grease pencil object");
-  RNA_def_enum(
-      ot->srna,
-      "stroke_depth_order",
-      rna_enum_gpencil_add_stroke_depth_order_items,
-      GP_DRAWMODE_3D,
-      "Stroke Depth Order",
-      "Defines how the strokes are ordered in 3D space (for objects not displayed 'In Front')");
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Add Grease Pencil Operator
- * \{ */
-
 static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  Object *original_active_object = CTX_data_active_object(C);
   /* TODO: For now, only support adding the 'Stroke' type. */
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -1702,8 +1442,6 @@ static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
     case GREASE_PENCIL_LINEART_OBJECT:
     case GREASE_PENCIL_LINEART_SCENE:
     case GREASE_PENCIL_LINEART_COLLECTION: {
-      Object *original_active_object = CTX_data_active_object(C);
-
       const int type = RNA_enum_get(op->ptr, "type");
       const bool use_in_front = RNA_boolean_get(op->ptr, "use_in_front");
       const bool use_lights = RNA_boolean_get(op->ptr, "use_lights");
@@ -2085,7 +1823,7 @@ static int collection_drop_exec(bContext *C, wmOperator *op)
     ob->transflag |= OB_DUPLICOLLECTION;
     id_us_plus(&add_info->collection->id);
   }
-  else {
+  else if (ID_IS_EDITABLE(&add_info->collection->id)) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
     float delta_mat[4][4];
     unit_m4(delta_mat);
@@ -2468,10 +2206,10 @@ static int object_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    if (ob->id.tag & LIB_TAG_INDIRECT) {
+    if (ob->id.tag & ID_TAG_INDIRECT) {
       /* Can this case ever happen? */
       BKE_reportf(op->reports,
                   RPT_WARNING,
@@ -2508,7 +2246,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 
     /* Use multi tagged delete if `use_global=True`, or the object is used only in one scene. */
     if (use_global || ID_REAL_USERS(ob) <= 1) {
-      ob->id.tag |= LIB_TAG_DOIT;
+      ob->id.tag |= ID_TAG_DOIT;
       tagged_count += 1;
     }
     else {
@@ -2544,12 +2282,12 @@ static int object_delete_exec(bContext *C, wmOperator *op)
   }
 
   /* delete has to handle all open scenes */
-  BKE_main_id_tag_listbase(&bmain->scenes, LIB_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->scenes, ID_TAG_DOIT, true);
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     scene = WM_window_get_active_scene(win);
 
-    if (scene->id.tag & LIB_TAG_DOIT) {
-      scene->id.tag &= ~LIB_TAG_DOIT;
+    if (scene->id.tag & ID_TAG_DOIT) {
+      scene->id.tag &= ~ID_TAG_DOIT;
 
       DEG_relations_tag_update(bmain);
 
@@ -2623,7 +2361,7 @@ static void copy_object_set_idnew(bContext *C)
        * will not always be cleared. */
       continue;
     }
-    BLI_assert((id_iter->tag & LIB_TAG_NEW) == 0);
+    BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
   }
   FOREACH_MAIN_ID_END;
 #endif
@@ -3014,11 +2752,13 @@ static const EnumPropertyItem convert_target_items[] = {
 #else
      "Mesh from Curve, Surface, Metaball, or Text objects"},
 #endif
+#if 0
     {OB_GPENCIL_LEGACY,
      "GPENCIL",
      ICON_OUTLINER_OB_GREASEPENCIL,
      "Grease Pencil",
      "Grease Pencil from Curve or Mesh objects"},
+#endif
 #ifdef WITH_POINT_CLOUD
     {OB_POINTCLOUD,
      "POINTCLOUD",
@@ -3027,13 +2767,11 @@ static const EnumPropertyItem convert_target_items[] = {
      "Point Cloud from Mesh objects"},
 #endif
     {OB_CURVES, "CURVES", ICON_OUTLINER_OB_CURVES, "Curves", "Curves from evaluated curve data"},
-#ifdef WITH_GREASE_PENCIL_V3
     {OB_GREASE_PENCIL,
      "GREASEPENCIL",
      ICON_OUTLINER_OB_GREASEPENCIL,
-     "Grease Pencil v3",
-     "Grease Pencil v3 from Grease Pencil"},
-#endif
+     "Grease Pencil",
+     "Grease Pencil from Curve or Mesh objects"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -3055,12 +2793,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
   if (U.experimental.use_new_point_cloud_type) {
     RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
   }
-  if (U.experimental.use_grease_pencil_version3) {
-    RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GREASE_PENCIL);
-  }
-  else {
-    RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GPENCIL_LEGACY);
-  }
+  RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GREASE_PENCIL);
 
   RNA_enum_item_end(&item, &totitem);
 
@@ -3176,18 +2909,11 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
   Base *basen = nullptr, *basact = nullptr;
   Object *ob1, *obact = CTX_data_active_object(C);
   const short target = RNA_enum_get(op->ptr, "target");
   bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
   const bool do_merge_customdata = RNA_boolean_get(op->ptr, "merge_customdata");
-
-  const float angle = RNA_float_get(op->ptr, "angle");
-  const int thickness = RNA_int_get(op->ptr, "thickness");
-  const bool use_seams = RNA_boolean_get(op->ptr, "seams");
-  const bool use_faces = RNA_boolean_get(op->ptr, "faces");
-  const float offset = RNA_float_get(op->ptr, "offset");
 
   int mballConverted = 0;
   bool gpencilConverted = false;
@@ -3201,7 +2927,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
       /* flag data that's not been edited (only needed for !keep_original) */
       if (ob->data) {
-        ((ID *)ob->data)->tag |= LIB_TAG_DOIT;
+        ((ID *)ob->data)->tag |= ID_TAG_DOIT;
       }
 
       /* possible metaball basis is not in this scene */
@@ -3305,67 +3031,6 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         }
       }
     }
-    else if (ob->type == OB_MESH && target == OB_GPENCIL_LEGACY) {
-      ob->flag |= OB_DONE;
-
-      /* Create a new grease pencil object and copy transformations. */
-      ushort local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
-      float loc[3], size[3], rot[3][3], eul[3];
-      float matrix[4][4];
-      mat4_to_loc_rot_size(loc, rot, size, ob->object_to_world().ptr());
-      mat3_to_eul(eul, rot);
-
-      Object *ob_gpencil = ED_gpencil_add_object(C, loc, local_view_bits);
-      copy_v3_v3(ob_gpencil->loc, loc);
-      copy_v3_v3(ob_gpencil->rot, eul);
-      copy_v3_v3(ob_gpencil->scale, size);
-      unit_m4(matrix);
-      /* Set object in 3D mode. */
-      bGPdata *gpd = (bGPdata *)ob_gpencil->data;
-      gpd->draw_mode = GP_DRAWMODE_3D;
-
-      gpencilConverted |= BKE_gpencil_convert_mesh(bmain,
-                                                   depsgraph,
-                                                   scene,
-                                                   ob_gpencil,
-                                                   ob,
-                                                   angle,
-                                                   thickness,
-                                                   offset,
-                                                   matrix,
-                                                   0,
-                                                   use_seams,
-                                                   use_faces,
-                                                   true);
-
-      /* Remove unused materials. */
-      int actcol = ob_gpencil->actcol;
-      for (int slot = 1; slot <= ob_gpencil->totcol; slot++) {
-        while (slot <= ob_gpencil->totcol && !BKE_object_material_slot_used(ob_gpencil, slot)) {
-          ob_gpencil->actcol = slot;
-          BKE_object_material_slot_remove(CTX_data_main(C), ob_gpencil);
-
-          if (actcol >= slot) {
-            actcol--;
-          }
-        }
-      }
-      ob_gpencil->actcol = actcol;
-    }
-    else if (U.experimental.use_grease_pencil_version3 && ob->type == OB_GPENCIL_LEGACY &&
-             target == OB_GREASE_PENCIL)
-    {
-      ob->flag |= OB_DONE;
-
-      if (keep_original) {
-        BLI_assert_unreachable();
-      }
-      else {
-        newob = ob;
-      }
-
-      bke::greasepencil::convert::legacy_gpencil_object(*bmain, *newob);
-    }
     else if (target == OB_CURVES) {
       ob->flag |= OB_DONE;
 
@@ -3430,18 +3095,136 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         else if (const GreasePencil *grease_pencil = geometry.get_grease_pencil()) {
           const Vector<ed::greasepencil::DrawingInfo> drawings =
               ed::greasepencil::retrieve_visible_drawings(*scene, *grease_pencil, false);
+          if (drawings.size() > 0) {
+            Array<bke::GeometrySet> geometries(drawings.size());
+            for (const int i : drawings.index_range()) {
+              Curves *curves_id = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, nullptr));
+              curves_id->geometry.wrap() = drawings[i].drawing.strokes();
+              geometries[i] = bke::GeometrySet::from_curves(curves_id);
+            }
+            bke::GeometrySet joined_curves = geometry::join_geometries(geometries, {});
+
+            new_curves->geometry.wrap() = joined_curves.get_curves()->geometry.wrap();
+            new_curves->geometry.wrap().tag_topology_changed();
+            BKE_object_material_from_eval_data(bmain, newob, &joined_curves.get_curves()->id);
+          }
+        }
+
+        BKE_object_free_derived_caches(newob);
+        BKE_object_free_modifiers(newob, 0);
+      }
+      else {
+        BKE_reportf(op->reports,
+                    RPT_WARNING,
+                    "Object '%s' has no evaluated grease pencil data",
+                    ob->id.name + 2);
+      }
+    }
+    else if (ob->type == OB_GREASE_PENCIL && target == OB_MESH) {
+      /* Mostly same as converting to OB_CURVES, the mesh will be converted from Curves afterwards
+       * . */
+
+      ob->flag |= OB_DONE;
+
+      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+      bke::GeometrySet geometry;
+      if (ob_eval->runtime->geometry_set_eval != nullptr) {
+        geometry = *ob_eval->runtime->geometry_set_eval;
+      }
+
+      if (geometry.has_curves()) {
+        if (keep_original) {
+          basen = duplibase_for_convert(bmain, depsgraph, scene, view_layer, base, nullptr);
+          newob = basen->object;
+
+          /* Decrement original curve's usage count. */
+          Curve *legacy_curve = static_cast<Curve *>(newob->data);
+          id_us_min(&legacy_curve->id);
+
+          /* Make a copy of the curve. */
+          newob->data = BKE_id_copy(bmain, &legacy_curve->id);
+        }
+        else {
+          newob = ob;
+        }
+
+        const Curves *curves_eval = geometry.get_curves();
+        Curves *new_curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, newob->id.name + 2));
+
+        newob->data = new_curves;
+        newob->type = OB_CURVES;
+
+        new_curves->geometry.wrap() = curves_eval->geometry.wrap();
+        BKE_object_material_from_eval_data(bmain, newob, &curves_eval->id);
+
+        BKE_object_free_derived_caches(newob);
+        BKE_object_free_modifiers(newob, 0);
+      }
+      else if (geometry.has_grease_pencil()) {
+        if (keep_original) {
+          basen = duplibase_for_convert(bmain, depsgraph, scene, view_layer, base, nullptr);
+          newob = basen->object;
+
+          /* Decrement original curve's usage count. */
+          Curve *legacy_curve = static_cast<Curve *>(newob->data);
+          id_us_min(&legacy_curve->id);
+
+          /* Make a copy of the curve. */
+          newob->data = BKE_id_copy(bmain, &legacy_curve->id);
+        }
+        else {
+          newob = ob;
+        }
+
+        /* Do not link `new_curves` to `bmain` since it's temporary. */
+        Curves *new_curves = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, newob->id.name + 2));
+
+        newob->data = new_curves;
+        newob->type = OB_CURVES;
+
+        if (const Curves *curves_eval = geometry.get_curves()) {
+          new_curves->geometry.wrap() = curves_eval->geometry.wrap();
+          BKE_object_material_from_eval_data(bmain, newob, &curves_eval->id);
+        }
+        else if (const GreasePencil *grease_pencil = geometry.get_grease_pencil()) {
+          const Vector<ed::greasepencil::DrawingInfo> drawings =
+              ed::greasepencil::retrieve_visible_drawings(*scene, *grease_pencil, false);
           Array<bke::GeometrySet> geometries(drawings.size());
           for (const int i : drawings.index_range()) {
             Curves *curves_id = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, nullptr));
             curves_id->geometry.wrap() = drawings[i].drawing.strokes();
+            const int layer_index = drawings[i].layer_index;
+            const bke::greasepencil::Layer *layer = grease_pencil->layers()[layer_index];
+            blender::float4x4 to_object = layer->to_object_space(*ob);
+            bke::CurvesGeometry &new_curves = curves_id->geometry.wrap();
+            MutableSpan<blender::float3> positions = new_curves.positions_for_write();
+            for (const int point_i : new_curves.points_range()) {
+              positions[point_i] = blender::math::transform_point(to_object, positions[point_i]);
+            }
             geometries[i] = bke::GeometrySet::from_curves(curves_id);
           }
-          bke::GeometrySet joined_curves = geometry::join_geometries(geometries, {});
+          if (geometries.size() > 0) {
+            bke::GeometrySet joined_curves = geometry::join_geometries(geometries, {});
 
-          new_curves->geometry.wrap() = joined_curves.get_curves()->geometry.wrap();
-          new_curves->geometry.wrap().tag_topology_changed();
-          BKE_object_material_from_eval_data(bmain, newob, &joined_curves.get_curves()->id);
+            new_curves->geometry.wrap() = joined_curves.get_curves()->geometry.wrap();
+            new_curves->geometry.wrap().tag_topology_changed();
+            BKE_object_material_from_eval_data(bmain, newob, &joined_curves.get_curves()->id);
+          }
         }
+
+        Mesh *new_mesh = static_cast<Mesh *>(BKE_id_new(bmain, ID_ME, newob->id.name + 2));
+        newob->data = new_mesh;
+        newob->type = OB_MESH;
+
+        Mesh *mesh = bke::curve_to_wire_mesh(new_curves->geometry.wrap(), {});
+        if (!mesh) {
+          mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+        }
+        BKE_mesh_nomain_to_mesh(mesh, new_mesh, newob);
+        BKE_object_material_from_eval_data(bmain, newob, &new_curves->id);
+
+        /* Free `new_curves` because it is just an intermediate. */
+        BKE_id_free(nullptr, new_curves);
 
         BKE_object_free_derived_caches(newob);
         BKE_object_free_modifiers(newob, 0);
@@ -3510,6 +3293,22 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
 
       Mesh *ob_data_mesh = (Mesh *)newob->data;
+
+      if (ob_data_mesh->key) {
+        /* NOTE(@ideasman42): Clearing the shape-key is needed when the
+         * number of vertices remains unchanged. Otherwise using this operator
+         * to "Apply Visual Geometry" will evaluate using the existing shape-key
+         * which doesn't have the "evaluated" coordinates from `new_mesh`.
+         * See #128839 for details.
+         *
+         * While shape-keys could be supported, this is more of a feature to consider.
+         * As there is already a `MESH_OT_blend_from_shape` operator,
+         * it's not clear this is especially useful or needed. */
+        if (!CustomData_has_layer(&new_mesh->vert_data, CD_SHAPEKEY)) {
+          id_us_min(&ob_data_mesh->key->id);
+          ob_data_mesh->key = nullptr;
+        }
+      }
       BKE_mesh_nomain_to_mesh(new_mesh, ob_data_mesh, newob);
 
       BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
@@ -3573,7 +3372,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           for (ob1 = static_cast<Object *>(bmain->objects.first); ob1;
                ob1 = static_cast<Object *>(ob1->id.next))
           {
-            if (ob1->data == ob->data) {
+            if (ob1->data == ob->data && ob1 != ob) {
               ob1->type = OB_CURVES_LEGACY;
               DEG_id_tag_update(&ob1->id,
                                 ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
@@ -3595,16 +3394,6 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         object_data_convert_curve_to_mesh(bmain, depsgraph, newob);
         /* Meshes doesn't use the "curve cache". */
         BKE_object_free_curve_cache(newob);
-      }
-      else if (target == OB_GPENCIL_LEGACY) {
-        ushort local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
-        Object *ob_gpencil = ED_gpencil_add_object(C, newob->loc, local_view_bits);
-        copy_v3_v3(ob_gpencil->rot, newob->rot);
-        copy_v3_v3(ob_gpencil->scale, newob->scale);
-        BKE_gpencil_convert_curve(bmain, scene, ob_gpencil, newob, false, 1.0f, 0.0f);
-        gpencilConverted = true;
-        gpencilCurveConverted = true;
-        basen = nullptr;
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
@@ -3630,23 +3419,6 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         object_data_convert_curve_to_mesh(bmain, depsgraph, newob);
         /* Meshes don't use the "curve cache". */
         BKE_object_free_curve_cache(newob);
-      }
-      else if (target == OB_GPENCIL_LEGACY) {
-        if (ob->type != OB_CURVES_LEGACY) {
-          ob->flag &= ~OB_DONE;
-          BKE_report(op->reports, RPT_ERROR, "Convert Surfaces to Grease Pencil is not supported");
-        }
-        else {
-          /* Create a new grease pencil object and copy transformations.
-           * Nurbs Surface are not supported.
-           */
-          ushort local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
-          Object *ob_gpencil = ED_gpencil_add_object(C, ob->loc, local_view_bits);
-          copy_v3_v3(ob_gpencil->rot, ob->rot);
-          copy_v3_v3(ob_gpencil->scale, ob->scale);
-          BKE_gpencil_convert_curve(bmain, scene, ob_gpencil, ob, false, 1.0f, 0.0f);
-          gpencilConverted = true;
-        }
       }
     }
     else if (ob->type == OB_MBALL && target == OB_MESH) {
@@ -3742,9 +3514,8 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         new_mesh->attributes_for_write().remove_anonymous();
       }
       else if (const Curves *curves_eval = geometry.get_curves()) {
-        bke::AnonymousAttributePropagationInfo propagation_info;
-        propagation_info.propagate_all = false;
-        Mesh *mesh = bke::curve_to_wire_mesh(curves_eval->geometry.wrap(), propagation_info);
+        Mesh *mesh = bke::curve_to_wire_mesh(curves_eval->geometry.wrap(),
+                                             bke::ProcessAllAttributeExceptAnonymous{});
         if (!mesh) {
           mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
         }
@@ -3845,7 +3616,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
        * It is not enough to tag only geometry and rely on the curve parenting relations because
        * this relation is lost when curve is converted to mesh. */
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-      ((ID *)ob->data)->tag &= ~LIB_TAG_DOIT; /* flag not to convert this datablock again */
+      ((ID *)ob->data)->tag &= ~ID_TAG_DOIT; /* flag not to convert this datablock again */
     }
   }
 
@@ -4515,7 +4286,14 @@ static bool object_join_poll(bContext *C)
     return false;
   }
 
-  if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_ARMATURE, OB_GPENCIL_LEGACY)) {
+  if (ELEM(ob->type,
+           OB_MESH,
+           OB_CURVES_LEGACY,
+           OB_SURF,
+           OB_ARMATURE,
+           OB_GPENCIL_LEGACY,
+           OB_GREASE_PENCIL))
+  {
     return true;
   }
   return false;
@@ -4560,8 +4338,8 @@ static int object_join_exec(bContext *C, wmOperator *op)
   else if (ob->type == OB_ARMATURE) {
     ret = ED_armature_join_objects_exec(C, op);
   }
-  else if (ob->type == OB_GPENCIL_LEGACY) {
-    ret = ED_gpencil_join_objects_exec(C, op);
+  else if (ob->type == OB_GREASE_PENCIL) {
+    ret = ED_grease_pencil_join_objects_exec(C, op);
   }
 
   if (ret & OPERATOR_FINISHED) {

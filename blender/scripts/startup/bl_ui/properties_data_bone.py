@@ -294,7 +294,7 @@ class BONE_PT_collections(BoneButtonsPanel, Panel):
 
             row.prop(bcoll, "is_solo", text="", icon='SOLO_ON' if bcoll.is_solo else 'SOLO_OFF')
 
-            # Unassignment operator, less safe so with a bit of spacing.
+            # Unassign operator, less safe so with a bit of spacing.
             props = bcoll_row.operator("armature.collection_unassign_named", text="", icon='X')
             props.name = bcoll.name
             props.bone_name = bone.name
@@ -324,6 +324,9 @@ class BONE_PT_display(BoneButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(bone, "hide", text="Hide", toggle=False)
+        hide_select_sub = col.column()
+        hide_select_sub.active = not bone.hide
+        hide_select_sub.prop(bone, "hide_select", invert_checkbox=True)
 
         # Figure out the pose bone.
         ob = context.object
@@ -353,6 +356,9 @@ class BONE_PT_display(BoneButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(bone, "hide", text="Hide", toggle=False)
+        hide_select_sub = col.column()
+        hide_select_sub.active = not bone.hide
+        hide_select_sub.prop(bone, "hide_select", invert_checkbox=True)
         layout.prop(bone.color, "palette", text="Bone Color")
         self.draw_bone_color_ui(layout, bone.color)
 
@@ -556,12 +562,6 @@ class BONE_PT_deform(BoneButtonsPanel, Panel):
 
 
 class BONE_PT_custom_props(BoneButtonsPanel, rna_prop_ui.PropertyPanel, Panel):
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH',
-    }
     _property_type = bpy.types.Bone, bpy.types.EditBone, bpy.types.PoseBone
 
     @classmethod

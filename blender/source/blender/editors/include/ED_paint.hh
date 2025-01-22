@@ -38,7 +38,10 @@ void ED_keymap_paint(wmKeyConfig *keyconf);
 void ED_imapaint_clear_partial_redraw();
 void ED_imapaint_dirty_region(
     Image *ima, ImBuf *ibuf, ImageUser *iuser, int x, int y, int w, int h, bool find_old);
-void ED_imapaint_bucket_fill(bContext *C, float color[3], wmOperator *op, const int mouse[2]);
+void ED_imapaint_bucket_fill(bContext *C,
+                             const float color[3],
+                             wmOperator *op,
+                             const int mouse[2]);
 
 /* `paint_image_proj.cc` */
 
@@ -126,10 +129,10 @@ eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
  *
  * When #tref isn't given the active tool from the context is used.
  */
-bool ED_paint_tool_use_canvas(bContext *C, bToolRef *tref);
+bool ED_image_paint_brush_type_use_canvas(bContext *C, bToolRef *tref);
 
 /** Store the last used tool in the sculpt session. */
-void ED_paint_tool_update_sticky_shading_color(bContext *C, Object *ob);
+void ED_image_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob);
 
 void ED_object_vpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob);
 void ED_object_vpaintmode_enter(bContext *C, Depsgraph &depsgraph);

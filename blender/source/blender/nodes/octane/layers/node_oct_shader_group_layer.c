@@ -162,5 +162,5 @@ void register_node_type_sh_oct_group_layer(void)
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.updatefunc = (node_shader_update_group_layer);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_sh_oct_group_layer() */

@@ -208,7 +208,7 @@ wmJob *WM_jobs_get(wmWindowManager *wm,
     wm_job->main_thread_mutex = BLI_ticket_mutex_alloc();
     WM_job_main_thread_lock_acquire(wm_job);
 
-    wm_job->worker_status.reports = MEM_new<ReportList>(__func__);
+    wm_job->worker_status.reports = MEM_cnew<ReportList>(__func__);
     BKE_reports_init(wm_job->worker_status.reports, RPT_STORE | RPT_PRINT);
     BKE_report_print_level_set(wm_job->worker_status.reports, RPT_WARNING);
   }
@@ -419,9 +419,9 @@ static void wm_jobs_test_suspend_stop(wmWindowManager *wm, wmJob *test)
         continue;
       }
 
-      /* If new job is not render, then check for same startjob. */
+      /* If new job is not render, then check for same job type. */
       if (0 == (test->flag & WM_JOB_EXCL_RENDER)) {
-        if (wm_job->startjob != test->startjob) {
+        if (wm_job->job_type != test->job_type) {
           continue;
         }
       }
@@ -596,21 +596,37 @@ void WM_jobs_kill_all_except(wmWindowManager *wm, const void *owner)
 
 void WM_jobs_kill_type(wmWindowManager *wm, const void *owner, int job_type)
 {
+  BLI_assert(job_type != WM_JOB_TYPE_ANY);
+
   LISTBASE_FOREACH_MUTABLE (wmJob *, wm_job, &wm->jobs) {
     if (owner && wm_job->owner != owner) {
       continue;
     }
 
-    if (ELEM(job_type, WM_JOB_TYPE_ANY, wm_job->job_type)) {
+    if (wm_job->job_type == job_type) {
       wm_jobs_kill_job(wm, wm_job);
     }
   }
 }
 
-void WM_jobs_stop(wmWindowManager *wm, const void *owner, wm_jobs_start_callback startjob)
+void WM_jobs_kill_all_from_owner(wmWindowManager *wm, const void *owner)
 {
+  LISTBASE_FOREACH_MUTABLE (wmJob *, wm_job, &wm->jobs) {
+    if (wm_job->owner == owner) {
+      wm_jobs_kill_job(wm, wm_job);
+    }
+  }
+}
+
+void WM_jobs_stop_type(wmWindowManager *wm, const void *owner, eWM_JobType job_type)
+{
+  BLI_assert(job_type != WM_JOB_TYPE_ANY);
+
   LISTBASE_FOREACH (wmJob *, wm_job, &wm->jobs) {
-    if (wm_job->owner == owner || wm_job->startjob == startjob) {
+    if (owner && wm_job->owner != owner) {
+      continue;
+    }
+    if (wm_job->job_type == job_type) {
       if (wm_job->running) {
         wm_job->worker_status.stop = true;
       }
@@ -618,11 +634,13 @@ void WM_jobs_stop(wmWindowManager *wm, const void *owner, wm_jobs_start_callback
   }
 }
 
-void WM_jobs_kill(wmWindowManager *wm, void *owner, wm_jobs_start_callback startjob)
+void WM_jobs_stop_all_from_owner(wmWindowManager *wm, const void *owner)
 {
-  LISTBASE_FOREACH_MUTABLE (wmJob *, wm_job, &wm->jobs) {
-    if (wm_job->owner == owner || wm_job->startjob == startjob) {
-      wm_jobs_kill_job(wm, wm_job);
+  LISTBASE_FOREACH (wmJob *, wm_job, &wm->jobs) {
+    if (wm_job->owner == owner) {
+      if (wm_job->running) {
+        wm_job->worker_status.stop = true;
+      }
     }
   }
 }

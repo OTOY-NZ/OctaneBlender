@@ -5,7 +5,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
@@ -289,5 +289,5 @@ void register_node_type_sh_tex_image()
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

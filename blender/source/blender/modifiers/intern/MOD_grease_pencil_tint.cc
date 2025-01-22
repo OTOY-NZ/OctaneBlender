@@ -37,7 +37,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_modifiertypes.hh"
@@ -155,7 +155,8 @@ static ColorGeometry4f apply_gradient_tint(const GreasePencilTintModifierData &t
   const float3 input_rgb = {input_color.r, input_color.g, input_color.b};
   /* GP2 compatibility: ignore vertex group factor and use the plain modifier setting for
    * RGB mixing. */
-  const float3 rgb = math::interpolate(input_rgb, gradient_color.xyz(), tmd.factor);
+  const float3 rgb = math::interpolate(
+      input_rgb, gradient_color.xyz(), tmd.factor * gradient_color.w);
   /* GP2 compatibility: use vertex group factor for alpha. */
   return ColorGeometry4f(rgb[0], rgb[1], rgb[2], factor);
 }
@@ -427,7 +428,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

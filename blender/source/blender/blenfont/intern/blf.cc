@@ -24,7 +24,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
@@ -335,6 +335,28 @@ void BLF_character_weight(int fontid, int weight)
   }
 }
 
+int BLF_default_weight(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return font->metrics.weight;
+  }
+  return 400;
+}
+
+bool BLF_has_variable_weight(int fontid)
+{
+  const FontBLF *font = blf_get(fontid);
+  if (font && font->variations) {
+    for (int i = 0; i < int(font->variations->num_axis); i++) {
+      if (font->variations->axis[i].tag == BLF_VARIATION_AXIS_WEIGHT) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void BLF_aspect(int fontid, float x, float y, float z)
 {
   FontBLF *font = blf_get(fontid);
@@ -587,6 +609,47 @@ int BLF_draw_mono(int fontid, const char *str, const size_t str_len, int cwidth,
   return columns;
 }
 
+void BLF_draw_svg_icon(uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       const float color[4],
+                       float outline_alpha,
+                       bool multicolor,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+#ifndef WITH_HEADLESS
+  FontBLF *font = global_font[0];
+  if (font) {
+    /* Avoid bgl usage to corrupt BLF drawing. */
+    GPU_bgl_end();
+    blf_draw_gpu__start(font);
+    blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+    blf_draw_gpu__end(font);
+  }
+#else
+  UNUSED_VARS(icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+#endif /* WITH_HEADLESS */
+}
+
+blender::Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
+                                          float size,
+                                          int *r_width,
+                                          int *r_height,
+                                          bool multicolor,
+                                          blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+#ifndef WITH_HEADLESS
+  FontBLF *font = global_font[0];
+  if (font) {
+    return blf_svg_icon_bitmap(font, icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+  }
+#else
+  UNUSED_VARS(icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+#endif /* WITH_HEADLESS */
+  return {};
+}
+
 void BLF_boundbox_foreach_glyph(
     int fontid, const char *str, size_t str_len, BLF_GlyphBoundsFn user_fn, void *user_data)
 {
@@ -618,18 +681,21 @@ size_t BLF_str_offset_from_cursor_position(int fontid,
 bool BLF_str_offset_to_glyph_bounds(int fontid,
                                     const char *str,
                                     size_t str_offset,
-                                    rcti *glyph_bounds)
+                                    rcti *r_glyph_bounds)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {
-    blf_str_offset_to_glyph_bounds(font, str, str_offset, glyph_bounds);
+    blf_str_offset_to_glyph_bounds(font, str, str_offset, r_glyph_bounds);
     return true;
   }
   return false;
 }
 
-int BLF_str_offset_to_cursor(
-    int fontid, const char *str, size_t str_len, size_t str_offset, float cursor_width)
+int BLF_str_offset_to_cursor(int fontid,
+                             const char *str,
+                             const size_t str_len,
+                             const size_t str_offset,
+                             const int cursor_width)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {

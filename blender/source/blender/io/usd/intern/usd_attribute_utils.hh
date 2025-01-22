@@ -29,6 +29,10 @@
 #include <optional>
 #include <type_traits>
 
+namespace usdtokens {
+inline const pxr::TfToken displayColor("displayColor", pxr::TfToken::Immortal);
+}
+
 namespace blender::io::usd {
 
 namespace detail {
@@ -62,6 +66,20 @@ template<> inline pxr::GfVec3f convert_value(const ColorGeometry4f value)
 {
   return pxr::GfVec3f(value.r, value.g, value.b);
 }
+template<> inline pxr::GfVec4f convert_value(const ColorGeometry4f value)
+{
+  return pxr::GfVec4f(value.r, value.g, value.b, value.a);
+}
+template<> inline pxr::GfVec3f convert_value(const ColorGeometry4b value)
+{
+  ColorGeometry4f color4f = value.decode();
+  return pxr::GfVec3f(color4f.r, color4f.g, color4f.b);
+}
+template<> inline pxr::GfVec4f convert_value(const ColorGeometry4b value)
+{
+  ColorGeometry4f color4f = value.decode();
+  return pxr::GfVec4f(color4f.r, color4f.g, color4f.b, color4f.a);
+}
 template<> inline pxr::GfQuatf convert_value(const math::Quaternion value)
 {
   return pxr::GfQuatf(value.w, value.x, value.y, value.z);
@@ -79,6 +97,10 @@ template<> inline ColorGeometry4f convert_value(const pxr::GfVec3f value)
 {
   return ColorGeometry4f(value[0], value[1], value[2], 1.0f);
 }
+template<> inline ColorGeometry4f convert_value(const pxr::GfVec4f value)
+{
+  return ColorGeometry4f(value[0], value[1], value[2], value[3]);
+}
 template<> inline math::Quaternion convert_value(const pxr::GfQuatf value)
 {
   const pxr::GfVec3f &img = value.GetImaginary();
@@ -88,7 +110,7 @@ template<> inline math::Quaternion convert_value(const pxr::GfQuatf value)
 }  // namespace detail
 
 std::optional<pxr::SdfValueTypeName> convert_blender_type_to_usd(
-    const eCustomDataType blender_type);
+    const eCustomDataType blender_type, bool use_color3f_type = false);
 
 std::optional<eCustomDataType> convert_usd_type_to_blender(const pxr::SdfValueTypeName usd_type);
 
@@ -119,11 +141,8 @@ void copy_blender_buffer_to_primvar(const VArray<BlenderT> &buffer,
     }
   }
 
-  if (!primvar.HasValue() && timecode != pxr::UsdTimeCode::Default()) {
+  if (!primvar.HasValue()) {
     primvar.Set(usd_data, pxr::UsdTimeCode::Default());
-  }
-  else {
-    primvar.Set(usd_data, timecode);
   }
 
   value_writer.SetAttribute(primvar.GetAttr(), usd_data, timecode);

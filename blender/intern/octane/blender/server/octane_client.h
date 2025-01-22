@@ -220,7 +220,9 @@ class OctaneClient {
                    int32_t iOutOfCoreMemLimit,
                    int32_t iOutOfCoreGPUHeadroom,
                    int32_t iRenderPriority,
-                   int32_t iResourceCacheType);
+                   int32_t iResourceCacheType,
+                   int32_t iExportStartFrame,
+                   int32_t iExportEndFrame);
   /// Stop the render process on the server.
   /// Mostly needed to close the animation export sequence on the server.
   /// @param [in] fFPS - Frames per second value.
@@ -636,6 +638,8 @@ class OctaneClient {
   string m_sAddress;
   string m_sOutPath;
   string m_sCachePath;
+  int m_iExportFrameStart;
+  int m_iExportFrameEnd;
   RenderServerInfo m_ServerInfo;
   int m_Socket;
 

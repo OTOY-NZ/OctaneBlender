@@ -18,8 +18,13 @@ static void sh_node_tex_magic_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").implicit_field(implicit_field_inputs::position);
-  b.add_input<decl::Float>("Scale").min(-1000.0f).max(1000.0f).default_value(5.0f);
-  b.add_input<decl::Float>("Distortion").min(-1000.0f).max(1000.0f).default_value(1.0f);
+  b.add_input<decl::Float>("Scale").min(-1000.0f).max(1000.0f).default_value(5.0f).description(
+      "Scale of the texture");
+  b.add_input<decl::Float>("Distortion")
+      .min(-1000.0f)
+      .max(1000.0f)
+      .default_value(1.0f)
+      .description("Amount of distortion");
   b.add_output<decl::Color>("Color").no_muted_links();
   b.add_output<decl::Float>("Fac").no_muted_links();
 }
@@ -187,5 +192,5 @@ void register_node_type_sh_tex_magic()
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_magic;
   ntype.build_multi_function = file_ns::sh_node_magic_tex_build_multi_function;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

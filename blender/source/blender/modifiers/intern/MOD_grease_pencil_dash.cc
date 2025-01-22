@@ -32,7 +32,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
@@ -204,13 +204,13 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
                                          const IndexMask &curves_mask)
 {
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
-  const VArray<bool> src_cyclic = *src_attributes.lookup_or_default(
-      "cyclic", bke::AttrDomain::Curve, false);
+  const VArray<bool> src_cyclic = src_curves.cyclic();
   const VArray<int> src_material = *src_attributes.lookup_or_default(
       "material_index", bke::AttrDomain::Curve, 0);
-  const VArray<float> src_radius = *src_attributes.lookup<float>("radius", bke::AttrDomain::Point);
-  const VArray<float> src_opacity = *src_attributes.lookup<float>("opacity",
-                                                                  bke::AttrDomain::Point);
+  const VArray<float> src_radius = *src_attributes.lookup_or_default<float>(
+      "radius", bke::AttrDomain::Point, 0.01f);
+  const VArray<float> src_opacity = *src_attributes.lookup_or_default<float>(
+      "opacity", bke::AttrDomain::Point, 1.0f);
 
   /* Count new curves and points. */
   int dst_point_num = 0;
@@ -303,14 +303,14 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,
-                         {},
-                         {"radius", "opacity"},
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref({"radius", "opacity"}),
                          src_point_indices,
                          dst_attributes);
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
-                         {},
-                         {"cyclic", "material_index"},
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic", "material_index"}),
                          src_curve_indices,
                          dst_attributes);
 
@@ -328,6 +328,7 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
                            const PatternInfo &pattern_info,
                            bke::greasepencil::Drawing &drawing)
 {
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   const bke::CurvesGeometry &src_curves = drawing.strokes();
   if (src_curves.curve_num == 0) {
     return;
@@ -429,7 +430,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

@@ -27,6 +27,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
+#include "RNA_prototypes.hh"
+
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
@@ -62,12 +64,18 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
       break;
     case GP_LOCKAXIS_CURSOR: {
       plane_ = DrawingPlacementPlane::Cursor;
-      float3x3 mat;
-      BKE_scene_cursor_rot_to_mat3(&scene.cursor, mat.ptr());
-      placement_normal_ = mat * float3(0, 0, 1);
+      placement_normal_ = scene.cursor.matrix<float3x3>() * float3(0, 0, 1);
       break;
     }
   }
+
+  /* Account for layer transform. */
+  if (!ELEM(scene.toolsettings->gp_sculpt.lock_axis, GP_LOCKAXIS_VIEW, GP_LOCKAXIS_CURSOR)) {
+    /* Use the transpose inverse for normal. */
+    placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
+                                                  placement_normal_);
+  }
+
   /* Initialize DrawingPlacementDepth from toolsettings. */
   const char align_flag = scene.toolsettings->gpencil_v3d_align;
   if (align_flag & GP_PROJECT_VIEWSPACE) {
@@ -103,15 +111,151 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
     placement_loc_ = float3(0.0f);
   }
 
-  if (ELEM(plane_,
-           DrawingPlacementPlane::Front,
-           DrawingPlacementPlane::Side,
-           DrawingPlacementPlane::Top,
-           DrawingPlacementPlane::Cursor) &&
-      ELEM(depth_, DrawingPlacementDepth::ObjectOrigin, DrawingPlacementDepth::Cursor))
-  {
+  if (plane_ != DrawingPlacementPlane::View) {
     plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
   }
+}
+
+DrawingPlacement::DrawingPlacement(const Scene &scene,
+                                   const ARegion &region,
+                                   const View3D &view3d,
+                                   const Object &eval_object,
+                                   const bke::greasepencil::Layer *layer,
+                                   const ReprojectMode reproject_mode,
+                                   const float surface_offset,
+                                   ViewDepths *view_depths)
+    : region_(&region),
+      view3d_(&view3d),
+      depth_cache_(view_depths),
+      surface_offset_(surface_offset)
+{
+  layer_space_to_world_space_ = (layer != nullptr) ? layer->to_world_space(eval_object) :
+                                                     eval_object.object_to_world();
+  world_space_to_layer_space_ = math::invert(layer_space_to_world_space_);
+  /* Initialize DrawingPlacementPlane from mode. */
+  switch (reproject_mode) {
+    case ReprojectMode::View:
+      plane_ = DrawingPlacementPlane::View;
+      break;
+    case ReprojectMode::Front:
+      plane_ = DrawingPlacementPlane::Front;
+      placement_normal_ = float3(0, 1, 0);
+      break;
+    case ReprojectMode::Side:
+      plane_ = DrawingPlacementPlane::Side;
+      placement_normal_ = float3(1, 0, 0);
+      break;
+    case ReprojectMode::Top:
+      plane_ = DrawingPlacementPlane::Top;
+      placement_normal_ = float3(0, 0, 1);
+      break;
+    case ReprojectMode::Cursor: {
+      plane_ = DrawingPlacementPlane::Cursor;
+      placement_normal_ = scene.cursor.matrix<float3x3>() * float3(0, 0, 1);
+      break;
+    }
+    default:
+      break;
+  }
+
+  /* Account for layer transform. */
+  if (!ELEM(reproject_mode, ReprojectMode::View, ReprojectMode::Cursor)) {
+    /* Use the transpose inverse for normal. */
+    placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
+                                                  placement_normal_);
+  }
+
+  /* Initialize DrawingPlacementDepth from mode. */
+  switch (reproject_mode) {
+    case ReprojectMode::Cursor:
+      depth_ = DrawingPlacementDepth::Cursor;
+      surface_offset_ = 0.0f;
+      placement_loc_ = float3(scene.cursor.location);
+      break;
+    case ReprojectMode::View:
+      depth_ = DrawingPlacementDepth::ObjectOrigin;
+      surface_offset_ = 0.0f;
+      placement_loc_ = layer_space_to_world_space_.location();
+      break;
+    case ReprojectMode::Surface:
+      depth_ = DrawingPlacementDepth::Surface;
+      placement_loc_ = layer_space_to_world_space_.location();
+      break;
+    default:
+      depth_ = DrawingPlacementDepth::ObjectOrigin;
+      surface_offset_ = 0.0f;
+      placement_loc_ = layer_space_to_world_space_.location();
+      break;
+  }
+
+  if (plane_ != DrawingPlacementPlane::View) {
+    plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
+  }
+}
+
+DrawingPlacement::DrawingPlacement(const DrawingPlacement &other)
+{
+  region_ = other.region_;
+  view3d_ = other.view3d_;
+
+  depth_ = other.depth_;
+  plane_ = other.plane_;
+
+  if (other.depth_cache_ != nullptr) {
+    depth_cache_ = static_cast<ViewDepths *>(MEM_dupallocN(other.depth_cache_));
+    depth_cache_->depths = static_cast<float *>(MEM_dupallocN(other.depth_cache_->depths));
+  }
+  use_project_only_selected_ = other.use_project_only_selected_;
+
+  surface_offset_ = other.surface_offset_;
+
+  placement_loc_ = other.placement_loc_;
+  placement_normal_ = other.placement_normal_;
+  placement_plane_ = other.placement_plane_;
+
+  layer_space_to_world_space_ = other.layer_space_to_world_space_;
+  world_space_to_layer_space_ = other.world_space_to_layer_space_;
+}
+
+DrawingPlacement::DrawingPlacement(DrawingPlacement &&other)
+{
+  region_ = other.region_;
+  view3d_ = other.view3d_;
+
+  depth_ = other.depth_;
+  plane_ = other.plane_;
+
+  std::swap(depth_cache_, other.depth_cache_);
+  use_project_only_selected_ = other.use_project_only_selected_;
+
+  surface_offset_ = other.surface_offset_;
+
+  placement_loc_ = other.placement_loc_;
+  placement_normal_ = other.placement_normal_;
+  placement_plane_ = other.placement_plane_;
+
+  layer_space_to_world_space_ = other.layer_space_to_world_space_;
+  world_space_to_layer_space_ = other.world_space_to_layer_space_;
+}
+
+DrawingPlacement &DrawingPlacement::operator=(const DrawingPlacement &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) DrawingPlacement(other);
+  return *this;
+}
+
+DrawingPlacement &DrawingPlacement::operator=(DrawingPlacement &&other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) DrawingPlacement(std::move(other));
+  return *this;
 }
 
 DrawingPlacement::~DrawingPlacement()
@@ -140,10 +284,10 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
       mode = V3D_DEPTH_SELECTED_ONLY;
     }
     else {
-      mode = V3D_DEPTH_NO_OVERLAYS;
+      mode = V3D_DEPTH_NO_GPENCIL;
     }
   }
-  ED_view3d_depth_override(depsgraph, region, view3d, nullptr, mode, &this->depth_cache_);
+  ED_view3d_depth_override(depsgraph, region, view3d, nullptr, mode, false, &this->depth_cache_);
 }
 
 void DrawingPlacement::set_origin_to_nearest_stroke(const float2 co)
@@ -163,35 +307,54 @@ void DrawingPlacement::set_origin_to_nearest_stroke(const float2 co)
   plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
 }
 
+float3 DrawingPlacement::project_depth(const float2 co) const
+{
+  float3 proj_point;
+  float depth;
+  if (depth_cache_ != nullptr && ED_view3d_depth_read_cached(depth_cache_, int2(co), 4, &depth)) {
+    ED_view3d_depth_unproject_v3(region_, int2(co), depth, proj_point);
+    float3 view_normal;
+    ED_view3d_win_to_vector(region_, co, view_normal);
+    proj_point -= view_normal * surface_offset_;
+  }
+  else {
+    /* Fallback to `View` placement. */
+    ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+  }
+  return proj_point;
+}
+
 float3 DrawingPlacement::project(const float2 co) const
 {
   float3 proj_point;
   if (depth_ == DrawingPlacementDepth::Surface) {
     /* Project using the viewport depth cache. */
-    BLI_assert(depth_cache_ != nullptr);
-    float depth;
-    if (ED_view3d_depth_read_cached(depth_cache_, int2(co), 4, &depth)) {
-      ED_view3d_depth_unproject_v3(region_, int2(co), depth, proj_point);
-      float3 normal;
-      ED_view3d_depth_read_cached_normal(region_, depth_cache_, int2(co), normal);
-      proj_point += normal * surface_offset_;
-    }
-    /* If we didn't hit anything, use the view plane for placement. */
-    else {
-      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
-    }
+    proj_point = this->project_depth(co);
   }
   else {
-    if (ELEM(plane_,
-             DrawingPlacementPlane::Front,
-             DrawingPlacementPlane::Side,
-             DrawingPlacementPlane::Top,
-             DrawingPlacementPlane::Cursor))
-    {
+    if (plane_ == DrawingPlacementPlane::View) {
+      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+    }
+    else {
       ED_view3d_win_to_3d_on_plane(region_, placement_plane_, co, false, proj_point);
     }
-    else if (plane_ == DrawingPlacementPlane::View) {
-      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+  }
+  return math::transform_point(world_space_to_layer_space_, proj_point);
+}
+
+float3 DrawingPlacement::project_with_shift(const float2 co) const
+{
+  float3 proj_point;
+  if (depth_ == DrawingPlacementDepth::Surface) {
+    /* Project using the viewport depth cache. */
+    proj_point = this->project_depth(co);
+  }
+  else {
+    if (plane_ == DrawingPlacementPlane::View) {
+      ED_view3d_win_to_3d_with_shift(view3d_, region_, placement_loc_, co, proj_point);
+    }
+    else {
+      ED_view3d_win_to_3d_on_plane(region_, placement_plane_, co, false, proj_point);
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
@@ -202,6 +365,61 @@ void DrawingPlacement::project(const Span<float2> src, MutableSpan<float3> dst) 
   threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
       dst[i] = this->project(src[i]);
+    }
+  });
+}
+
+float3 DrawingPlacement::reproject(const float3 pos) const
+{
+  const float3 world_pos = math::transform_point(layer_space_to_world_space_, pos);
+  float3 proj_point;
+  if (depth_ == DrawingPlacementDepth::Surface) {
+    /* First project the position into view space. */
+    float2 co;
+    if (ED_view3d_project_float_global(region_, world_pos, co, V3D_PROJ_TEST_NOP)) {
+      /* Can't reproject the point. */
+      return pos;
+    }
+    /* Project using the viewport depth cache. */
+    proj_point = this->project_depth(co);
+  }
+  else {
+    /* Reproject the point onto the `placement_plane_` from the current view. */
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region_->regiondata);
+
+    float3 ray_co, ray_no;
+    if (rv3d->is_persp) {
+      ray_co = float3(rv3d->viewinv[3]);
+      ray_no = math::normalize(ray_co - world_pos);
+    }
+    else {
+      ray_co = world_pos;
+      ray_no = -float3(rv3d->viewinv[2]);
+    }
+    float4 plane;
+    if (plane_ == DrawingPlacementPlane::View) {
+      plane = float4(rv3d->viewinv[2]);
+    }
+    else {
+      plane = placement_plane_;
+    }
+
+    float lambda;
+    if (isect_ray_plane_v3(ray_co, ray_no, plane, &lambda, false)) {
+      proj_point = ray_co + ray_no * lambda;
+    }
+    else {
+      return pos;
+    }
+  }
+  return math::transform_point(world_space_to_layer_space_, proj_point);
+}
+
+void DrawingPlacement::reproject(const Span<float3> src, MutableSpan<float3> dst) const
+{
+  threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[i] = this->reproject(src[i]);
     }
   });
 }
@@ -346,9 +564,10 @@ static Array<std::pair<int, int>> get_visible_frames_for_layer(
   const int last_frame = sorted_keys.last();
   const int last_frame_index = sorted_keys.index_range().last();
   const bool is_before_first = (current_frame < sorted_keys.first());
+  const std::optional<int> current_start_frame = layer.start_frame_at(current_frame);
   for (const int frame_i : sorted_keys.index_range()) {
     const int frame_number = sorted_keys[frame_i];
-    if (frame_number == current_frame) {
+    if (current_start_frame && *current_start_frame == frame_number) {
       continue;
     }
     const GreasePencilFrame &frame = layer.frames().lookup(frame_number);
@@ -547,7 +766,7 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
 
     /* Add drawing at current frame. */
     Drawing *current_drawing = grease_pencil.get_drawing_at(layer, current_frame);
-    if (!added_drawings.contains(current_drawing)) {
+    if (current_drawing != nullptr && !added_drawings.contains(current_drawing)) {
       const int frame_group = selected_frames.index_of(current_frame);
       drawings_grouped_per_frame[frame_group].append(
           {*current_drawing, layer_i, current_frame, falloff_per_selected_frame[frame_group]});
@@ -684,6 +903,21 @@ static VectorSet<int> get_hidden_material_indices(Object &object)
   return hidden_material_indices;
 }
 
+static VectorSet<int> get_fill_material_indices(Object &object)
+{
+  BLI_assert(object.type == OB_GREASE_PENCIL);
+  VectorSet<int> fill_material_indices;
+  for (const int mat_i : IndexRange(object.totcol)) {
+    Material *material = BKE_object_material_get(&object, mat_i + 1);
+    if (material != nullptr && material->gp_style != nullptr &&
+        (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
+    {
+      fill_material_indices.add_new(mat_i);
+    }
+  }
+  return fill_material_indices;
+}
+
 IndexMask retrieve_editable_strokes(Object &object,
                                     const bke::greasepencil::Drawing &drawing,
                                     int layer_index,
@@ -691,9 +925,17 @@ IndexMask retrieve_editable_strokes(Object &object,
 {
   using namespace blender;
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange curves_range = drawing.strokes().curves_range();
+  const IndexRange curves_range = curves.curves_range();
 
   if (object.totcol == 0) {
+    return IndexMask(curves_range);
+  }
+
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
+
+  /* If we're not using material locking, the entire curves range is editable. */
+  if (layer.ignore_locked_materials()) {
     return IndexMask(curves_range);
   }
 
@@ -704,9 +946,6 @@ IndexMask retrieve_editable_strokes(Object &object,
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
-
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
@@ -718,11 +957,41 @@ IndexMask retrieve_editable_strokes(Object &object,
   /* Get all the strokes that have their material unlocked. */
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        /* The stroke is editable if the material is editable. If the material is not editable,
-         * then the stroke is only editable if the layer disables the locked material option. */
-        return editable_material_indices.contains(material_index) || layer.use_locked_material();
+        return editable_material_indices.contains(materials[curve_i]);
       });
+}
+
+IndexMask retrieve_editable_fill_strokes(Object &object,
+                                         const bke::greasepencil::Drawing &drawing,
+                                         int layer_index,
+                                         IndexMaskMemory &memory)
+{
+  using namespace blender;
+  const IndexMask editable_strokes = retrieve_editable_strokes(
+      object, drawing, layer_index, memory);
+  if (editable_strokes.is_empty()) {
+    return {};
+  }
+
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const IndexRange curves_range = curves.curves_range();
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VectorSet<int> fill_material_indices = get_fill_material_indices(object);
+  if (!materials) {
+    /* If the attribute does not exist then the default is the first material. */
+    if (editable_strokes.contains(0) && fill_material_indices.contains(0)) {
+      return curves_range;
+    }
+    return {};
+  }
+  const IndexMask fill_strokes = IndexMask::from_predicate(
+      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
+        const int material_index = materials[curve_i];
+        return fill_material_indices.contains(material_index);
+      });
+  return IndexMask::from_intersection(editable_strokes, fill_strokes, memory);
 }
 
 IndexMask retrieve_editable_strokes_by_material(Object &object,
@@ -767,9 +1036,17 @@ IndexMask retrieve_editable_points(Object &object,
                                    IndexMaskMemory &memory)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange points_range = drawing.strokes().points_range();
+  const IndexRange points_range = curves.points_range();
 
   if (object.totcol == 0) {
+    return IndexMask(points_range);
+  }
+
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
+
+  /* If we're not using material locking, the entire points range is editable. */
+  if (layer.ignore_locked_materials()) {
     return IndexMask(points_range);
   }
 
@@ -779,11 +1056,8 @@ IndexMask retrieve_editable_points(Object &object,
     return {};
   }
 
-  const bke::AttributeAccessor attributes = curves.attributes();
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
-
   /* Propagate the material index to the points. */
+  const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Point);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
@@ -795,10 +1069,7 @@ IndexMask retrieve_editable_points(Object &object,
   /* Get all the points that are part of a stroke with an unlocked material. */
   return IndexMask::from_predicate(
       points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        const int material_index = materials[point_i];
-        /* The stroke is editable if the material is editable. If the material is not editable,
-         * then the stroke is only editable if the layer disables the locked material option. */
-        return editable_material_indices.contains(material_index) || layer.use_locked_material();
+        return editable_material_indices.contains(materials[point_i]);
       });
 }
 
@@ -837,7 +1108,7 @@ IndexMask retrieve_visible_strokes(Object &object,
 
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, -1);
+      "material_index", bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
         const int material_index = materials[curve_i];
@@ -878,6 +1149,58 @@ IndexMask retrieve_visible_points(Object &object,
       });
 }
 
+IndexMask retrieve_visible_bezier_handle_points(Object &object,
+                                                const bke::greasepencil::Drawing &drawing,
+                                                const int layer_index,
+                                                IndexMaskMemory &memory)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+
+  if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return IndexMask(0);
+  }
+
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const VArray<int8_t> types = curves.curve_types();
+
+  const VArray<bool> selected_point = *curves.attributes().lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
+  const VArray<bool> selected_left = *curves.attributes().lookup_or_default<bool>(
+      ".selection_handle_left", bke::AttrDomain::Point, true);
+  const VArray<bool> selected_right = *curves.attributes().lookup_or_default<bool>(
+      ".selection_handle_right", bke::AttrDomain::Point, true);
+
+  const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+      object, drawing, layer_index, memory);
+
+  const IndexMask selected_points = IndexMask::from_predicate(
+      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+        const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
+                                 selected_right[point_i];
+        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+        return is_selected && is_bezier;
+      });
+
+  return IndexMask::from_intersection(editable_points, selected_points, memory);
+}
+
+IndexMask retrieve_visible_bezier_handle_elements(Object &object,
+                                                  const bke::greasepencil::Drawing &drawing,
+                                                  const int layer_index,
+                                                  const bke::AttrDomain selection_domain,
+                                                  IndexMaskMemory &memory)
+{
+  if (selection_domain == bke::AttrDomain::Curve) {
+    return ed::greasepencil::retrieve_editable_and_selected_strokes(
+        object, drawing, layer_index, memory);
+  }
+  else if (selection_domain == bke::AttrDomain::Point) {
+    return ed::greasepencil::retrieve_visible_bezier_handle_points(
+        object, drawing, layer_index, memory);
+  }
+  return {};
+}
+
 IndexMask retrieve_editable_and_selected_strokes(Object &object,
                                                  const bke::greasepencil::Drawing &drawing,
                                                  int layer_index,
@@ -887,6 +1210,21 @@ IndexMask retrieve_editable_and_selected_strokes(Object &object,
   const bke::CurvesGeometry &curves = drawing.strokes();
 
   const IndexMask editable_strokes = retrieve_editable_strokes(
+      object, drawing, layer_index, memory);
+  const IndexMask selected_strokes = ed::curves::retrieve_selected_curves(curves, memory);
+
+  return IndexMask::from_intersection(editable_strokes, selected_strokes, memory);
+}
+
+IndexMask retrieve_editable_and_selected_fill_strokes(Object &object,
+                                                      const bke::greasepencil::Drawing &drawing,
+                                                      int layer_index,
+                                                      IndexMaskMemory &memory)
+{
+  using namespace blender;
+  const bke::CurvesGeometry &curves = drawing.strokes();
+
+  const IndexMask editable_strokes = retrieve_editable_fill_strokes(
       object, drawing, layer_index, memory);
   const IndexMask selected_strokes = ed::curves::retrieve_selected_curves(curves, memory);
 
@@ -1047,13 +1385,12 @@ Array<PointTransferData> compute_topology_change(
   /* Attributes. */
   const bke::AttributeAccessor src_attributes = src.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-  const bke::AnonymousAttributePropagationInfo propagation_info{};
 
   /* Copy curves attributes. */
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
-                         propagation_info,
-                         {"cyclic"},
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
                          dst_to_src_curve,
                          dst_attributes);
   if (src_cyclic.get_if_single().value_or(true)) {
@@ -1094,7 +1431,7 @@ Array<PointTransferData> compute_topology_change(
 
   /* Copy/Interpolate point attributes. */
   for (bke::AttributeTransferData &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT))
   {
     bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
@@ -1144,28 +1481,25 @@ static float pixel_radius_to_world_space_radius(const RegionView3D *rv3d,
 
 static float brush_radius_at_location(const RegionView3D *rv3d,
                                       const ARegion *region,
-                                      const Scene *scene,
                                       const Brush *brush,
                                       const float3 location,
                                       const float4x4 to_world)
 {
-  if (!BKE_brush_use_locked_size(scene, brush)) {
-    return pixel_radius_to_world_space_radius(
-        rv3d, region, location, to_world, BKE_brush_size_get(scene, brush));
+  if ((brush->flag & BRUSH_LOCK_SIZE) == 0) {
+    return pixel_radius_to_world_space_radius(rv3d, region, location, to_world, brush->size);
   }
-  return BKE_brush_unprojected_radius_get(scene, brush);
+  return brush->unprojected_radius;
 }
 
 float radius_from_input_sample(const RegionView3D *rv3d,
                                const ARegion *region,
-                               const Scene *scene,
                                const Brush *brush,
                                const float pressure,
                                const float3 location,
                                const float4x4 to_world,
                                const BrushGpencilSettings *settings)
 {
-  float radius = brush_radius_at_location(rv3d, region, scene, brush, location, to_world);
+  float radius = brush_radius_at_location(rv3d, region, brush, location, to_world);
   if (BKE_brush_use_size_pressure(brush)) {
     radius *= BKE_curvemapping_evaluateF(settings->curve_sensitivity, 0, pressure);
   }
@@ -1174,17 +1508,18 @@ float radius_from_input_sample(const RegionView3D *rv3d,
 
 float opacity_from_input_sample(const float pressure,
                                 const Brush *brush,
-                                const Scene *scene,
                                 const BrushGpencilSettings *settings)
 {
-  float opacity = BKE_brush_alpha_get(scene, brush);
+  float opacity = brush->alpha;
   if (BKE_brush_use_alpha_pressure(brush)) {
     opacity *= BKE_curvemapping_evaluateF(settings->curve_strength, 0, pressure);
   }
   return opacity;
 }
 
-int grease_pencil_draw_operator_invoke(bContext *C, wmOperator *op)
+int grease_pencil_draw_operator_invoke(bContext *C,
+                                       wmOperator *op,
+                                       const bool use_duplicate_previous_key)
 {
   const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
@@ -1213,7 +1548,9 @@ int grease_pencil_draw_operator_invoke(bContext *C, wmOperator *op)
 
   /* Ensure a drawing at the current keyframe. */
   bool inserted_keyframe = false;
-  if (!ed::greasepencil::ensure_active_keyframe(*scene, grease_pencil, inserted_keyframe)) {
+  if (!ed::greasepencil::ensure_active_keyframe(
+          *scene, grease_pencil, active_layer, use_duplicate_previous_key, inserted_keyframe))
+  {
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
   }
@@ -1221,6 +1558,60 @@ int grease_pencil_draw_operator_invoke(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
   }
   return OPERATOR_RUNNING_MODAL;
+}
+
+float4x2 calculate_texture_space(const Scene *scene,
+                                 const ARegion *region,
+                                 const float2 &mouse,
+                                 const DrawingPlacement &placement)
+{
+  float3 u_dir;
+  float3 v_dir;
+  /* Set the texture space origin to be the first point. */
+  float3 origin = placement.project(mouse);
+  /* Align texture with the drawing plane. */
+  switch (scene->toolsettings->gp_sculpt.lock_axis) {
+    case GP_LOCKAXIS_VIEW:
+      u_dir = math::normalize(placement.project(float2(region->winx, 0.0f) + mouse) - origin);
+      v_dir = math::normalize(placement.project(float2(0.0f, region->winy) + mouse) - origin);
+      break;
+    case GP_LOCKAXIS_Y:
+      u_dir = float3(1.0f, 0.0f, 0.0f);
+      v_dir = float3(0.0f, 0.0f, 1.0f);
+      break;
+    case GP_LOCKAXIS_X:
+      u_dir = float3(0.0f, 1.0f, 0.0f);
+      v_dir = float3(0.0f, 0.0f, 1.0f);
+      break;
+    case GP_LOCKAXIS_Z:
+      u_dir = float3(1.0f, 0.0f, 0.0f);
+      v_dir = float3(0.0f, 1.0f, 0.0f);
+      break;
+    case GP_LOCKAXIS_CURSOR: {
+      const float3x3 mat = scene->cursor.matrix<float3x3>();
+      u_dir = mat * float3(1.0f, 0.0f, 0.0f);
+      v_dir = mat * float3(0.0f, 1.0f, 0.0f);
+      origin = float3(scene->cursor.location);
+      break;
+    }
+  }
+
+  return math::transpose(float2x4(float4(u_dir, -math::dot(u_dir, origin)),
+                                  float4(v_dir, -math::dot(v_dir, origin))));
+}
+
+GreasePencil *from_context(bContext &C)
+{
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(
+      CTX_data_pointer_get_type(&C, "grease_pencil", &RNA_GreasePencilv3).data);
+
+  if (grease_pencil == nullptr) {
+    Object *object = CTX_data_active_object(&C);
+    if (object && object->type == OB_GREASE_PENCIL) {
+      grease_pencil = static_cast<GreasePencil *>(object->data);
+    }
+  }
+  return grease_pencil;
 }
 
 }  // namespace blender::ed::greasepencil

@@ -279,8 +279,8 @@ GPUShader *OVERLAY_shader_armature_degrees_of_freedom_wire()
   OVERLAY_Shaders *sh_data = &e_data.sh_data[draw_ctx->sh_cfg];
   if (!sh_data->armature_dof_wire) {
     sh_data->armature_dof_wire = GPU_shader_create_from_info_name(
-        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? "overlay_armature_dof_wire_clipped" :
-                                                       "overlay_armature_dof_wire");
+        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? "overlay_armature_dof_clipped" :
+                                                       "overlay_armature_dof");
   }
   return sh_data->armature_dof_wire;
 }
@@ -291,8 +291,8 @@ GPUShader *OVERLAY_shader_armature_degrees_of_freedom_solid()
   OVERLAY_Shaders *sh_data = &e_data.sh_data[draw_ctx->sh_cfg];
   if (!sh_data->armature_dof_solid) {
     sh_data->armature_dof_solid = GPU_shader_create_from_info_name(
-        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? "overlay_armature_dof_solid_clipped" :
-                                                       "overlay_armature_dof_solid");
+        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? "overlay_armature_dof_clipped" :
+                                                       "overlay_armature_dof");
   }
   return sh_data->armature_dof_solid;
 }
@@ -983,7 +983,8 @@ GPUShader *OVERLAY_shader_volume_velocity(bool use_needle, bool use_mac)
         "overlay_volume_velocity_mac");
   }
   else if (!sh_data->volume_velocity_sh) {
-    sh_data->volume_velocity_sh = GPU_shader_create_from_info_name("overlay_volume_velocity");
+    sh_data->volume_velocity_sh = GPU_shader_create_from_info_name(
+        "overlay_volume_velocity_streamline");
   }
 
   if (use_needle) {
@@ -1007,7 +1008,8 @@ GPUShader *OVERLAY_shader_volume_gridlines(bool color_with_flags, bool color_ran
         "overlay_volume_gridlines_range");
   }
   else if (!sh_data->volume_gridlines_sh) {
-    sh_data->volume_gridlines_sh = GPU_shader_create_from_info_name("overlay_volume_gridlines");
+    sh_data->volume_gridlines_sh = GPU_shader_create_from_info_name(
+        "overlay_volume_gridlines_flat");
   }
 
   if (color_with_flags) {
@@ -1171,7 +1173,7 @@ OVERLAY_InstanceFormats *OVERLAY_shader_instance_formats_get()
   DRW_shgroup_instance_format(g_formats.point_extra,
                               {
                                   {"pos", DRW_ATTR_FLOAT, 3},
-                                  {"colorid", DRW_ATTR_INT, 1},
+                                  {"vertex_color", DRW_ATTR_FLOAT, 4},
                               });
   DRW_shgroup_instance_format(g_formats.instance_bone,
                               {

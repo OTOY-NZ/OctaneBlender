@@ -23,10 +23,13 @@ struct CCGSubSurf;
 struct CCGVert;
 struct DerivedMesh;
 struct Mesh;
-struct MeshElemMap;
 struct MultiresModifierData;
 struct Object;
-struct PBVH;
+struct Scene;
+
+namespace blender::bke::pbvh {
+class Tree;
+}
 struct SubsurfModifierData;
 
 /**************************** External *****************************/

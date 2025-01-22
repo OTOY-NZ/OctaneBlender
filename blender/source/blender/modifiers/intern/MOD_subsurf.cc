@@ -40,7 +40,7 @@
 #include "RE_engine.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -135,7 +135,7 @@ static void subdiv_mesh_settings_init(blender::bke::subdiv::ToMeshSettings *sett
   const int level = subdiv_levels_for_modifier_get(smd, ctx);
   settings->resolution = (1 << level) + 1;
   settings->use_optimal_display = (smd->flags & eSubsurfModifierFlag_ControlEdges) &&
-                                  !(ctx->flag & MOD_APPLY_TO_BASE_MESH);
+                                  !(ctx->flag & MOD_APPLY_TO_ORIGINAL);
 }
 
 static Mesh *subdiv_as_mesh(SubsurfModifierData *smd,
@@ -225,7 +225,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   /* Delay evaluation to the draw code if possible, provided we do not have to apply the modifier.
    */
-  if ((ctx->flag & MOD_APPLY_TO_BASE_MESH) == 0) {
+  if ((ctx->flag & MOD_APPLY_TO_ORIGINAL) == 0) {
     Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
     const bool is_render_mode = (ctx->flag & MOD_APPLY_RENDER) != 0;
     /* Same check as in `DRW_mesh_batch_cache_create_requested` to keep both code coherent. The
@@ -261,9 +261,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   if (use_clnors) {
-    BKE_mesh_set_custom_normals(result,
-                                static_cast<float(*)[3]>(CustomData_get_layer_for_write(
-                                    &result->corner_data, CD_NORMAL, result->corners_num)));
+    BKE_mesh_set_custom_normals_normalized(
+        result,
+        static_cast<float(*)[3]>(
+            CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num)));
     CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
   }
   // blender::bke::subdiv::stats_print(&subdiv->stats);
@@ -297,8 +298,7 @@ static void deform_matrices(ModifierData *md,
     /* Happens on bad topology, but also on empty input mesh. */
     return;
   }
-  blender::bke::subdiv::deform_coarse_vertices(
-      subdiv, mesh, reinterpret_cast<float(*)[3]>(positions.data()), positions.size());
+  blender::bke::subdiv::deform_coarse_vertices(subdiv, mesh, positions);
   if (!ELEM(subdiv, runtime_data->subdiv_cpu, runtime_data->subdiv_gpu)) {
     blender::bke::subdiv::free(subdiv);
   }

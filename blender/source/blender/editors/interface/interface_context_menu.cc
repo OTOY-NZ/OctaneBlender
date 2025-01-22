@@ -16,7 +16,7 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -38,11 +38,11 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "WM_api.hh"
@@ -112,6 +112,13 @@ static const char *shortcut_get_operator_property(bContext *C, uiBut *but, IDPro
     IDP_AddToGroup(prop, bke::idprop::create("name", mt->idname).release());
     *r_prop = prop;
     return "WM_OT_call_menu";
+  }
+
+  if (std::optional asset_shelf_idname = UI_but_asset_shelf_type_idname_get(but)) {
+    IDProperty *prop = blender::bke::idprop::create_group(__func__).release();
+    IDP_AddToGroup(prop, bke::idprop::create("name", *asset_shelf_idname).release());
+    *r_prop = prop;
+    return "WM_OT_call_asset_shelf_popover";
   }
 
   if (PanelType *pt = UI_but_paneltype_get(but)) {
@@ -1070,8 +1077,10 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   {
     const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-    uiButViewItem *view_item_but = (uiButViewItem *)ui_view_item_find_mouse_over(region,
-                                                                                 event->xy);
+    uiButViewItem *view_item_but = (but->type == UI_BTYPE_VIEW_ITEM) ?
+                                       static_cast<uiButViewItem *>(but) :
+                                       static_cast<uiButViewItem *>(
+                                           ui_view_item_find_mouse_over(region, event->xy));
     if (view_item_but) {
       BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
@@ -1088,32 +1097,39 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
   }
 
-  /* If the button represents an id, it can set the "id" context pointer. */
-  if (asset::can_mark_single_from_context(C)) {
-    const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
+  /* Expose id specific operators in context menu when button has no operator associated. Otherwise
+   * they would appear in nested context menus, see: #126006. */
+  if ((but->optype == nullptr) && (but->apply_func == nullptr) &&
+      (but->menu_create_func == nullptr))
+  {
+    /* If the button represents an id, it can set the "id" context pointer. */
+    if (asset::can_mark_single_from_context(C)) {
+      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
 
-    /* Gray out items depending on if data-block is an asset. Preferably this could be done via
-     * operator poll, but that doesn't work since the operator also works with "selected_ids",
-     * which isn't cheap to check. */
-    uiLayout *sub = uiLayoutColumn(layout, true);
-    uiLayoutSetEnabled(sub, !id->asset_data);
-    uiItemO(sub,
-            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
-            ICON_ASSET_MANAGER,
-            "ASSET_OT_mark_single");
-    sub = uiLayoutColumn(layout, true);
-    uiLayoutSetEnabled(sub, id->asset_data);
-    uiItemO(sub,
-            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
-            ICON_NONE,
-            "ASSET_OT_clear_single");
-    uiItemS(layout);
-  }
+      /* Gray out items depending on if data-block is an asset. Preferably this could be done via
+       * operator poll, but that doesn't work since the operator also works with "selected_ids",
+       * which isn't cheap to check. */
+      uiLayout *sub = uiLayoutColumn(layout, true);
+      uiLayoutSetEnabled(sub, !id->asset_data);
+      uiItemO(sub,
+              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
+              ICON_ASSET_MANAGER,
+              "ASSET_OT_mark_single");
+      sub = uiLayoutColumn(layout, true);
+      uiLayoutSetEnabled(sub, id->asset_data);
+      uiItemO(sub,
+              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
+              ICON_NONE,
+              "ASSET_OT_clear_single");
+      uiItemS(layout);
+    }
 
-  MenuType *mt_idtemplate_liboverride = WM_menutype_find("UI_MT_idtemplate_liboverride", true);
-  if (mt_idtemplate_liboverride && mt_idtemplate_liboverride->poll(C, mt_idtemplate_liboverride)) {
-    uiItemM_ptr(layout, mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
-    uiItemS(layout);
+    MenuType *mt_idtemplate_liboverride = WM_menutype_find("UI_MT_idtemplate_liboverride", true);
+    if (mt_idtemplate_liboverride && mt_idtemplate_liboverride->poll(C, mt_idtemplate_liboverride))
+    {
+      uiItemM_ptr(layout, mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
+      uiItemS(layout);
+    }
   }
 
   /* Pointer properties and string properties with

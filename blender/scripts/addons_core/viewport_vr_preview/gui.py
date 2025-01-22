@@ -72,6 +72,7 @@ class VIEW3D_PT_vr_session_view(Panel):
 
         col = layout.column(align=True, heading="Show")
         col.prop(session_settings, "show_floor", text="Floor")
+        col.prop(session_settings, "show_passthrough", text="Passthrough")
         col.prop(session_settings, "show_annotation", text="Annotations")
 
         col.prop(session_settings, "show_selection", text="Selection")
@@ -212,7 +213,6 @@ class VIEW3D_PT_vr_viewport_feedback(Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         view3d = context.space_data
         session_settings = context.window_manager.xr_session_settings
 

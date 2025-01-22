@@ -24,7 +24,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -38,7 +38,6 @@ BLI_ALIGN_STRUCT struct DeformUserData {
   int lock_axis;
   int vgroup;
   int limit_axis;
-  float weight;
   float smd_factor;
   float smd_limit[2];
   float (*vertexCos)[3];
@@ -289,7 +288,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
   const MDeformVert *dvert;
 
   /* This is historically the lock axis, _not_ the deform axis as the name would imply */
-  const int deform_axis = smd->deform_axis;
+  const int deform_axis = std::clamp(int(smd->deform_axis), 0, 2);
   int lock_axis = smd->axis;
   if (smd->mode == MOD_SIMPLEDEFORM_MODE_BEND) { /* Bend mode shouldn't have any lock axis */
     lock_axis = 0;

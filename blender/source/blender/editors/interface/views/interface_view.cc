@@ -145,7 +145,7 @@ void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *l
 void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block)
 {
   LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-    view_link->view->draw_overlays(*region);
+    view_link->view->draw_overlays(*region, *block);
   }
 }
 
@@ -204,6 +204,15 @@ ui::AbstractViewItem *UI_region_views_find_active_item(const ARegion *region)
 uiBut *UI_region_views_find_active_item_but(const ARegion *region)
 {
   return ui_view_item_find_active(region);
+}
+
+void UI_region_views_clear_search_highlight(const ARegion *region)
+{
+  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+    LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
+      view_link->view->clear_search_highlight();
+    }
+  }
 }
 
 namespace blender::ui {

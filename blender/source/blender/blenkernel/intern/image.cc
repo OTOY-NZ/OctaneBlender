@@ -68,14 +68,14 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -410,13 +410,17 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, ImagePackedFile, &(ima->packedfiles));
 
   if (ima->packedfiles.first) {
-    LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
-      BKE_packedfile_blend_read(reader, &imapf->packedfile);
+    LISTBASE_FOREACH_MUTABLE (ImagePackedFile *, imapf, &ima->packedfiles) {
+      BKE_packedfile_blend_read(reader, &imapf->packedfile, imapf->filepath);
+      if (!imapf->packedfile) {
+        BLI_remlink(&ima->packedfiles, imapf);
+        MEM_freeN(imapf);
+      }
     }
     ima->packedfile = nullptr;
   }
   else {
-    BKE_packedfile_blend_read(reader, &ima->packedfile);
+    BKE_packedfile_blend_read(reader, &ima->packedfile, ima->filepath);
   }
 
   BLI_listbase_clear(&ima->anims);
@@ -687,11 +691,15 @@ static void image_init(Image *ima, short source, short type)
   ima->stereo3d_format = MEM_cnew<Stereo3dFormat>("Image Stereo Format");
 }
 
-static Image *image_alloc(Main *bmain, const char *name, short source, short type)
+static Image *image_alloc(Main *bmain,
+                          std::optional<Library *> owner_library,
+                          const char *name,
+                          short source,
+                          short type)
 {
   Image *ima;
 
-  ima = static_cast<Image *>(BKE_libblock_alloc(bmain, ID_IM, name, 0));
+  ima = static_cast<Image *>(BKE_libblock_alloc_in_lib(bmain, owner_library, ID_IM, name, 0));
   if (ima) {
     image_init(ima, source, type);
   }
@@ -795,7 +803,7 @@ bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser)
   ibuf = BKE_image_acquire_ibuf(image, iuser, &lock);
 
   if (ibuf) {
-    IMB_scaleImBuf(ibuf, width, height);
+    IMB_scale(ibuf, width, height, IMBScaleFilter::Box, false);
     BKE_image_mark_dirty(image, ibuf);
   }
 
@@ -1028,14 +1036,37 @@ void BKE_image_alpha_mode_from_extension(Image *image)
   image->alpha_mode = BKE_image_alpha_mode_from_extension_ex(image->filepath);
 }
 
+static void image_abs_path(Main *bmain,
+                           Library *owner_library,
+                           const char *filepath,
+                           char *r_filepath_abs)
+{
+  BLI_strncpy(r_filepath_abs, filepath, FILE_MAX);
+  if (owner_library) {
+    BLI_path_abs(r_filepath_abs, owner_library->runtime.filepath_abs);
+  }
+  else {
+    BLI_path_abs(r_filepath_abs, BKE_main_blendfile_path(bmain));
+  }
+}
+
 Image *BKE_image_load(Main *bmain, const char *filepath)
+{
+  return BKE_image_load_in_lib(bmain, std::nullopt, filepath);
+}
+
+Image *BKE_image_load_in_lib(Main *bmain,
+                             std::optional<Library *> owner_library,
+                             const char *filepath)
 {
   Image *ima;
   int file;
   char filepath_abs[FILE_MAX];
 
-  STRNCPY(filepath_abs, filepath);
-  BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
+  /* If no owner library is explicitely given, use the current library from the given Main. */
+  Library *owner_lib = owner_library.value_or(bmain->curlib);
+
+  image_abs_path(bmain, owner_lib, filepath, filepath_abs);
 
   /* exists? */
   file = BLI_open(filepath_abs, O_BINARY | O_RDONLY, 0);
@@ -1048,7 +1079,8 @@ Image *BKE_image_load(Main *bmain, const char *filepath)
     close(file);
   }
 
-  ima = image_alloc(bmain, BLI_path_basename(filepath), IMA_SRC_FILE, IMA_TYPE_IMAGE);
+  ima = image_alloc(
+      bmain, owner_library, BLI_path_basename(filepath), IMA_SRC_FILE, IMA_TYPE_IMAGE);
   STRNCPY(ima->filepath, filepath);
 
   if (BLI_path_extension_check_array(filepath, imb_ext_movie)) {
@@ -1060,13 +1092,23 @@ Image *BKE_image_load(Main *bmain, const char *filepath)
   return ima;
 }
 
-Image *BKE_image_load_exists_ex(Main *bmain, const char *filepath, bool *r_exists)
+Image *BKE_image_load_exists(Main *bmain, const char *filepath, bool *r_exists)
+{
+  return BKE_image_load_exists_in_lib(bmain, std::nullopt, filepath, r_exists);
+}
+
+Image *BKE_image_load_exists_in_lib(Main *bmain,
+                                    std::optional<Library *> owner_library,
+                                    const char *filepath,
+                                    bool *r_exists)
 {
   Image *ima;
   char filepath_abs[FILE_MAX], filepath_test[FILE_MAX];
 
-  STRNCPY(filepath_abs, filepath);
-  BLI_path_abs(filepath_abs, bmain->filepath);
+  /* If not owner library is explicitely given, use the current library from the given Main. */
+  Library *owner_lib = owner_library.value_or(bmain->curlib);
+
+  image_abs_path(bmain, owner_lib, filepath, filepath_abs);
 
   /* first search an identical filepath */
   for (ima = static_cast<Image *>(bmain->images.first); ima;
@@ -1076,27 +1118,30 @@ Image *BKE_image_load_exists_ex(Main *bmain, const char *filepath, bool *r_exist
       STRNCPY(filepath_test, ima->filepath);
       BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &ima->id));
 
-      if (BLI_path_cmp(filepath_test, filepath_abs) == 0) {
-        if ((BKE_image_has_anim(ima) == false) || (ima->id.us == 0)) {
-          id_us_plus(&ima->id); /* officially should not, it doesn't link here! */
-          if (r_exists) {
-            *r_exists = true;
-          }
-          return ima;
-        }
+      if (BLI_path_cmp(filepath_test, filepath_abs) != 0) {
+        continue;
       }
+      if ((BKE_image_has_anim(ima)) && (ima->id.us != 0)) {
+        /* TODO explain why animated images with already one or more users are skipped? */
+        continue;
+      }
+      if (ima->id.lib != owner_lib) {
+        continue;
+      }
+      /* FIXME Should not happen here. Only code actually adding an ID usage should increment this
+       * counter. */
+      id_us_plus(&ima->id);
+      if (r_exists) {
+        *r_exists = true;
+      }
+      return ima;
     }
   }
 
   if (r_exists) {
     *r_exists = false;
   }
-  return BKE_image_load(bmain, filepath);
-}
-
-Image *BKE_image_load_exists(Main *bmain, const char *filepath)
-{
-  return BKE_image_load_exists_ex(bmain, filepath, nullptr);
+  return BKE_image_load_in_lib(bmain, owner_library, filepath);
 }
 
 struct ImageFillData {
@@ -1221,10 +1266,10 @@ Image *BKE_image_add_generated(Main *bmain,
   /* Saving the image changes it's #Image.source to #IMA_SRC_FILE (leave as generated here). */
   Image *ima;
   if (tiled) {
-    ima = image_alloc(bmain, name, IMA_SRC_TILED, IMA_TYPE_IMAGE);
+    ima = image_alloc(bmain, std::nullopt, name, IMA_SRC_TILED, IMA_TYPE_IMAGE);
   }
   else {
-    ima = image_alloc(bmain, name, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
+    ima = image_alloc(bmain, std::nullopt, name, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
   }
   if (ima == nullptr) {
     return nullptr;
@@ -1308,7 +1353,7 @@ Image *BKE_image_add_from_imbuf(Main *bmain, ImBuf *ibuf, const char *name)
    * Otherwise create "generated" image, avoiding invalid configuration with an empty file path. */
   const eImageSource source = ibuf->filepath[0] != '\0' ? IMA_SRC_FILE : IMA_SRC_GENERATED;
 
-  Image *ima = image_alloc(bmain, name, source, IMA_TYPE_IMAGE);
+  Image *ima = image_alloc(bmain, std::nullopt, name, source, IMA_TYPE_IMAGE);
 
   if (!ima) {
     return nullptr;
@@ -1363,10 +1408,8 @@ static bool image_memorypack_imbuf(
   }
 
   ImagePackedFile *imapf;
-  PackedFile *pf = MEM_cnew<PackedFile>("PackedFile");
-
-  pf->size = ibuf->encoded_size;
-  pf->data = IMB_steal_encoded_buffer(ibuf);
+  const int encoded_size = ibuf->encoded_size;
+  PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf), encoded_size);
 
   imapf = static_cast<ImagePackedFile *>(MEM_mallocN(sizeof(ImagePackedFile), "Image PackedFile"));
   STRNCPY(imapf->filepath, filepath);
@@ -1587,21 +1630,21 @@ void BKE_image_free_all_textures(Main *bmain)
   for (ima = static_cast<Image *>(bmain->images.first); ima;
        ima = static_cast<Image *>(ima->id.next))
   {
-    ima->id.tag &= ~LIB_TAG_DOIT;
+    ima->id.tag &= ~ID_TAG_DOIT;
   }
 
   for (tex = static_cast<Tex *>(bmain->textures.first); tex;
        tex = static_cast<Tex *>(tex->id.next))
   {
     if (tex->ima) {
-      tex->ima->id.tag |= LIB_TAG_DOIT;
+      tex->ima->id.tag |= ID_TAG_DOIT;
     }
   }
 
   for (ima = static_cast<Image *>(bmain->images.first); ima;
        ima = static_cast<Image *>(ima->id.next))
   {
-    if (ima->cache && (ima->id.tag & LIB_TAG_DOIT)) {
+    if (ima->cache && (ima->id.tag & ID_TAG_DOIT)) {
 #ifdef CHECK_FREED_SIZE
       uintptr_t old_size = image_mem_size(ima);
 #endif
@@ -2611,7 +2654,7 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
   return false;
 }
 
-int BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *imf)
+bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *imf)
 {
   BKE_image_format_to_imbuf(ibuf, imf);
 
@@ -2625,13 +2668,13 @@ int BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *im
   return ok;
 }
 
-int BKE_imbuf_write_as(ImBuf *ibuf,
-                       const char *filepath,
-                       const ImageFormatData *imf,
-                       const bool save_copy)
+bool BKE_imbuf_write_as(ImBuf *ibuf,
+                        const char *filepath,
+                        const ImageFormatData *imf,
+                        const bool save_copy)
 {
   ImBuf ibuf_back = *ibuf;
-  int ok;
+  bool ok;
 
   /* All data is RGBA anyway, this just controls how to save for some formats. */
   ibuf->planes = imf->planes;
@@ -2648,11 +2691,11 @@ int BKE_imbuf_write_as(ImBuf *ibuf,
   return ok;
 }
 
-int BKE_imbuf_write_stamp(const Scene *scene,
-                          const RenderResult *rr,
-                          ImBuf *ibuf,
-                          const char *filepath,
-                          const ImageFormatData *imf)
+bool BKE_imbuf_write_stamp(const Scene *scene,
+                           const RenderResult *rr,
+                           ImBuf *ibuf,
+                           const char *filepath,
+                           const ImageFormatData *imf)
 {
   if (scene && scene->r.stamp & R_STAMP_ALL) {
     BKE_imbuf_stamp_info(rr, ibuf);
@@ -2687,12 +2730,15 @@ ImBufAnim *openanim(const char *filepath,
 
   ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
   if (ibuf == nullptr) {
-    if (BLI_exists(filepath)) {
-      printf("not an anim: %s\n", filepath);
+    const char *reason;
+    if (!BLI_exists(filepath)) {
+      reason = "file doesn't exist";
     }
     else {
-      printf("anim file doesn't exist: %s\n", filepath);
+      reason = "not an anim";
     }
+    CLOG_INFO(&LOG, 1, "unable to load anim, %s: %s", reason, filepath);
+
     IMB_free_anim(anim);
     return nullptr;
   }
@@ -2739,7 +2785,7 @@ Image *BKE_image_ensure_viewer(Main *bmain, int type, const char *name)
   }
 
   if (ima == nullptr) {
-    ima = image_alloc(bmain, name, IMA_SRC_VIEWER, type);
+    ima = image_alloc(bmain, std::nullopt, name, IMA_SRC_VIEWER, type);
   }
 
   /* Happens on reload, image-window cannot be image user when hidden. */
@@ -3221,7 +3267,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
         const int tot_viewfiles = image_num_viewfiles(ima);
         const int tot_files = tot_viewfiles * BLI_listbase_count(&ima->tiles);
 
-        if (tot_files != BLI_listbase_count_at_most(&ima->packedfiles, tot_files + 1)) {
+        if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, tot_files)) {
           /* in case there are new available files to be loaded */
           image_free_packedfiles(ima);
           BKE_image_packfiles(nullptr, ima, ID_BLEND_PATH(bmain, &ima->id));
@@ -4145,7 +4191,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
   const bool is_multiview = BKE_image_is_multiview(ima);
   const int tot_viewfiles = image_num_viewfiles(ima);
 
-  if (tot_viewfiles != BLI_listbase_count_at_most(&ima->anims, tot_viewfiles + 1)) {
+  if (!BLI_listbase_count_is_equal_to(&ima->anims, tot_viewfiles)) {
     image_free_anims(ima);
 
     for (int i = 0; i < tot_viewfiles; i++) {
@@ -4304,7 +4350,7 @@ static ImBuf *image_load_image_file(
   /* this should never happen, but just playing safe */
   if (!is_sequence && has_packed) {
     const int totfiles = tot_viewfiles * BLI_listbase_count(&ima->tiles);
-    if (totfiles != BLI_listbase_count_at_most(&ima->packedfiles, totfiles + 1)) {
+    if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, totfiles)) {
       image_free_packedfiles(ima);
       has_packed = false;
     }
@@ -4905,6 +4951,31 @@ bool BKE_image_has_ibuf(Image *ima, ImageUser *iuser)
   IMB_freeImBuf(ibuf);
 
   return ibuf != nullptr;
+}
+
+ImBuf *BKE_image_preview(Image *ima, const short max_size, short *r_width, short *r_height)
+{
+  void *lock;
+  ImBuf *image_ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  if (image_ibuf == nullptr) {
+    return nullptr;
+  }
+
+  ImBuf *preview = IMB_dupImBuf(image_ibuf);
+  float scale = float(max_size) / float(std::max(image_ibuf->x, image_ibuf->y));
+  if (r_width) {
+    *r_width = image_ibuf->x;
+  }
+  if (r_height) {
+    *r_height = image_ibuf->y;
+  }
+  BKE_image_release_ibuf(ima, image_ibuf, lock);
+
+  /* Resize. */
+  IMB_scale(preview, scale * image_ibuf->x, scale * image_ibuf->y, IMBScaleFilter::Box, false);
+  IMB_rect_from_float(preview);
+
+  return preview;
 }
 
 /** \} */

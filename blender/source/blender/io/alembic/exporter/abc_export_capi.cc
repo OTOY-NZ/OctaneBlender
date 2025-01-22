@@ -22,7 +22,7 @@
 #include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
 
@@ -230,8 +230,12 @@ bool ABC_export(Scene *scene,
 
   bool export_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(
-        job->wm, CTX_wm_window(C), scene, "Alembic Export", WM_JOB_PROGRESS, WM_JOB_TYPE_ALEMBIC);
+    wmJob *wm_job = WM_jobs_get(job->wm,
+                                CTX_wm_window(C),
+                                scene,
+                                "Alembic Export",
+                                WM_JOB_PROGRESS,
+                                WM_JOB_TYPE_ALEMBIC_EXPORT);
 
     /* setup job */
     WM_jobs_customdata_set(wm_job, job, MEM_freeN);

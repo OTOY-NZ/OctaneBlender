@@ -24,7 +24,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -150,14 +150,12 @@ void uiTemplateHeader3D_mode(uiLayout *layout, bContext *C)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = CTX_data_edit_object(C);
-  bGPdata *gpd = CTX_data_gpencil_data(C);
 
-  bool is_paint = (ob && !(gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
-                   ELEM(ob->mode,
-                        OB_MODE_SCULPT,
-                        OB_MODE_VERTEX_PAINT,
-                        OB_MODE_WEIGHT_PAINT,
-                        OB_MODE_TEXTURE_PAINT));
+  bool is_paint = (ob && ELEM(ob->mode,
+                              OB_MODE_SCULPT,
+                              OB_MODE_VERTEX_PAINT,
+                              OB_MODE_WEIGHT_PAINT,
+                              OB_MODE_TEXTURE_PAINT));
 
   uiTemplateEditModeSelection(layout, C);
   if ((obedit == nullptr) && is_paint) {

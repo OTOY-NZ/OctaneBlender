@@ -10,14 +10,14 @@
 
 #include "RE_engine.h"
 
-#include "../generic/py_capi_utils.h"
-#include "bpy_rna.h"
+#include "../generic/py_capi_utils.hh"
+#include "bpy_rna.hh"
 
 #include "BKE_context.hh"
 
 #include "RE_engine.h"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "hydra/image.hh"
 

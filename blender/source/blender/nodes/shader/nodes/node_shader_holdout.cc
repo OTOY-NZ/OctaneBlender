@@ -8,7 +8,7 @@ namespace blender::nodes::node_shader_holdout_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("Holdout");
 }
 
@@ -35,5 +35,5 @@ void register_node_type_sh_holdout()
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_rgb;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

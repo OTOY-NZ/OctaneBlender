@@ -101,7 +101,8 @@ class Prefs(bpy.types.KeyConfigPreferences):
     use_alt_click_leader: BoolProperty(
         name="Alt Click Tool Prompt",
         description=(
-            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar, prompting a second keystroke to activate the tool"
+            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar, "
+            "prompting a second keystroke to activate the tool"
         ),
         default=False,
         update=update_fn,
@@ -244,7 +245,9 @@ class Prefs(bpy.types.KeyConfigPreferences):
         name="Transform Navigation with Alt",
         description=(
             "During transformations, use Alt to navigate in the 3D View. "
-            "Note that if disabled, hotkeys for Proportional Editing, Automatic Constraints, and Auto IK Chain Length will require holding Alt"),
+            "Note that if disabled, hotkeys for Proportional Editing, "
+            "Automatic Constraints, and Auto IK Chain Length will require holding Alt"
+        ),
         default=True,
         update=update_fn,
     )
@@ -366,12 +369,10 @@ def load():
             use_pie_click_drag=kc_prefs.use_pie_click_drag,
             use_file_single_click=kc_prefs.use_file_single_click,
             use_alt_navigation=kc_prefs.use_alt_navigation,
-            # Experimental features.
-            use_experimental_grease_pencil_version3=prefs.experimental.use_grease_pencil_version3,
         ),
     )
 
-    if platform == 'darwin':
+    if platform == "darwin":
         from bl_keymap_utils.platform_helpers import keyconfig_data_oskey_from_ctrl_for_macos
         keyconfig_data = keyconfig_data_oskey_from_ctrl_for_macos(keyconfig_data)
 

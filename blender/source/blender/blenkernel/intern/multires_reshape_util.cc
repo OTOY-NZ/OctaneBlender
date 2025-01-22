@@ -51,8 +51,11 @@ blender::bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgrap
   subdiv::Settings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   subdiv::Subdiv *subdiv = subdiv::new_from_mesh(&subdiv_settings, base_mesh);
+  if (!subdiv) {
+    return nullptr;
+  }
   if (!subdiv::eval_begin_from_mesh(
-          subdiv, base_mesh, nullptr, subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
+          subdiv, base_mesh, {}, subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
   {
     subdiv::free(subdiv);
     return nullptr;
@@ -111,7 +114,7 @@ static void context_init_grid_pointers(MultiresReshapeContext *reshape_context)
       &base_mesh->corner_data, CD_GRID_PAINT_MASK, base_mesh->corners_num));
 }
 
-static void context_init_commoon(MultiresReshapeContext *reshape_context)
+static void context_init_common(MultiresReshapeContext *reshape_context)
 {
   BLI_assert(reshape_context->subdiv != nullptr);
   BLI_assert(reshape_context->base_mesh != nullptr);
@@ -164,6 +167,9 @@ bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *resh
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(nullptr, object, mmd);
+  if (!reshape_context->subdiv) {
+    return false;
+  }
   reshape_context->need_free_subdiv = true;
 
   reshape_context->reshape.level = multires_get_level(
@@ -175,7 +181,7 @@ bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *resh
   reshape_context->top.grid_size = blender::bke::subdiv::grid_size_from_level(
       reshape_context->top.level);
 
-  context_init_commoon(reshape_context);
+  context_init_common(reshape_context);
 
   return context_verify_or_free(reshape_context);
 }
@@ -205,6 +211,9 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(depsgraph, object, mmd);
+  if (!reshape_context->subdiv) {
+    return false;
+  }
   reshape_context->need_free_subdiv = true;
 
   reshape_context->reshape.level = multires_get_level(
@@ -219,7 +228,7 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
   reshape_context->cd_edge_crease = *attributes.lookup<float>("crease_edge", AttrDomain::Edge);
 
-  context_init_commoon(reshape_context);
+  context_init_common(reshape_context);
 
   return context_verify_or_free(reshape_context);
 }
@@ -249,7 +258,7 @@ bool multires_reshape_context_create_from_ccg(MultiresReshapeContext *reshape_co
   reshape_context->top.grid_size = blender::bke::subdiv::grid_size_from_level(
       reshape_context->top.level);
 
-  context_init_commoon(reshape_context);
+  context_init_common(reshape_context);
 
   return context_verify_or_free(reshape_context);
 }
@@ -302,7 +311,7 @@ bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape
   reshape_context->top.level = top_level;
   reshape_context->top.grid_size = subdiv::grid_size_from_level(reshape_context->top.level);
 
-  context_init_commoon(reshape_context);
+  context_init_common(reshape_context);
 
   return context_verify_or_free(reshape_context);
 }

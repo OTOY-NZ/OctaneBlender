@@ -9,12 +9,10 @@
 #include "draw_sculpt.hh"
 
 #include "draw_attributes.hh"
-#include "draw_pbvh.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
 
 #include "DRW_pbvh.hh"
 
@@ -41,8 +39,9 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
                                                  const bool use_wire,
                                                  const Span<pbvh::AttributeRequest> attrs)
 {
-  /* PBVH should always exist for non-empty meshes, created by depsgraph eval. */
-  PBVH *pbvh = ob->sculpt ? ob->sculpt->pbvh.get() : nullptr;
+  /* pbvh::Tree should always exist for non-empty meshes, created by depsgraph eval. */
+  bke::pbvh::Tree *pbvh = ob->sculpt ? const_cast<bke::pbvh::Tree *>(bke::object::pbvh_get(*ob)) :
+                                       nullptr;
   if (!pbvh) {
     return {};
   }
@@ -57,7 +56,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
     paint = BKE_paint_get_active_from_context(drwctx->evil_C);
   }
 
-  /* Frustum planes to show only visible PBVH nodes. */
+  /* Frustum planes to show only visible pbvh::Tree nodes. */
   float4 draw_planes[6];
   PBVHFrustumPlanes draw_frustum = {reinterpret_cast<float(*)[4]>(draw_planes), 6};
   float4 update_planes[6];
@@ -96,27 +95,38 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
     update_only_visible = true;
   }
 
-  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
-  bke::pbvh::update_normals(*pbvh, mesh->runtime->subdiv_ccg.get());
+  bke::pbvh::update_normals_from_eval(*const_cast<Object *>(ob), *pbvh);
 
-  Vector<SculptBatch> result_batches;
-  bke::pbvh::draw_cb(*mesh,
-                     *pbvh,
-                     update_only_visible,
-                     update_frustum,
-                     draw_frustum,
-                     [&](pbvh::PBVHBatches *batches, const pbvh::PBVH_GPU_Args &args) {
-                       SculptBatch batch{};
-                       if (use_wire) {
-                         batch.batch = pbvh::lines_get(batches, attrs, args, fast_mode);
-                       }
-                       else {
-                         batch.batch = pbvh::tris_get(batches, attrs, args, fast_mode);
-                       }
-                       batch.material_slot = pbvh::material_index_get(batches);
-                       batch.debug_index = result_batches.size();
-                       result_batches.append(batch);
-                     });
+  pbvh::DrawCache &draw_data = pbvh::ensure_draw_data(pbvh->draw_data);
+
+  IndexMaskMemory memory;
+  const IndexMask visible_nodes = bke::pbvh::search_nodes(
+      *pbvh, memory, [&](const bke::pbvh::Node &node) {
+        return !BKE_pbvh_node_fully_hidden_get(node) &&
+               BKE_pbvh_node_frustum_contain_AABB(&node, &draw_frustum);
+      });
+
+  const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
+                                                          bke::pbvh::all_leaf_nodes(*pbvh, memory);
+
+  Span<gpu::Batch *> batches;
+  if (use_wire) {
+    batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode}, nodes_to_update);
+  }
+  else {
+    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode}, nodes_to_update);
+  }
+
+  const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
+
+  Vector<SculptBatch> result_batches(visible_nodes.size());
+  visible_nodes.foreach_index([&](const int i, const int pos) {
+    result_batches[pos] = {};
+    result_batches[pos].batch = batches[i];
+    result_batches[pos].material_slot = material_indices.is_empty() ? 0 : material_indices[i];
+    result_batches[pos].debug_index = pos;
+  });
+
   return result_batches;
 }
 

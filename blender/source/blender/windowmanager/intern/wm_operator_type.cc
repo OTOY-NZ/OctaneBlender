@@ -30,7 +30,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -566,7 +566,7 @@ static void wm_operatortype_free_macro(wmOperatorType *ot)
   LISTBASE_FOREACH (wmOperatorTypeMacro *, otmacro, &ot->macro) {
     if (otmacro->ptr) {
       WM_operator_properties_free(otmacro->ptr);
-      MEM_freeN(otmacro->ptr);
+      MEM_delete(otmacro->ptr);
     }
   }
   BLI_freelistN(&ot->macro);

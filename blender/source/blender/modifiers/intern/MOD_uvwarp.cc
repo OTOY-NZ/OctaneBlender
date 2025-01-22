@@ -22,7 +22,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h" /* BKE_pose_channel_find_name */
+#include "BKE_action.hh" /* BKE_pose_channel_find_name */
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_lib_query.hh"
@@ -33,7 +33,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"

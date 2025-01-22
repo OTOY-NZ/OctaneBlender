@@ -16,6 +16,7 @@
 
 #  include "BLI_bounds_types.hh"
 #  include "BLI_math_vector_types.hh"
+#  include "BLI_memory_counter_fwd.hh"
 #  include "BLI_span.hh"
 #endif
 
@@ -44,6 +45,7 @@ typedef struct PointCloud {
 
   /* Custom Data */
   struct CustomData pdata;
+  /** Set to -1 when none is active. */
   int attributes_active_index;
   int _pad4;
 
@@ -63,6 +65,8 @@ typedef struct PointCloud {
   void tag_radii_changed();
 
   std::optional<blender::Bounds<blender::float3>> bounds_min_max() const;
+
+  void count_memory(blender::MemoryCounter &memory) const;
 #endif
 
   PointCloudRuntimeHandle *runtime;

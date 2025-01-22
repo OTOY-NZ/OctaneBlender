@@ -20,28 +20,19 @@
 /* internal exports only */
 
 struct ARegion;
-struct Bone;
 struct Collection;
 struct EditBone;
-struct GpencilModifierData;
 struct ID;
 struct LayerCollection;
 struct ListBase;
 struct Main;
-struct ModifierData;
-struct ModifierDataStoreElem;
 struct Object;
 struct Scene;
-struct ShaderFxData;
 struct TreeStoreElem;
 struct ViewLayer;
-struct bActionGroup;
-struct bConstraint;
 struct bContext;
 struct bContextDataResult;
-struct bDeformGroup;
 struct bPoseChannel;
-struct ParticleSystem;
 struct View2D;
 struct wmKeyConfig;
 struct wmOperatorType;
@@ -301,7 +292,10 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
 
 /* `outliner_draw.cc` */
 
-void draw_outliner(const bContext *C);
+/**
+ * \param do_rebuild: When false, only the scroll position changed since last draw.
+ */
+void draw_outliner(const bContext *C, bool do_rebuild);
 
 void outliner_tree_dimensions(SpaceOutliner *space_outliner, int *r_width, int *r_height);
 
@@ -512,6 +506,10 @@ void OUTLINER_OT_orphans_manage(wmOperatorType *ot);
 
 /* `outliner_query.cc` */
 
+/**
+ * Iterate over the entire tree (including collapsed sub-elements),
+ * probing if any of the elements has a warning to be displayed.
+ */
 bool outliner_shows_mode_column(const SpaceOutliner &space_outliner);
 bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
 

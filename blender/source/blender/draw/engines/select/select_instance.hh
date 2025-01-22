@@ -26,6 +26,8 @@
 
 namespace blender::draw::select {
 
+// #define DEBUG_PRINT
+
 enum class SelectionType { DISABLED = 0, ENABLED = 1 };
 
 class ID {
@@ -70,7 +72,7 @@ struct SelectBuf {
     }
   }
 
-  void select_bind(PassSimple &pass)
+  void select_bind(PassSimple::Sub &pass)
   {
     if (selection_type != SelectionType::DISABLED) {
       select_buf.push_update();
@@ -99,7 +101,7 @@ struct SelectMap {
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
   UniformBuffer<SelectInfoData> info_buf;
   /** Will remove the depth test state from any pass drawing objects with select id. */
-  bool disable_depth_test;
+  bool disable_depth_test = false;
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -111,16 +113,35 @@ struct SelectMap {
       return {0};
     }
 
+    if (sub_object_id == uint(-1)) {
+      /* WORKAROUND: Armature code set the sub_object_id to -1 when individual bones are not
+       * selectable (i.e. in object mode). */
+      sub_object_id = 0;
+    }
+
     uint object_id = ob_ref.object->runtime->select_id;
     uint id = select_id_map.append_and_get_index(object_id | sub_object_id);
+
+#ifdef DEBUG_PRINT
+    /* Print mapping from object name, select id and the mapping to internal select id.
+     * If something is wrong at this stage, it indicates an error in the caller code. */
+    printf("%s : %u | %u = %u -> %u\n",
+           ob_ref.object->id.name,
+           object_id,
+           sub_object_id,
+           object_id | sub_object_id,
+           id);
+#endif
+
 #ifndef NDEBUG
     map_names.append(ob_ref.object->id.name);
 #endif
     return {id};
   }
 
+  /* TODO: refactor this method to select::ID::invalid(). */
   /* Load an invalid index that will not write to the output (not selectable). */
-  [[nodiscard]] const ID select_invalid_id()
+  [[nodiscard]] static const ID select_invalid_id()
   {
     return {uint32_t(-1)};
   }
@@ -191,6 +212,25 @@ struct SelectMap {
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
 
+  /* TODO: Deduplicate. */
+  /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
+  void select_bind(PassMain &pass, PassMain::Sub &sub)
+  {
+    if (selection_type == SelectionType::DISABLED) {
+      return;
+    }
+
+    pass.use_custom_ids = true;
+    if (disable_depth_test) {
+      /* TODO: clipping state. */
+      sub.state_set(DRW_STATE_WRITE_COLOR);
+    }
+    sub.bind_ubo(SELECT_DATA, &info_buf);
+    /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
+    sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
+    sub.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
+  }
+
   void end_sync()
   {
     if (selection_type == SelectionType::DISABLED) {
@@ -247,6 +287,13 @@ struct SelectMap {
         }
         break;
     }
+#ifdef DEBUG_PRINT
+    for (auto &hit : hit_results) {
+      /* Print hit results right out of the GPU selection buffer.
+       * If something is wrong at this stage, it indicates an error in the selection shaders. */
+      printf(" hit: %u: depth %u\n", hit_result.id, hit_result.depth);
+    }
+#endif
 
     gpu_select_next_set_result(hit_results.data(), hit_results.size());
   }

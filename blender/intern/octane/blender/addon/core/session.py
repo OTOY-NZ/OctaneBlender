@@ -11,6 +11,7 @@ import bpy
 from octane.core.caches import ImageCache, MaterialCache, LightCache, WorldCache, CompositeCache, RenderAOVCache, \
     KernelCache, OctaneRenderTargetCache, SceneCache
 from octane.core.client import OctaneBlender
+from octane.core.frame_buffer import FrameBufferResolution
 from octane.core.object_cache import ObjectCache
 from octane.core.resource_cache import ResourceCache
 from octane.utils import consts, logger, ocio, utility
@@ -299,19 +300,27 @@ class RenderSession(object):
             engine.tag_redraw()
 
     def frame_buffer_resolution(self, scene, region, region_data):
+        region_center_x = 0.5
+        region_center_y = 0.5
         if self.scene_cache.use_camera_dimension_as_preview_resolution:
             frame_buffer_width = utility.render_resolution_x(scene)
             frame_buffer_height = utility.render_resolution_y(scene)
             camera_border_width, camera_border_height = utility.view3d_camera_border_resolution(scene,
                                                                                                 region,
                                                                                                 region_data)
+            viewport_camera_border_box = self.scene_cache.viewport_camera_border_box
+            if viewport_camera_border_box is not None:
+                region_center_x = (viewport_camera_border_box.left + viewport_camera_border_box.right) / 2
+                region_center_y = (viewport_camera_border_box.top + viewport_camera_border_box.bottom) / 2
         else:
             frame_buffer_width = region.width
             frame_buffer_height = region.height
             camera_border_width = 0
             camera_border_height = 0
-        return frame_buffer_width, frame_buffer_height, \
-            region.width, region.height, camera_border_width, camera_border_height
+        return FrameBufferResolution(frame_buffer_width, frame_buffer_height,
+                                     region.width, region.height,
+                                     camera_border_width, camera_border_height,
+                                     region_center_x, region_center_y)
 
     def view_draw(self, engine, depsgraph, context):
         if not self.is_render_started:
@@ -330,9 +339,8 @@ class RenderSession(object):
                 need_redraw = True
             if self.scene_cache.is_active_camera_changed:
                 engine.tag_update()
-            width, height, region_width, region_height, camera_border_width, camera_border_height = \
-                self.frame_buffer_resolution(scene, region, region_data)
-            self.set_resolution(width, height, update_now)
+            frame_buffer_resolution = self.frame_buffer_resolution(scene, region, region_data)
+            self.set_resolution(frame_buffer_resolution.width, frame_buffer_resolution.height, update_now)
             OctaneBlender().update_change_manager(False, True)
             # update render target
             if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):

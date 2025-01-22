@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh"
 
 #include "MEM_guardedalloc.h"

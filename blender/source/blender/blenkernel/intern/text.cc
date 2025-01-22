@@ -17,7 +17,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
@@ -38,7 +38,7 @@
 #include "BLO_read_write.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -187,7 +187,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
 
     LISTBASE_FOREACH (TextLine *, tmp, &text->lines) {
-      BLO_write_raw(writer, tmp->len + 1, tmp->line);
+      BLO_write_string(writer, tmp->line);
     }
   }
 }

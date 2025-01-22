@@ -230,5 +230,5 @@ void register_node_type_aov_output_group(void)
   ntype.initfunc = node_type_aov_output_group_init;
   ntype.updatefunc = node_shader_update_aov_output_group;
   
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_aov_output_group() */

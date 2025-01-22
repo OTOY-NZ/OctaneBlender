@@ -22,7 +22,6 @@ from bpy.props import (
 
 from bpy.app.translations import (
     pgettext_tip as tip_,
-    contexts as i18n_contexts,
 )
 from mathutils import Vector
 
@@ -32,7 +31,6 @@ from bpy_extras.object_utils import (
     world_to_camera_view,
 )
 
-from bpy_extras.image_utils import load_image
 from bpy_extras.io_utils import ImportHelper
 
 # -----------------------------------------------------------------------------
@@ -55,18 +53,17 @@ ImageSpec = namedtuple(
 
 
 def find_image_sequences(files):
-    """From a group of files, detect image sequences.
+    # From a group of files, detect image sequences.
+    #
+    # This returns a generator of tuples, which contain the filename,
+    # start frame, and length of the detected sequence
+    #
+    # >>> list(find_image_sequences([
+    # ...     "test2-001.jp2", "test2-002.jp2",
+    # ...     "test3-003.jp2", "test3-004.jp2", "test3-005.jp2", "test3-006.jp2",
+    # ...     "blah"]))
+    # [("blah", 1, 1), ("test2-001.jp2", 1, 2), ("test3-003.jp2", 3, 4)]
 
-    This returns a generator of tuples, which contain the filename,
-    start frame, and length of the detected sequence
-
-    >>> list(find_image_sequences([
-    ...     "test2-001.jp2", "test2-002.jp2",
-    ...     "test3-003.jp2", "test3-004.jp2", "test3-005.jp2", "test3-006.jp2",
-    ...     "blah"]))
-    [("blah", 1, 1), ("test2-001.jp2", 1, 2), ("test3-003.jp2", 3, 4)]
-
-    """
     from itertools import count
     import re
     num_regex = re.compile("[0-9]")  # Find a single number.
@@ -125,13 +122,13 @@ def find_image_sequences(files):
 
 
 def load_images(filenames, directory, force_reload=False, frame_start=1, find_sequences=False):
-    """Wrapper for `bpy_extras.image_utils.load_image`.
+    # Wrapper for `bpy_extras.image_utils.load_image`.
 
-    Loads a set of images, movies, or even image sequences
-    Returns a generator of ImageSpec wrapper objects later used for texture setup
-    """
+    # Loads a set of images, movies, or even image sequences
+    # Returns a generator of ImageSpec wrapper objects later used for texture setup
     import os
     from itertools import repeat
+    from bpy_extras.image_utils import load_image
 
     if find_sequences:  # If finding sequences, we need some pre-processing first.
         file_iter = find_image_sequences(filenames)
@@ -164,14 +161,13 @@ def load_images(filenames, directory, force_reload=False, frame_start=1, find_se
 # Position & Size Helpers
 
 def offset_planes(planes, gap, axis):
-    """Offset planes from each other by `gap` amount along a _local_ vector `axis`
-
-    For example, offset_planes([obj1, obj2], 0.5, Vector(0, 0, 1)) will place
-    obj2 0.5 blender units away from obj1 along the local positive Z axis.
-
-    This is in local space, not world space, so all planes should share
-    a common scale and rotation.
-    """
+    # Offset planes from each other by `gap` amount along a _local_ vector `axis`
+    #
+    # For example, offset_planes([obj1, obj2], 0.5, Vector(0, 0, 1)) will place
+    # obj2 0.5 blender units away from obj1 along the local positive Z axis.
+    #
+    # This is in local space, not world space, so all planes should share
+    # a common scale and rotation.
     prior = planes[0]
     offset = Vector()
     for current in planes[1:]:
@@ -184,7 +180,7 @@ def offset_planes(planes, gap, axis):
 
 
 def compute_camera_size(context, center, fill_mode, aspect):
-    """Determine how large an object needs to be to fit or fill the camera's field of view."""
+    # Determine how large an object needs to be to fit or fill the camera's field of view.
     scene = context.scene
     camera = scene.camera
     view_frame = camera.data.view_frame(scene=scene)
@@ -219,7 +215,7 @@ def compute_camera_size(context, center, fill_mode, aspect):
 
 
 def center_in_camera(camera, ob, axis=(1, 1)):
-    """Center object along specified axis of the camera"""
+    # Center object along specified axis of the camera.
     camera_matrix_col = camera.matrix_world.col
     location = ob.location
 
@@ -295,10 +291,12 @@ class MaterialProperties_MixIn:
         items=(
             ('DITHERED',
              "Dithered",
-             "Allows for grayscale hashed transparency, and compatible with render passes and raytracing. Also known as deferred rendering."),
+             "Allows for grayscale hashed transparency, and compatible with render passes and ray-tracing. "
+             "Also known as deferred rendering."),
             ('BLENDED',
              "Blended",
-             "Allows for colored transparency, but incompatible with render passes and raytracing. Also known as forward rendering.")))
+             "Allows for colored transparency, but incompatible with render passes and ray-tracing. "
+             "Also known as forward rendering.")))
 
     use_backface_culling: BoolProperty(
         name="Backface Culling",
@@ -325,11 +323,11 @@ class MaterialProperties_MixIn:
         header, body = layout.panel("import_image_plane_material", default_closed=False)
         header.label(text="Material")
         if body:
-            body.prop(self, 'shader')
+            body.prop(self, "shader")
             if self.shader == 'EMISSION':
                 body.prop(self, "emit_strength")
 
-            body.prop(self, 'render_method')
+            body.prop(self, "render_method")
             if self.render_method == 'BLENDED':
                 body.prop(self, "show_transparent_back")
 
@@ -394,8 +392,8 @@ class TextureProperties_MixIn:
         header, body = layout.panel("import_image_plane_texture", default_closed=False)
         header.label(text="Texture")
         if body:
-            body.prop(self, 'interpolation')
-            body.prop(self, 'extension')
+            body.prop(self, "interpolation")
+            body.prop(self, "extension")
 
             row = body.row(align=False, heading="Alpha")
             row.prop(self, "use_transparency", text="")
@@ -482,7 +480,8 @@ def create_cycles_material(self, context, img_spec, name):
 
 
 def get_input_nodes(node, links):
-    """Get nodes that are a inputs to the given node"""
+    # Get nodes that are a inputs to the given node.
+
     # Get all links going to node.
     input_links = {lnk for lnk in links if lnk.to_node == node}
     # Sort those links, get their input nodes (and avoid doubles!).
@@ -504,7 +503,8 @@ def get_input_nodes(node, links):
 
 
 def auto_align_nodes(node_tree):
-    """Given a shader node tree, arrange nodes neatly relative to the output node."""
+    # Given a shader node tree, arrange nodes neatly relative to the output node.
+
     x_gap = 200
     y_gap = 180
     nodes = node_tree.nodes
@@ -531,10 +531,10 @@ def auto_align_nodes(node_tree):
 
 
 def clean_node_tree(node_tree):
-    """Clear all nodes in a shader node tree except the output.
+    # Clear all nodes in a shader node tree except the output.
+    #
+    # Returns the output node
 
-    Returns the output node
-    """
     nodes = node_tree.nodes
     for node in list(nodes):  # Copy to avoid altering the loop's data source.
         if not node.type == 'OUTPUT_MATERIAL':
@@ -544,7 +544,7 @@ def clean_node_tree(node_tree):
 
 
 def get_shadeless_node(dest_node_tree):
-    """Return a "shadeless" cycles/EEVEE node, creating a node group if nonexistent"""
+    # Return a "shadeless" cycles/EEVEE node, creating a node group if nonexistent.
 
     # WARNING: using a hard coded name isn't fool proof!
     # Users could have this name already in a node-tree (albeit unlikely).
@@ -741,7 +741,8 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProp
     # -----------------
     # Properties - Size
     def update_size_mode(self, _context):
-        """If sizing relative to the camera, always face the camera"""
+        # If sizing relative to the camera, always face the camera.
+
         if self.size_mode == 'CAMERA':
             self.prev_align_axis = self.align_axis
             self.align_axis = 'CAM'
@@ -995,7 +996,8 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProp
         return plane
 
     def compute_plane_size(self, context, img_spec):
-        """Given the image size in pixels and location, determine size of plane"""
+        # Given the image size in pixels and location, determine size of plane.
+
         px, py = img_spec.size
 
         # Can't load data.
@@ -1025,7 +1027,8 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProp
         return x, y
 
     def align_plane(self, context, plane):
-        """Pick an axis and align the plane to it"""
+        # Pick an axis and align the plane to it.
+
         from math import pi
         if 'CAM' in self.align_axis:
             # Camera-aligned.
@@ -1137,7 +1140,6 @@ class IMAGE_OT_convert_to_mesh_plane(MaterialProperties_MixIn, TextureProperties
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        scene = context.scene
 
         selected_objects = [ob for ob in context.selected_objects]
         converted = 0

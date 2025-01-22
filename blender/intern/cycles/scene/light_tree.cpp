@@ -191,11 +191,12 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
       const float len_v = len(lamp->get_axisv());
       const float len_w = len(lamp->get_dir());
 
-      /* As theta_e approaches pi/2, the behaviour of atan(tan(theta_e)) can become quite
-       * unpredicatable as tan(x) has a asymptote at x = pi/2. To avoid this, we skip the back and
-       * forward conversion. The conversion is required to deal with scaled lights. Since we are no
-       * longer taking that into consideration in this situation, theta_e may end up being larger
-       * than what is ideal, resulting in increase nosie. */
+      /* As `theta_e` approaches `pi/2`, the behavior of `atan(tan(theta_e))` can become quite
+       * unpredictable as `tan(x)` has an asymptote at `x = pi/2`. To avoid this, we skip the back
+       * and forward conversion.
+       * The conversion is required to deal with scaled lights, but near `pi/2` the scaling does
+       * not make a big difference in the angle, so we can skip the conversion without worrying
+       * about overestimation. */
       if (fabsf(M_PI_2_F - theta_e) < 1e-6f) {
         theta_e = M_PI_2_F;
       }
@@ -437,7 +438,7 @@ LightTreeNode *LightTree::build(Scene *scene, DeviceScene *dscene)
   root_->light_link = root_->get_inner().children[left]->light_link +
                       root_->get_inner().children[right]->light_link;
 
-  /* Root nodes are never meant to be be shared, even if the local and distant lights are from the
+  /* Root nodes are never meant to be shared, even if the local and distant lights are from the
    * same light linking set. Attempting to sharing it will make it so the specialized tree will
    * try to use the same root as the default tree. */
   root_->light_link.shareable = false;

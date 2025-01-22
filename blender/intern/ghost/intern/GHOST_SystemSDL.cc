@@ -46,7 +46,7 @@ GHOST_IWindow *GHOST_SystemSDL::createWindow(const char *title,
                                              GHOST_TWindowState state,
                                              GHOST_GPUSettings gpuSettings,
                                              const bool exclusive,
-                                             const bool /* is_dialog */,
+                                             const bool /*is_dialog*/,
                                              const GHOST_IWindow *parentWindow)
 {
   GHOST_WindowSDL *window = nullptr;
@@ -210,8 +210,6 @@ static GHOST_TKey convertSDLKey(SDL_Scancode key)
   }
   else {
     switch (key) {
-      /* TODO SDL_SCANCODE_NONUSBACKSLASH */
-
       GXMAP(type, SDL_SCANCODE_BACKSPACE, GHOST_kKeyBackSpace);
       GXMAP(type, SDL_SCANCODE_TAB, GHOST_kKeyTab);
       GXMAP(type, SDL_SCANCODE_RETURN, GHOST_kKeyEnter);
@@ -288,6 +286,12 @@ static GHOST_TKey convertSDLKey(SDL_Scancode key)
       GXMAP(type, SDL_SCANCODE_AUDIOPREV, GHOST_kKeyMediaFirst);
       // GXMAP(type, XF86XK_AudioRewind, GHOST_kKeyMediaFirst);
       GXMAP(type, SDL_SCANCODE_AUDIONEXT, GHOST_kKeyMediaLast);
+
+      /* International Keys. */
+
+      /* This key has multiple purposes,
+       * however the only GHOST key that uses the scan-code is GrLess. */
+      GXMAP(type, SDL_SCANCODE_NONUSBACKSLASH, GHOST_kKeyGrLess);
 
       default:
         printf("Unknown\n");

@@ -76,9 +76,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = false;
   options.realize_instance_attributes = true;
-  options.propagation_info = params.get_output_propagation_info("Geometry");
-  geometry_set = geometry::realize_instances(geometry_set, options, varied_depth_option);
-  params.set_output("Geometry", std::move(geometry_set));
+  const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Geometry");
+  options.attribute_filter = attribute_filter;
+  GeometrySet new_geometry_set = geometry::realize_instances(
+      geometry_set, options, varied_depth_option);
+  new_geometry_set.name = geometry_set.name;
+  params.set_output("Geometry", std::move(new_geometry_set));
 }
 
 static void node_register()
@@ -88,7 +91,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_REALIZE_INSTANCES, "Realize Instances", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -16,7 +16,11 @@ else()
     set(LIBDIR_NATIVE_ABI ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_NAME})
 
     # Path to precompiled libraries with known glibc 2.28 ABI.
-    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
+    if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+      set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_arm64)
+    else()
+      set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
+    endif()
 
     # Choose the best suitable libraries.
     if(EXISTS ${LIBDIR_NATIVE_ABI})
@@ -270,26 +274,21 @@ if(WITH_OPENAL)
 endif()
 
 if(WITH_SDL)
-  if(WITH_SDL_DYNLOAD)
-    set(SDL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/sdlew/include/SDL2")
-    set(SDL_LIBRARY)
+  find_package_wrapper(SDL2)
+  if(SDL2_FOUND)
+    # Use same names for both versions of SDL until we move to 2.x.
+    set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
+    set(SDL_LIBRARY "${SDL2_LIBRARY}")
+    set(SDL_FOUND "${SDL2_FOUND}")
   else()
-    find_package_wrapper(SDL2)
-    if(SDL2_FOUND)
-      # Use same names for both versions of SDL until we move to 2.x.
-      set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
-      set(SDL_LIBRARY "${SDL2_LIBRARY}")
-      set(SDL_FOUND "${SDL2_FOUND}")
-    else()
-      find_package_wrapper(SDL)
-    endif()
-    mark_as_advanced(
-      SDL_INCLUDE_DIR
-      SDL_LIBRARY
-    )
-    # unset(SDLMAIN_LIBRARY CACHE)
-    set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
+    find_package_wrapper(SDL)
   endif()
+  mark_as_advanced(
+    SDL_INCLUDE_DIR
+    SDL_LIBRARY
+  )
+  # unset(SDLMAIN_LIBRARY CACHE)
+  set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
 endif()
 
 # Codecs
@@ -634,6 +633,8 @@ if(DEFINED LIBDIR)
   without_system_libs_end()
 endif()
 
+add_bundled_libraries(hiprt/lib)
+
 # ----------------------------------------------------------------------------
 # Build and Link Flags
 
@@ -812,6 +813,10 @@ if(WITH_GHOST_WAYLAND)
       endif()
     else()
       pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
+      # Check the variable is set, otherwise an empty command will attempt to be executed.
+      if(NOT WAYLAND_SCANNER)
+        message(FATAL_ERROR "\"wayland-scanner\" could not be found!")
+      endif()
     endif()
     mark_as_advanced(WAYLAND_SCANNER)
 

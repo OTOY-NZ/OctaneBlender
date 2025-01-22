@@ -124,5 +124,5 @@ void register_node_type_composite_aov_output_layer(void)
   ntype.updatefunc = (0);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

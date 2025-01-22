@@ -174,6 +174,10 @@ void GLBackend::platform_init()
       {
         support_level = GPU_SUPPORT_LEVEL_LIMITED;
       }
+      /* A rare GPU that has z-fighting issues in edit mode. (see #128179) */
+      if (strstr(renderer, "HD Graphics 405")) {
+        support_level = GPU_SUPPORT_LEVEL_LIMITED;
+      }
       /* Latest Intel driver have bugs that won't allow Blender to start.
        * Users must install different version of the driver.
        * See #113124 for more information. */
@@ -300,6 +304,7 @@ static void detect_workarounds()
     printf("    version: %s\n\n", version);
     GCaps.depth_blitting_workaround = true;
     GCaps.mip_render_workaround = true;
+    GCaps.stencil_clasify_buffer_workaround = true;
     GLContext::debug_layer_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
@@ -465,10 +470,9 @@ static void detect_workarounds()
 
       /* X Elite devices have GPU driver version 31, and currently no known release version of the
        * GPU driver renders the cube correctly. This will be changed when a working driver version
-       * is released to commercial devices to only enable these flags on older drivers. */
+       * is released to commercial devices to only enable this flags on older drivers. */
       if (ver0 == 31) {
-        GCaps.shader_draw_parameters_support = false;
-        GLContext::shader_draw_parameters_support = false;
+        GCaps.stencil_clasify_buffer_workaround = true;
       }
     }
   }
@@ -513,7 +517,8 @@ static void detect_workarounds()
         strstr(renderer, "RX 6750") || strstr(renderer, "RX 6800") ||
         strstr(renderer, "RX 6850") || strstr(renderer, "RX 6900") ||
         strstr(renderer, "RX 6950") || strstr(renderer, "W6300") || strstr(renderer, "W6400") ||
-        strstr(renderer, "W6500") || strstr(renderer, "W6600") || strstr(renderer, "W6800") ||
+        strstr(renderer, "W6500") || strstr(renderer, "W6600") ||
+        /* NOTE: `W6700` was never released, so it's not in this list. */
         strstr(renderer, "W6800") || strstr(renderer, "W6900"))
     {
       GLContext::layered_rendering_support = false;

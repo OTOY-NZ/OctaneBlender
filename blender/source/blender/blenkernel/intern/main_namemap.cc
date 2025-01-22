@@ -359,6 +359,11 @@ bool BKE_main_namemap_get_name(Main *bmain, ID *id, char *name, const bool do_un
       return is_name_changed;
     }
 
+    /* At this point, if this is the first iteration, the initially given name is colliding with an
+     * existing ID name, and has to be modified. If this is a later iteration, the given name has
+     * already been modified one way or another. */
+    is_name_changed = true;
+
     /* The base name is already used. But our number suffix might not be used yet. */
     int number_to_use = -1;
     if (val.use_if_unused(number)) {
@@ -395,11 +400,6 @@ bool BKE_main_namemap_get_name(Main *bmain, ID *id, char *name, const bool do_un
       }
       break;
     }
-
-    /* Name had to be truncated, or number too large: mark
-     * the output name as definitely changed, and proceed with the
-     * truncated name again. */
-    is_name_changed = true;
   }
 
   return is_name_changed;
@@ -494,8 +494,12 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
            * to the validated set if it can now be added to `id_names_libs`, and will prevent
            * further checking (which would fail again, since the new ID name/lib key has already
            * been added to `id_names_libs`). */
-          BKE_id_new_name_validate(
-              bmain, which_libbase(bmain, GS(id_iter->name)), id_iter, nullptr, true);
+          BKE_id_new_name_validate(*bmain,
+                                   *which_libbase(bmain, GS(id_iter->name)),
+                                   *id_iter,
+                                   nullptr,
+                                   IDNewNameMode::RenameExistingNever,
+                                   true);
           STRNCPY(key.name, id_iter->name);
           if (!id_names_libs.add(key)) {
             /* This is a serious error, very likely a bug, keep it as CLOG_ERROR even when doing

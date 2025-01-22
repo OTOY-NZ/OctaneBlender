@@ -23,7 +23,7 @@
 
 #include "MEM_guardedalloc.h"
 #include "RNA_access.hh"
-#include "RNA_blender_cpp.h"
+#include "RNA_blender_cpp.hh"
 #include "RNA_types.hh"
 
 #include "blender/sync.h"
@@ -49,6 +49,8 @@ class BlenderSession {
                  BL::BlendData &b_data,
                  BlenderSession::ExportType export_type,
                  std::string &export_path,
+                 int export_frame_start,
+                 int export_frame_end,
                  std::unordered_set<std::string> &dirty_resources);
 
   BlenderSession(BL::RenderEngine &b_engine,
@@ -60,6 +62,8 @@ class BlenderSession {
                  int height,
                  BlenderSession::ExportType export_type,
                  std::string &export_path,
+                 int export_frame_start,
+                 int export_frame_end,
                  std::unordered_set<std::string> &dirty_resources);
 
   ~BlenderSession();
@@ -117,7 +121,9 @@ class BlenderSession {
                                              BL::Preferences &b_userpref,
                                              BL::BlendData &b_data,
                                              std::string export_path,
-                                             ExportType export_type);
+                                             ExportType export_type,
+                                             int frame_start,
+                                             int frame_end);
   static bool export_localdb(BL::Scene &b_scene,
                              bContext *context,
                              BL::Preferences &b_userpref,
@@ -175,6 +181,8 @@ class BlenderSession {
 
   ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type;
   string export_path;
+  int export_frame_start;
+  int export_frame_end;
   bool no_progress_update;
 
   string server_address;

@@ -11,7 +11,7 @@
 #include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -19,7 +19,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "BKE_colortools.hh"
-#include "BKE_image_format.h"
+#include "BKE_image_format.hh"
 
 /* Init/Copy/Free */
 
@@ -52,6 +52,27 @@ void BKE_image_format_copy(ImageFormatData *imf_dst, const ImageFormatData *imf_
 void BKE_image_format_free(ImageFormatData *imf)
 {
   BKE_color_managed_view_settings_free(&imf->view_settings);
+}
+
+void BKE_image_format_update_color_space_for_type(ImageFormatData *format)
+{
+  /* If the color space is set to a data space, this is probably the user's intention, so leave it
+   * as is. */
+  if (IMB_colormanagement_space_name_is_data(format->linear_colorspace_settings.name)) {
+    return;
+  }
+
+  const bool image_requires_linear = BKE_imtype_requires_linear_float(format->imtype);
+  const bool is_linear = IMB_colormanagement_space_name_is_scene_linear(
+      format->linear_colorspace_settings.name);
+
+  /* The color space is either not set or is linear but the image requires non-linear or vice
+   * versa. So set to the default for the image type. */
+  if (format->linear_colorspace_settings.name[0] == '\0' || image_requires_linear != is_linear) {
+    const int role = image_requires_linear ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE;
+    const char *default_color_space = IMB_colormanagement_role_colorspace_name_get(role);
+    STRNCPY(format->linear_colorspace_settings.name, default_color_space);
+  }
 }
 
 void BKE_image_format_blend_read_data(BlendDataReader *reader, ImageFormatData *imf)
@@ -264,6 +285,7 @@ char BKE_imtype_valid_channels(const char imtype, bool write_file)
     case R_IMF_IMTYPE_RAWTGA:
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_IRIS:
+    case R_IMF_IMTYPE_OPENEXR:
       chan_flag |= IMA_CHAN_FLAG_BW;
       break;
   }

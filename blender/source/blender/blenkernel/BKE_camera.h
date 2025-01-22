@@ -88,6 +88,10 @@ void BKE_camera_params_from_view3d(CameraParams *params,
 void BKE_camera_params_compute_viewplane(
     CameraParams *params, int winx, int winy, float aspx, float aspy);
 /**
+ * Crop `viewplane` given the current resolution and a pixel region inside the view plane.
+ */
+void BKE_camera_params_crop_viewplane(rctf *viewplane, int winx, int winy, const rcti *region);
+/**
  * View-plane is assumed to be already computed.
  */
 void BKE_camera_params_compute_matrix(CameraParams *params);
@@ -174,7 +178,7 @@ struct CameraBGImage *BKE_camera_background_image_new(struct Camera *cam);
  * `BKE_lib_id.hh`.
  */
 struct CameraBGImage *BKE_camera_background_image_copy(const struct CameraBGImage *bgpic_src,
-                                                       int copy_flag);
+                                                       int flag);
 void BKE_camera_background_image_remove(struct Camera *cam, struct CameraBGImage *bgpic);
 void BKE_camera_background_image_clear(struct Camera *cam);
 

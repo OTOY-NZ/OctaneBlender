@@ -42,7 +42,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_screen.hh"
@@ -187,7 +187,16 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   col = uiLayoutColumn(layout, false);
   if (ale->type == ANIMTYPE_FCURVE) {
     /* get user-friendly name for F-Curve */
-    icon = getname_anim_fcurve(name, ale->id, fcu);
+    const std::optional<int> optional_icon = getname_anim_fcurve(name, ale->id, fcu);
+    if (optional_icon) {
+      icon = *optional_icon;
+    }
+    else if (ale->id) {
+      icon = RNA_struct_ui_icon(ID_code_to_RNA_type(GS(ale->id->name)));
+    }
+    else {
+      icon = ICON_NONE;
+    }
   }
   else {
     /* NLA Control Curve, etc. */
@@ -962,7 +971,13 @@ static void graph_draw_driven_property_panel(uiLayout *layout, ID *id, FCurve *f
   int icon = 0;
 
   /* get user-friendly 'name' for F-Curve */
-  icon = getname_anim_fcurve(name, id, fcu);
+  const std::optional<int> optional_icon = getname_anim_fcurve(name, id, fcu);
+  if (optional_icon) {
+    icon = *optional_icon;
+  }
+  else {
+    icon = RNA_struct_ui_icon(ID_code_to_RNA_type(GS(id->name)));
+  }
 
   /* panel layout... */
   row = uiLayoutRow(layout, true);
@@ -1243,6 +1258,8 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       uiItemL(row, valBuf, ICON_NONE);
     }
   }
+  /* Quiet warning about old value being unused before re-assigned. */
+  UNUSED_VARS(block);
 
   uiItemS(layout);
   uiItemS(layout);

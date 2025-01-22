@@ -2,7 +2,7 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.16)",
+    "name": "OctaneBlender (v. 29.17)",
     "author": "OTOY Inc.",
     "version": (29, 15, 1),
     "blender": (4, 2, 1),
@@ -299,16 +299,16 @@ class OctaneRender(bpy.types.RenderEngine):
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         is_draw_data_just_created = False
         # Get viewport dimensions
-        width, height, region_width, region_height, camera_border_width, camera_border_height = \
-            self.session.frame_buffer_resolution(scene, region, region_data)
+        frame_buffer_resolution = self.session.frame_buffer_resolution(scene, region, region_data)
+        width = frame_buffer_resolution.width
+        height = frame_buffer_resolution.height
         if not self.draw_data or self.draw_data.needs_replacement(width, height, use_shared_surface):
             self.free_draw_data()
             self.draw_data = ViewportDrawData(is_demo, render_pass_id, width, height, self, scene,
                                               use_shared_surface)
             is_draw_data_just_created = True
         if self.draw_data:
-            self.draw_data.update_vertex_data(camera_border_width > 0 and camera_border_height > 0,
-                                              region_width, region_height, camera_border_width, camera_border_height)
+            self.draw_data.update_vertex_data(frame_buffer_resolution)
             self.draw_data.update(render_pass_id)
             if not is_draw_data_just_created:
                 self.draw_data.draw(self, scene)

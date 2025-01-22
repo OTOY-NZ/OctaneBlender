@@ -9,9 +9,9 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
-#include "bpy_app_ocio.h"
+#include "bpy_app_ocio.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
 #ifdef WITH_OCIO
 #  include "ocio_capi.h"
@@ -27,13 +27,10 @@ static PyStructSequence_Field app_ocio_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_ocio_info_desc = {
-    /* name */
-    "bpy.app.ocio",
-    /* doc */
-    "This module contains information about OpenColorIO blender is linked against",
-    /* fields */
-    app_ocio_info_fields,
-    ARRAY_SIZE(app_ocio_info_fields) - 1,
+    /*name*/ "bpy.app.ocio",
+    /*doc*/ "This module contains information about OpenColorIO blender is linked against",
+    /*fields*/ app_ocio_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_ocio_info_fields) - 1,
 };
 
 static PyObject *make_ocio_info()

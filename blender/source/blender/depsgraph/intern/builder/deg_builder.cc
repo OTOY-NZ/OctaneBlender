@@ -20,11 +20,11 @@
 #include "BLI_stack.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_collection.hh"
 #include "BKE_lib_id.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "intern/builder/deg_builder_cache.h"
 #include "intern/builder/deg_builder_remove_noop.h"

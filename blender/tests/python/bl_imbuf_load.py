@@ -45,9 +45,9 @@ class ImBufTest(AbstractImBufTest):
                 expected_metadata = ref_metadata_path.read_text(encoding="utf-8")
 
                 failed = not (actual_metadata == expected_metadata)
-            except BaseException as e:
+            except Exception as ex:
                 if self.verbose:
-                    print_message(e.output.decode("utf-8", 'ignore'))
+                    print_message(ex.output.decode("utf-8", 'ignore'))
                 failed = True
         else:
             if not self.update:
@@ -155,6 +155,9 @@ class ImBufLoadTest(ImBufTest):
         self.skip_if_format_missing("WEBP")
 
         self.check("*.webp")
+
+    def test_load_psd(self):
+        self.check("*.psd")
 
 
 class ImBufBrokenTest(AbstractImBufTest):

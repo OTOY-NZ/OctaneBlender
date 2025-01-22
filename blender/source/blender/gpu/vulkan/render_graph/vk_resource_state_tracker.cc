@@ -17,21 +17,26 @@ namespace blender::gpu::render_graph {
  * \{ */
 ResourceHandle VKResourceStateTracker::create_resource_slot()
 {
+  ResourceHandle handle;
   if (unused_handles_.is_empty()) {
-    ResourceHandle new_handle = resources_.size();
-    Resource new_resource = {};
-    resources_.add_new(new_handle, new_resource);
-    return new_handle;
+    handle = resources_.size();
   }
   else {
-    return unused_handles_.pop_last();
+    handle = unused_handles_.pop_last();
   }
+
+  Resource new_resource = {};
+  resources_.add_new(handle, new_resource);
+  return handle;
 }
 
 void VKResourceStateTracker::add_image(VkImage vk_image,
+                                       uint32_t layer_count,
                                        VkImageLayout vk_image_layout,
-                                       ResourceOwner owner)
+                                       ResourceOwner owner,
+                                       const char *name)
 {
+  UNUSED_VARS_NDEBUG(name);
   BLI_assert_msg(!image_resources_.contains(vk_image),
                  "Image resource is added twice to the render graph.");
   std::scoped_lock lock(mutex);
@@ -42,12 +47,21 @@ void VKResourceStateTracker::add_image(VkImage vk_image,
   resource.type = VKResourceType::IMAGE;
   resource.owner = owner;
   resource.image.vk_image = vk_image;
+  resource.image.layer_count = layer_count;
   resource.image.vk_image_layout = vk_image_layout;
   resource.stamp = 0;
+#ifndef NDEBUG
+  resource.name = name;
+#endif
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+  validate();
+#endif
 }
 
-void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer)
+void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer, const char *name)
 {
+  UNUSED_VARS_NDEBUG(name);
   BLI_assert_msg(!buffer_resources_.contains(vk_buffer),
                  "Buffer resource is added twice to the render graph.");
   std::scoped_lock lock(mutex);
@@ -59,6 +73,13 @@ void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer)
   resource.owner = ResourceOwner::APPLICATION;
   resource.buffer.vk_buffer = vk_buffer;
   resource.stamp = 0;
+#ifndef NDEBUG
+  resource.name = name;
+#endif
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+  validate();
+#endif
 }
 
 /** \} */
@@ -73,6 +94,10 @@ void VKResourceStateTracker::remove_buffer(VkBuffer vk_buffer)
   ResourceHandle handle = buffer_resources_.pop(vk_buffer);
   resources_.pop(handle);
   unused_handles_.append(handle);
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+  validate();
+#endif
 }
 
 void VKResourceStateTracker::remove_image(VkImage vk_image)
@@ -81,6 +106,10 @@ void VKResourceStateTracker::remove_image(VkImage vk_image)
   ResourceHandle handle = image_resources_.pop(vk_image);
   resources_.pop(handle);
   unused_handles_.append(handle);
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+  validate();
+#endif
 }
 
 /** \} */
@@ -109,7 +138,7 @@ ResourceWithStamp VKResourceStateTracker::get_image_and_increase_stamp(VkImage v
   return get_and_increase_stamp(handle, resource);
 }
 
-ResourceWithStamp VKResourceStateTracker::get_buffer_and_increase_version(VkBuffer vk_buffer)
+ResourceWithStamp VKResourceStateTracker::get_buffer_and_increase_stamp(VkBuffer vk_buffer)
 {
   ResourceHandle handle = buffer_resources_.lookup(vk_buffer);
   Resource &resource = resources_.lookup(handle);
@@ -139,5 +168,30 @@ void VKResourceStateTracker::reset_image_layouts()
     }
   }
 }
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+void VKResourceStateTracker::validate() const
+{
+  for (const Map<VkImage, ResourceHandle>::Item &item : image_resources_.items()) {
+    for (ResourceHandle buffer_handle : buffer_resources_.values()) {
+      BLI_assert(item.value != buffer_handle);
+    }
+    BLI_assert(resources_.contains(item.value));
+    const Resource &resource = resources_.lookup(item.value);
+    BLI_assert(resource.type == VKResourceType::IMAGE);
+  }
+
+  for (const Map<VkBuffer, ResourceHandle>::Item &item : buffer_resources_.items()) {
+    for (ResourceHandle image_handle : image_resources_.values()) {
+      BLI_assert(item.value != image_handle);
+    }
+    BLI_assert(resources_.contains(item.value));
+    const Resource &resource = resources_.lookup(item.value);
+    BLI_assert(resource.type == VKResourceType::BUFFER);
+  }
+
+  BLI_assert(resources_.size() == image_resources_.size() + buffer_resources_.size());
+}
+#endif
 
 }  // namespace blender::gpu::render_graph

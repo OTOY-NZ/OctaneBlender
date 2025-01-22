@@ -14,23 +14,23 @@
 
 #include "bmesh.hh"
 
-#include "bmesh_py_types.h"
-#include "bmesh_py_types_customdata.h"
-#include "bmesh_py_types_meshdata.h"
-#include "bmesh_py_types_select.h"
+#include "bmesh_py_types.hh"
+#include "bmesh_py_types_customdata.hh"
+#include "bmesh_py_types_meshdata.hh"
+#include "bmesh_py_types_select.hh"
 
-#include "bmesh_py_geometry.h"
-#include "bmesh_py_ops.h"
-#include "bmesh_py_utils.h"
+#include "bmesh_py_geometry.hh"
+#include "bmesh_py_ops.hh"
+#include "bmesh_py_utils.hh"
 
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 
 #include "DNA_mesh_types.h"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "bmesh_py_api.h" /* own include */
+#include "bmesh_py_api.hh" /* own include */
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -106,9 +106,9 @@ PyDoc_STRVAR(
     "   :arg mesh: The editmode mesh.\n"
     "   :type mesh: :class:`bpy.types.Mesh`\n"
     "   :arg loop_triangles: Option to recalculate n-gon tessellation.\n"
-    "   :type loop_triangles: boolean\n"
+    "   :type loop_triangles: bool\n"
     "   :arg destructive: Use when geometry has been added or removed.\n"
-    "   :type destructive: boolean\n");
+    "   :type destructive: bool\n");
 static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {"mesh", "loop_triangles", "destructive", nullptr};

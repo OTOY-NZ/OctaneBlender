@@ -29,6 +29,7 @@ set(SRC
   nodes/node_fn_compare.cc
   nodes/node_fn_euler_to_rotation.cc
   nodes/node_fn_float_to_int.cc
+  nodes/node_fn_hash_value.cc
   nodes/node_fn_input_bool.cc
   nodes/node_fn_input_color.cc
   nodes/node_fn_input_int.cc
@@ -36,8 +37,10 @@ set(SRC
   nodes/node_fn_input_special_characters.cc
   nodes/node_fn_input_string.cc
   nodes/node_fn_input_vector.cc
+  nodes/node_fn_integer_math.cc
   nodes/node_fn_invert_matrix.cc
   nodes/node_fn_invert_rotation.cc
+  nodes/node_fn_matrix_determinant.cc
   nodes/node_fn_matrix_multiply.cc
   nodes/node_fn_project_point.cc
   nodes/node_fn_quaternion_to_rotation.cc

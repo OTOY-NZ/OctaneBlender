@@ -551,7 +551,7 @@ set(INC
   ../render
   ../render/intern
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -566,7 +566,7 @@ if(WITH_PYTHON_MODULE)
 endif()
 
 if(WITH_PYTHON_SAFETY)
-  # For bpy_rna.h access.
+  # For bpy_rna.hh access.
   add_definitions(-DWITH_PYTHON_SAFETY)
 endif()
 
@@ -582,5 +582,5 @@ if(COMMAND target_precompile_headers)
   target_precompile_headers(bf_freestyle PRIVATE FRS_precomp.h)
 endif()
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_freestyle bf_rna)

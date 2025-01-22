@@ -15,7 +15,7 @@
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -51,7 +51,10 @@
 #  endif
 /* #mkdtemp on OSX (and probably all *BSD?), not worth making specific check for this OS. */
 #  include <unistd.h>
-#endif /* WIN32 */
+
+#  include <pwd.h> /* For `passwd` access. */
+
+#endif /* !WIN32 */
 
 static const char _str_null[] = "(null)";
 #define STR_OR_FALLBACK(a) ((a) ? (a) : _str_null)
@@ -97,6 +100,11 @@ void BKE_appdir_init()
 
 void BKE_appdir_exit()
 {
+  /* System paths can be created on-demand by calls to this API. So they need to be properly
+   * disposed of here. Note that there may be several calls to this in `exit` process
+   * (e.g. `wm_init/wm_exit` will currently both call GHOST API directly,
+   * & `BKE_appdir_init/_exit`). */
+  GHOST_DisposeSystemPaths();
 #ifndef NDEBUG
   BLI_assert(is_appdir_init == true);
   is_appdir_init = false;
@@ -163,13 +171,26 @@ const char *BKE_appdir_folder_default_or_root()
 
 const char *BKE_appdir_folder_home()
 {
+  const char *home_dir = nullptr;
+
 #ifdef WIN32
-  return BLI_getenv("userprofile");
-#elif defined(__APPLE__)
-  return BLI_expand_tilde("~/");
+  home_dir = BLI_getenv("userprofile");
 #else
-  return BLI_getenv("HOME");
+
+#  if defined(__APPLE__)
+  home_dir = BLI_expand_tilde("~/");
+#  endif
+  if (home_dir == nullptr) {
+    home_dir = BLI_getenv("HOME");
+    if (home_dir == nullptr) {
+      if (const passwd *pwuser = getpwuid(getuid())) {
+        home_dir = pwuser->pw_dir;
+      }
+    }
+  }
 #endif
+
+  return home_dir;
 }
 
 bool BKE_appdir_folder_documents(char *dir)
@@ -522,16 +543,6 @@ static bool get_path_system_ex(char *targetpath,
                                const bool check_is_dir)
 {
   char system_path[FILE_MAX];
-  char relfolder[FILE_MAX];
-
-  if (folder_name) { /* `subfolder_name` may be nullptr. */
-    const char *path_array[] = {folder_name, subfolder_name};
-    const int path_array_num = subfolder_name ? 2 : 1;
-    BLI_path_join_array(relfolder, sizeof(relfolder), path_array, path_array_num);
-  }
-  else {
-    relfolder[0] = '\0';
-  }
 
   if (test_env_path(system_path, "BLENDER_SYSTEM_RESOURCES", check_is_dir)) {
     /* Pass. */

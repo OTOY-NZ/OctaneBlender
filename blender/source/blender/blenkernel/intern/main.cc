@@ -45,37 +45,36 @@ static CLG_LogRef LOG = {"bke.main"};
 Main *BKE_main_new()
 {
   Main *bmain = static_cast<Main *>(MEM_callocN(sizeof(Main), "new main"));
-  bmain->lock = static_cast<MainLock *>(MEM_mallocN(sizeof(SpinLock), "main lock"));
-  BLI_spin_init((SpinLock *)bmain->lock);
-  bmain->is_global_main = false;
+  BKE_main_init(*bmain);
   return bmain;
 }
 
-void BKE_main_free(Main *mainvar)
+void BKE_main_init(Main &bmain)
 {
-  /* In case this is called on a 'split-by-libraries' list of mains.
-   *
-   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
-  if (mainvar->next) {
-    BKE_main_free(mainvar->next);
-  }
+  bmain.lock = static_cast<MainLock *>(MEM_mallocN(sizeof(SpinLock), "main lock"));
+  BLI_spin_init(reinterpret_cast<SpinLock *>(bmain.lock));
+  bmain.is_global_main = false;
 
-  /* Include this check here as the path may be manipulated after creation. */
-  BLI_assert_msg(!(mainvar->filepath[0] == '/' && mainvar->filepath[1] == '/'),
-                 "'.blend' relative \"//\" must not be used in Main!");
+  /* Just rebuilding the Action Slot to ID* map once is likely cheaper than,
+   * for every ID, when it's loaded from disk, check whether it's animated or
+   * not, and then figure out which Main it went into, and then set the flag. */
+  bmain.is_action_slot_to_id_map_dirty = true;
+}
 
-  /* also call when reading a file, erase all, etc */
+void BKE_main_clear(Main &bmain)
+{
+  /* Also call when reading a file, erase all, etc */
   ListBase *lbarray[INDEX_ID_MAX];
   int a;
 
-  /* Since we are removing whole main, no need to bother 'properly'
-   * (and slowly) removing each ID from it. */
+  /* Since we are removing whole main, no need to bother 'properly' (and slowly) removing each ID
+   * from it. */
   const int free_flag = (LIB_ID_FREE_NO_MAIN | LIB_ID_FREE_NO_UI_USER |
                          LIB_ID_FREE_NO_USER_REFCOUNT | LIB_ID_FREE_NO_DEG_TAG);
 
-  MEM_SAFE_FREE(mainvar->blen_thumb);
+  MEM_SAFE_FREE(bmain.blen_thumb);
 
-  a = set_listbasepointers(mainvar, lbarray);
+  a = set_listbasepointers(&bmain, lbarray);
   while (a--) {
     ListBase *lb = lbarray[a];
     ID *id, *id_next;
@@ -83,14 +82,14 @@ void BKE_main_free(Main *mainvar)
     for (id = static_cast<ID *>(lb->first); id != nullptr; id = id_next) {
       id_next = static_cast<ID *>(id->next);
 #if 1
-      BKE_id_free_ex(mainvar, id, free_flag, false);
+      BKE_id_free_ex(&bmain, id, free_flag, false);
 #else
       /* Errors freeing ID's can be hard to track down,
        * enable this so VALGRIND or ASAN will give the line number in its error log. */
 
 #  define CASE_ID_INDEX(id_index) \
     case id_index: \
-      BKE_id_free_ex(mainvar, id, free_flag, false); \
+      BKE_id_free_ex(&bmain, id, free_flag, false); \
       break
 
       switch ((eID_Index)a) {
@@ -147,25 +146,47 @@ void BKE_main_free(Main *mainvar)
     BLI_listbase_clear(lb);
   }
 
-  if (mainvar->relations) {
-    BKE_main_relations_free(mainvar);
+  if (bmain.relations) {
+    BKE_main_relations_free(&bmain);
   }
 
-  if (mainvar->id_map) {
-    BKE_main_idmap_destroy(mainvar->id_map);
+  if (bmain.id_map) {
+    BKE_main_idmap_destroy(bmain.id_map);
   }
 
   /* NOTE: `name_map` in libraries are freed together with the library IDs above. */
-  if (mainvar->name_map) {
-    BKE_main_namemap_destroy(&mainvar->name_map);
+  if (bmain.name_map) {
+    BKE_main_namemap_destroy(&bmain.name_map);
   }
-  if (mainvar->name_map_global) {
-    BKE_main_namemap_destroy(&mainvar->name_map_global);
+  if (bmain.name_map_global) {
+    BKE_main_namemap_destroy(&bmain.name_map_global);
+  }
+}
+
+void BKE_main_destroy(Main &bmain)
+{
+  BKE_main_clear(bmain);
+
+  BLI_spin_end(reinterpret_cast<SpinLock *>(bmain.lock));
+  MEM_freeN(bmain.lock);
+  bmain.lock = nullptr;
+}
+
+void BKE_main_free(Main *bmain)
+{
+  /* In case this is called on a 'split-by-libraries' list of mains.
+   *
+   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
+  if (bmain->next) {
+    BKE_main_free(bmain->next);
   }
 
-  BLI_spin_end((SpinLock *)mainvar->lock);
-  MEM_freeN(mainvar->lock);
-  MEM_freeN(mainvar);
+  /* Include this check here as the path may be manipulated after creation. */
+  BLI_assert_msg(!(bmain->filepath[0] == '/' && bmain->filepath[1] == '/'),
+                 "'.blend' relative \"//\" must not be used in Main!");
+
+  BKE_main_destroy(*bmain);
+  MEM_freeN(bmain);
 }
 
 static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main *bmain_2, ID *id_2)
@@ -445,6 +466,16 @@ bool BKE_main_is_empty(Main *bmain)
   return result;
 }
 
+bool BKE_main_has_issues(const Main *bmain)
+{
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+}
+
+bool BKE_main_needs_overwrite_confirm(const Main *bmain)
+{
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+}
+
 void BKE_main_lock(Main *bmain)
 {
   BLI_spin_lock((SpinLock *)bmain->lock);
@@ -599,40 +630,32 @@ GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
 struct LibWeakRefKey {
   char filepath[FILE_MAX];
   char id_name[MAX_ID_NAME];
+
+  LibWeakRefKey(const char *lib_path, const char *id_name)
+  {
+    STRNCPY(this->filepath, lib_path);
+    STRNCPY(this->id_name, id_name);
+  }
+
+  friend bool operator==(const LibWeakRefKey &a, const LibWeakRefKey &b)
+  {
+    return STREQ(a.filepath, b.filepath) && STREQ(a.id_name, b.id_name);
+  }
+
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(blender::StringRef(this->filepath),
+                                     blender::StringRef(this->id_name));
+  }
 };
 
-static LibWeakRefKey *lib_weak_key_create(LibWeakRefKey *key,
-                                          const char *lib_path,
-                                          const char *id_name)
-{
-  if (key == nullptr) {
-    key = static_cast<LibWeakRefKey *>(MEM_mallocN(sizeof(*key), __func__));
-  }
-  STRNCPY(key->filepath, lib_path);
-  STRNCPY(key->id_name, id_name);
-  return key;
-}
+struct MainLibraryWeakReferenceMap {
+  blender::Map<LibWeakRefKey, ID *> map;
+};
 
-static uint lib_weak_key_hash(const void *ptr)
+MainLibraryWeakReferenceMap *BKE_main_library_weak_reference_create(Main *bmain)
 {
-  const LibWeakRefKey *string_pair = static_cast<const LibWeakRefKey *>(ptr);
-  uint hash = BLI_ghashutil_strhash_p_murmur(string_pair->filepath);
-  return hash ^ BLI_ghashutil_strhash_p_murmur(string_pair->id_name);
-}
-
-static bool lib_weak_key_cmp(const void *a, const void *b)
-{
-  const LibWeakRefKey *string_pair_a = static_cast<const LibWeakRefKey *>(a);
-  const LibWeakRefKey *string_pair_b = static_cast<const LibWeakRefKey *>(b);
-
-  return !(STREQ(string_pair_a->filepath, string_pair_b->filepath) &&
-           STREQ(string_pair_a->id_name, string_pair_b->id_name));
-}
-
-GHash *BKE_main_library_weak_reference_create(Main *bmain)
-{
-  GHash *library_weak_reference_mapping = BLI_ghash_new(
-      lib_weak_key_hash, lib_weak_key_cmp, __func__);
+  auto *library_weak_reference_mapping = MEM_new<MainLibraryWeakReferenceMap>(__func__);
 
   ListBase *lb;
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
@@ -649,10 +672,9 @@ GHash *BKE_main_library_weak_reference_create(Main *bmain)
       if (id_iter->library_weak_reference == nullptr) {
         continue;
       }
-      LibWeakRefKey *key = lib_weak_key_create(nullptr,
-                                               id_iter->library_weak_reference->library_filepath,
-                                               id_iter->library_weak_reference->library_id_name);
-      BLI_ghash_insert(library_weak_reference_mapping, key, id_iter);
+      const LibWeakRefKey key{id_iter->library_weak_reference->library_filepath,
+                              id_iter->library_weak_reference->library_id_name};
+      library_weak_reference_mapping->map.add(key, id_iter);
     }
     FOREACH_MAIN_LISTBASE_ID_END;
   }
@@ -661,24 +683,26 @@ GHash *BKE_main_library_weak_reference_create(Main *bmain)
   return library_weak_reference_mapping;
 }
 
-void BKE_main_library_weak_reference_destroy(GHash *library_weak_reference_mapping)
+void BKE_main_library_weak_reference_destroy(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping)
 {
-  BLI_ghash_free(library_weak_reference_mapping, MEM_freeN, nullptr);
+  MEM_delete(library_weak_reference_mapping);
 }
 
-ID *BKE_main_library_weak_reference_search_item(GHash *library_weak_reference_mapping,
-                                                const char *library_filepath,
-                                                const char *library_id_name)
+ID *BKE_main_library_weak_reference_search_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name)
 {
-  LibWeakRefKey key;
-  lib_weak_key_create(&key, library_filepath, library_id_name);
-  return (ID *)BLI_ghash_lookup(library_weak_reference_mapping, &key);
+  const LibWeakRefKey key{library_filepath, library_id_name};
+  return library_weak_reference_mapping->map.lookup_default(key, nullptr);
 }
 
-void BKE_main_library_weak_reference_add_item(GHash *library_weak_reference_mapping,
-                                              const char *library_filepath,
-                                              const char *library_id_name,
-                                              ID *new_id)
+void BKE_main_library_weak_reference_add_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *new_id)
 {
   BLI_assert(GS(library_id_name) == GS(new_id->name));
   BLI_assert(new_id->library_weak_reference == nullptr);
@@ -687,23 +711,19 @@ void BKE_main_library_weak_reference_add_item(GHash *library_weak_reference_mapp
   new_id->library_weak_reference = static_cast<LibraryWeakReference *>(
       MEM_mallocN(sizeof(*(new_id->library_weak_reference)), __func__));
 
-  LibWeakRefKey *key = lib_weak_key_create(nullptr, library_filepath, library_id_name);
-  void **id_p;
-  const bool already_exist_in_mapping = BLI_ghash_ensure_p(
-      library_weak_reference_mapping, key, &id_p);
-  BLI_assert(!already_exist_in_mapping);
-  UNUSED_VARS_NDEBUG(already_exist_in_mapping);
+  const LibWeakRefKey key{library_filepath, library_id_name};
+  library_weak_reference_mapping->map.add_new(key, new_id);
 
   STRNCPY(new_id->library_weak_reference->library_filepath, library_filepath);
   STRNCPY(new_id->library_weak_reference->library_id_name, library_id_name);
-  *id_p = new_id;
 }
 
-void BKE_main_library_weak_reference_update_item(GHash *library_weak_reference_mapping,
-                                                 const char *library_filepath,
-                                                 const char *library_id_name,
-                                                 ID *old_id,
-                                                 ID *new_id)
+void BKE_main_library_weak_reference_update_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *old_id,
+    ID *new_id)
 {
   BLI_assert(GS(library_id_name) == GS(old_id->name));
   BLI_assert(GS(library_id_name) == GS(new_id->name));
@@ -712,31 +732,51 @@ void BKE_main_library_weak_reference_update_item(GHash *library_weak_reference_m
   BLI_assert(STREQ(old_id->library_weak_reference->library_filepath, library_filepath));
   BLI_assert(STREQ(old_id->library_weak_reference->library_id_name, library_id_name));
 
-  LibWeakRefKey key;
-  lib_weak_key_create(&key, library_filepath, library_id_name);
-  void **id_p = BLI_ghash_lookup_p(library_weak_reference_mapping, &key);
-  BLI_assert(id_p != nullptr && *id_p == old_id);
+  const LibWeakRefKey key{library_filepath, library_id_name};
+  BLI_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
+  library_weak_reference_mapping->map.add_overwrite(key, new_id);
 
   new_id->library_weak_reference = old_id->library_weak_reference;
   old_id->library_weak_reference = nullptr;
-  *id_p = new_id;
 }
 
-void BKE_main_library_weak_reference_remove_item(GHash *library_weak_reference_mapping,
-                                                 const char *library_filepath,
-                                                 const char *library_id_name,
-                                                 ID *old_id)
+void BKE_main_library_weak_reference_remove_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *old_id)
 {
   BLI_assert(GS(library_id_name) == GS(old_id->name));
   BLI_assert(old_id->library_weak_reference != nullptr);
 
-  LibWeakRefKey key;
-  lib_weak_key_create(&key, library_filepath, library_id_name);
+  const LibWeakRefKey key{library_filepath, library_id_name};
 
-  BLI_assert(BLI_ghash_lookup(library_weak_reference_mapping, &key) == old_id);
-  BLI_ghash_remove(library_weak_reference_mapping, &key, MEM_freeN, nullptr);
+  BLI_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
+  library_weak_reference_mapping->map.remove(key);
 
   MEM_SAFE_FREE(old_id->library_weak_reference);
+}
+
+BlendThumbnail *BKE_main_thumbnail_from_buffer(Main *bmain, const uint8_t *rect, const int size[2])
+{
+  BlendThumbnail *data = nullptr;
+
+  if (bmain) {
+    MEM_SAFE_FREE(bmain->blen_thumb);
+  }
+
+  if (rect) {
+    const size_t data_size = BLEN_THUMB_MEMSIZE(size[0], size[1]);
+    data = static_cast<BlendThumbnail *>(MEM_mallocN(data_size, __func__));
+    data->width = size[0];
+    data->height = size[1];
+    memcpy(data->rect, rect, data_size - sizeof(*data));
+  }
+
+  if (bmain) {
+    bmain->blen_thumb = data;
+  }
+  return data;
 }
 
 BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)

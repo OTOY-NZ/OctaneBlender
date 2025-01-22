@@ -4,8 +4,8 @@
 
 set(INC
   .
-  ../include
   ../asset
+  ../include
   ../../asset_system
   ../../blenkernel
   ../../blenloader
@@ -21,7 +21,7 @@ set(INC
   ../../windowmanager
   ../../../../intern/ghost
   ../../bmesh
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -29,12 +29,13 @@ set(INC_SYS
 )
 
 set(SRC
+  eyedroppers/eyedropper_bone.cc
   eyedroppers/eyedropper_color.cc
   eyedroppers/eyedropper_colorband.cc
   eyedroppers/eyedropper_datablock.cc
   eyedroppers/eyedropper_depth.cc
   eyedroppers/eyedropper_driver.cc
-  eyedroppers/eyedropper_gpencil_color.cc
+  eyedroppers/eyedropper_grease_pencil_color.cc
   eyedroppers/interface_eyedropper.cc
   interface.cc
   interface_align.cc
@@ -69,6 +70,7 @@ set(SRC
   templates/interface_template_asset_view.cc
   templates/interface_template_attribute_search.cc
   templates/interface_template_bone_collection_tree.cc
+  templates/interface_template_grease_pencil_layer_tree.cc
   templates/interface_template_light_linking.cc
   templates/interface_template_list.cc
   templates/interface_template_node_inputs.cc
@@ -104,6 +106,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_datafiles
+  bf_editor_id_management
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
@@ -126,15 +129,12 @@ if(WITH_INPUT_IME)
 endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_GREASE_PENCIL_V3)
-  list(APPEND SRC
-    templates/interface_template_grease_pencil_layer_tree.cc
-  )
+  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_interface bf_rna)
 
 if(WITH_GTESTS)

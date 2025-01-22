@@ -437,13 +437,13 @@ static void versions_gpencil_add_main(Main *bmain, ListBase *lb, ID *id, const c
 {
   BLI_addtail(lb, id);
   id->us = 1;
-  id->flag = LIB_FAKEUSER;
+  id->flag = ID_FLAG_FAKEUSER;
   *((short *)id->name) = ID_GD_LEGACY;
 
-  BKE_id_new_name_validate(bmain, lb, id, name, false);
+  BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RenameExistingNever, false);
   /* alphabetic insertion: is in BKE_id_new_name_validate */
 
-  if ((id->tag & LIB_TAG_TEMP_MAIN) == 0) {
+  if ((id->tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
   }
 
@@ -1035,7 +1035,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         bNode *node = static_cast<bNode *>(ntree->nodes.first);
 
         while (node) {
-          blender::bke::nodeUniqueName(ntree, node);
+          blender::bke::node_unique_name(ntree, node);
           node = node->next;
         }
 
@@ -1860,7 +1860,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
             /* initialize the default socket value */
             copy_v4_v4(gsock->ns.vec, sock->ns.vec);
 
-            /* XXX nodeAddLink does not work with incomplete (node==nullptr) links any longer,
+            /* XXX node_add_link does not work with incomplete (node==nullptr) links any longer,
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */
@@ -1876,7 +1876,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
         LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-          if (blender::bke::nodeCountSocketLinks(ntree, sock) == 0 &&
+          if (blender::bke::node_count_socket_links(ntree, sock) == 0 &&
               !((sock->flag & (SOCK_HIDDEN | SOCK_UNAVAIL)) != 0))
           {
             bNodeSocket *gsock = do_versions_node_group_add_socket_2_56_2(
@@ -1885,7 +1885,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
             /* initialize the default socket value */
             copy_v4_v4(gsock->ns.vec, sock->ns.vec);
 
-            /* XXX nodeAddLink does not work with incomplete (node==nullptr) links any longer,
+            /* XXX node_add_link does not work with incomplete (node==nullptr) links any longer,
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */

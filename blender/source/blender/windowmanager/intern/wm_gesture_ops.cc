@@ -17,8 +17,10 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_math_base.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 
@@ -491,6 +493,8 @@ int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   PropertyRNA *prop;
 
   op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_LASSO);
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  gesture->use_smooth = RNA_boolean_get(op->ptr, "use_smooth_stroke");
 
   /* Add modal handler. */
   WM_event_add_modal_handler(C, op);
@@ -510,6 +514,10 @@ int WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   PropertyRNA *prop;
 
   op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_LINES);
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  if ((prop = RNA_struct_find_property(op->ptr, "use_smooth_stroke"))) {
+    gesture->use_smooth = RNA_property_boolean_get(op->ptr, prop);
+  }
 
   /* Add modal handler. */
   WM_event_add_modal_handler(C, op);
@@ -530,7 +538,7 @@ static int gesture_lasso_apply(bContext *C, wmOperator *op)
   PointerRNA itemptr;
   float loc[2];
   int i;
-  const short *lasso = static_cast<const short int *>(gesture->customdata);
+  const float *lasso = static_cast<const float *>(gesture->customdata);
 
   /* Operator storage as path. */
 
@@ -555,6 +563,8 @@ static int gesture_lasso_apply(bContext *C, wmOperator *op)
 int WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  const float factor = gesture->use_smooth ? RNA_float_get(op->ptr, "smooth_stroke_factor") : 0.0f;
+  const int radius = gesture->use_smooth ? RNA_int_get(op->ptr, "smooth_stroke_radius") : 0;
 
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
@@ -569,31 +579,45 @@ int WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event)
       case MOUSEMOVE:
       case INBETWEEN_MOUSEMOVE: {
         wm_gesture_tag_redraw(CTX_wm_window(C));
+        gesture->mval = int2((event->xy[0] - gesture->winrct.xmin),
+                             (event->xy[1] - gesture->winrct.ymin));
 
         if (gesture->points == gesture->points_alloc) {
           gesture->points_alloc *= 2;
           gesture->customdata = MEM_reallocN(gesture->customdata,
-                                             sizeof(short[2]) * gesture->points_alloc);
+                                             sizeof(float[2]) * gesture->points_alloc);
         }
 
         {
-          short(*lasso)[2] = static_cast<short int(*)[2]>(gesture->customdata);
+          float(*lasso)[2] = static_cast<float(*)[2]>(gesture->customdata);
+          const float2 current_mouse_position = float2(gesture->mval);
+          const float2 last_position(lasso[gesture->points - 1][0], lasso[gesture->points - 1][1]);
 
-          const int x = ((event->xy[0] - gesture->winrct.xmin) - lasso[gesture->points - 1][0]);
-          const int y = ((event->xy[1] - gesture->winrct.ymin) - lasso[gesture->points - 1][1]);
+          const float2 delta = current_mouse_position - last_position;
+          const float dist_squared = blender::math::length_squared(delta);
 
           /* Move the lasso. */
           if (gesture->move) {
             for (int i = 0; i < gesture->points; i++) {
-              lasso[i][0] += x;
-              lasso[i][1] += y;
+              lasso[i][0] += delta.x;
+              lasso[i][1] += delta.y;
             }
           }
-          /* Make a simple distance check to get a smoother lasso
-           * add only when at least 2 pixels between this and previous location. */
-          else if ((x * x + y * y) > pow2f(2.0f * UI_SCALE_FAC)) {
-            lasso[gesture->points][0] = event->xy[0] - gesture->winrct.xmin;
-            lasso[gesture->points][1] = event->xy[1] - gesture->winrct.ymin;
+          else if (gesture->use_smooth) {
+            if (dist_squared > square_f(radius)) {
+              float2 result = blender::math::interpolate(
+                  current_mouse_position, last_position, factor);
+
+              lasso[gesture->points][0] = result.x;
+              lasso[gesture->points][1] = result.y;
+              gesture->points++;
+            }
+          }
+          else if (dist_squared > pow2f(2.0f * UI_SCALE_FAC)) {
+            /* Make a simple distance check to get a smoother lasso even if smoothing isn't enabled
+             * add only when at least 2 pixels between this and previous location. */
+            lasso[gesture->points][0] = gesture->mval.x;
+            lasso[gesture->points][1] = gesture->mval.y;
             gesture->points++;
           }
         }
@@ -726,31 +750,38 @@ int WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 /* Calculates the number of valid points in a polyline gesture where
  * a duplicated end point is invalid for submission */
-static int gesture_polyline_valid_points(const wmGesture &wmGesture)
+static int gesture_polyline_valid_points(const wmGesture &wmGesture, const bool is_click_submitted)
 {
   BLI_assert(wmGesture.points > 2);
 
   const int num_points = wmGesture.points;
+  if (is_click_submitted) {
+    return num_points;
+  }
+
   short(*points)[2] = static_cast<short int(*)[2]>(wmGesture.customdata);
 
-  const short last_x = points[num_points - 1][0];
-  const short last_y = points[num_points - 1][1];
+  const short prev_x = points[num_points - 1][0];
+  const short prev_y = points[num_points - 1][1];
 
-  const short prev_x = points[num_points - 2][0];
-  const short prev_y = points[num_points - 2][1];
-
-  return (last_x == prev_x && last_y == prev_y) ? num_points - 1 : num_points;
+  return (wmGesture.mval.x == prev_x && wmGesture.mval.y == prev_y) ? num_points : num_points + 1;
 }
 
-/* Evaluates whether the polyline has at least three points and represents
- * a shape and can be submitted for other gesture operators to act on. */
-static bool gesture_polyline_can_apply(const wmGesture &wmGesture)
+/**
+ * Evaluates whether the poly-line has at least three points and represents
+ * a shape and can be submitted for other gesture operators to act on.
+ *
+ * We handle clicking within the original point radius differently than double clicking or
+ * submitting through the confirm key-bindings, as the user expects to *not* add a new point when
+ * interacting with this targeted area.
+ */
+static bool gesture_polyline_can_apply(const wmGesture &wmGesture, const bool is_click_submitted)
 {
-  if (wmGesture.points <= 2) {
+  if (wmGesture.points < 2) {
     return false;
   }
 
-  const int valid_points = gesture_polyline_valid_points(wmGesture);
+  const int valid_points = gesture_polyline_valid_points(wmGesture, is_click_submitted);
   if (valid_points <= 2) {
     return false;
   }
@@ -758,14 +789,12 @@ static bool gesture_polyline_can_apply(const wmGesture &wmGesture)
   return true;
 }
 
-static int gesture_polyline_apply(bContext *C, wmOperator *op)
+static int gesture_polyline_apply(bContext *C, wmOperator *op, const bool is_click_submitted)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
-  BLI_assert(gesture_polyline_can_apply(*gesture));
+  BLI_assert(gesture_polyline_can_apply(*gesture, is_click_submitted));
 
-  const int valid_points = gesture_polyline_valid_points(*gesture);
-  gesture->points = valid_points;
-
+  const int valid_points = gesture_polyline_valid_points(*gesture, is_click_submitted);
   const short *border = static_cast<const short int *>(gesture->customdata);
 
   PointerRNA itemptr;
@@ -774,6 +803,12 @@ static int gesture_polyline_apply(bContext *C, wmOperator *op)
   for (int i = 0; i < gesture->points; i++, border += 2) {
     loc[0] = border[0];
     loc[1] = border[1];
+    RNA_collection_add(op->ptr, "path", &itemptr);
+    RNA_float_set_array(&itemptr, "loc", loc);
+  }
+  if (valid_points > gesture->points) {
+    loc[0] = gesture->mval.x;
+    loc[1] = gesture->mval.y;
     RNA_collection_add(op->ptr, "path", &itemptr);
     RNA_float_set_array(&itemptr, "loc", loc);
   }
@@ -801,35 +836,32 @@ int WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event)
       case GESTURE_MODAL_SELECT: {
         wm_gesture_tag_redraw(CTX_wm_window(C));
         short(*border)[2] = static_cast<short int(*)[2]>(gesture->customdata);
-        const short cur_x = border[gesture->points - 1][0];
-        const short cur_y = border[gesture->points - 1][1];
+        const short prev_x = border[gesture->points - 1][0];
+        const short prev_y = border[gesture->points - 1][1];
 
-        const short prev_x = border[gesture->points - 2][0];
-        const short prev_y = border[gesture->points - 2][1];
-
-        if (cur_x == prev_x && cur_y == prev_y) {
+        if (gesture->mval.x == prev_x && gesture->mval.y == prev_y) {
           break;
         }
 
-        const float2 cur(cur_x, cur_y);
+        const float2 cur(gesture->mval);
         const float2 orig(border[0][0], border[0][1]);
 
         const float dist = len_v2v2(cur, orig);
 
         if (dist < blender::wm::gesture::POLYLINE_CLICK_RADIUS * UI_SCALE_FAC &&
-            gesture_polyline_can_apply(*gesture))
+            gesture_polyline_can_apply(*gesture, true))
         {
-          return gesture_polyline_apply(C, op);
+          return gesture_polyline_apply(C, op, true);
         }
 
         gesture->points++;
-        border[gesture->points - 1][0] = cur_x;
-        border[gesture->points - 1][1] = cur_y;
+        border[gesture->points - 1][0] = gesture->mval.x;
+        border[gesture->points - 1][1] = gesture->mval.y;
         break;
       }
       case GESTURE_MODAL_CONFIRM:
-        if (gesture_polyline_can_apply(*gesture)) {
-          return gesture_polyline_apply(C, op);
+        if (gesture_polyline_can_apply(*gesture, false)) {
+          return gesture_polyline_apply(C, op, false);
         }
         break;
       case GESTURE_MODAL_CANCEL:
@@ -842,6 +874,8 @@ int WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event)
       case MOUSEMOVE:
       case INBETWEEN_MOUSEMOVE: {
         wm_gesture_tag_redraw(CTX_wm_window(C));
+        gesture->mval = int2((event->xy[0] - gesture->winrct.xmin),
+                             (event->xy[1] - gesture->winrct.ymin));
         if (gesture->points == gesture->points_alloc) {
           gesture->points_alloc *= 2;
           gesture->customdata = MEM_reallocN(gesture->customdata,
@@ -851,17 +885,14 @@ int WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
         /* move the lasso */
         if (gesture->move) {
-          const int x = ((event->xy[0] - gesture->winrct.xmin) - border[gesture->points - 1][0]);
-          const int y = ((event->xy[1] - gesture->winrct.ymin) - border[gesture->points - 1][1]);
+          const int dx = gesture->mval.x - border[gesture->points - 1][0];
+          const int dy = gesture->mval.y - border[gesture->points - 1][1];
 
           for (int i = 0; i < gesture->points; i++) {
-            border[i][0] += x;
-            border[i][1] += y;
+            border[i][0] += dx;
+            border[i][1] += dy;
           }
         }
-
-        border[gesture->points - 1][0] = event->xy[0] - gesture->winrct.xmin;
-        border[gesture->points - 1][1] = event->xy[1] - gesture->winrct.ymin;
         break;
       }
     }
@@ -1021,6 +1052,22 @@ static void wm_gesture_straightline_do_angle_snap(rcti *rect, float snap_angle)
 
   rect->xmax = int(line_snapped_end[0]);
   rect->ymax = int(line_snapped_end[1]);
+
+  /* Check whether `angle_snapped` is a multiple of 45 degrees, if so ensure X and Y directions
+   * are the same length (there could be an off-by-one due to rounding error). */
+  const float fract_45 = fractf(angle_snapped / DEG2RADF(45.0f));
+  const float fract_90 = fractf(angle_snapped / DEG2RADF(90.0f));
+  /* Check if it's a multiple of 45 but not 90 degrees. */
+  if ((compare_ff(fract_45, 0.0f, 1e-6) || compare_ff(fabsf(fract_45), 1.0f, 1e-6)) &&
+      (!(compare_ff(fract_90, 0.0f, 1e-6) || compare_ff(fabsf(fract_90), 1.0f, 1e-6))))
+  {
+    int xlen = abs(rect->xmax - rect->xmin);
+    int ylen = rect->ymax - rect->ymin;
+    if (abs(ylen) != xlen) {
+      ylen = xlen * (ylen >= 0 ? 1 : -1);
+      rect->ymax = rect->ymin + ylen;
+    }
+  }
 }
 
 int WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *event)

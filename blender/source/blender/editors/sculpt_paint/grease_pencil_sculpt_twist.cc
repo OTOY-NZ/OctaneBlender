@@ -5,6 +5,7 @@
 #include "BLI_math_rotation.h"
 
 #include "BKE_context.hh"
+#include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_paint.hh"
@@ -48,35 +49,42 @@ void TwistOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
-  this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
-    IndexMaskMemory selection_memory;
-    const IndexMask selection = point_selection_mask(params, selection_memory);
-    if (selection.is_empty()) {
-      return false;
-    }
+  const bool is_masking = GPENCIL_ANY_SCULPT_MASK(
+      eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
-    Array<float2> view_positions = calculate_view_positions(params, selection);
-    bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
-    MutableSpan<float3> positions = curves.positions_for_write();
+  this->foreach_editable_drawing(
+      C, [&](const GreasePencilStrokeParams &params, const DeltaProjectionFunc &projection_fn) {
+        IndexMaskMemory selection_memory;
+        const IndexMask selection = point_selection_mask(params, is_masking, selection_memory);
+        if (selection.is_empty()) {
+          return false;
+        }
 
-    const float2 mouse_pos = extension_sample.mouse_position;
+        bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
+        Array<float2> view_positions = calculate_view_positions(params, selection);
+        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        MutableSpan<float3> positions = curves.positions_for_write();
 
-    selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-      const float2 &co = view_positions[point_i];
-      const float influence = brush_influence(
-          scene, brush, co, extension_sample, params.multi_frame_falloff);
-      if (influence <= 0.0f) {
-        return;
-      }
+        const float2 mouse_pos = extension_sample.mouse_position;
 
-      const float angle = DEG2RADF(invert ? -1.0f : 1.0f) * influence;
-      positions[point_i] = params.placement.project(rotate_by_angle(co - mouse_pos, angle) +
-                                                    mouse_pos);
-    });
+        selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
+          const float2 &co = view_positions[point_i];
+          const float influence = brush_point_influence(
+              scene, brush, co, extension_sample, params.multi_frame_falloff);
+          if (influence <= 0.0f) {
+            return;
+          }
 
-    params.drawing.tag_positions_changed();
-    return true;
-  });
+          const float angle = DEG2RADF(invert ? -1.0f : 1.0f) * influence;
+          const float2 radial_offset = co - mouse_pos;
+          positions[point_i] = projection_fn(deformation.positions[point_i],
+                                             rotate_by_angle(radial_offset, angle) -
+                                                 radial_offset);
+        });
+
+        params.drawing.tag_positions_changed();
+        return true;
+      });
   this->stroke_extended(extension_sample);
 }
 

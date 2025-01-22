@@ -6,10 +6,6 @@
  * \ingroup edtransform
  */
 
-#include <cmath>
-
-#include "MEM_guardedalloc.h"
-
 #include "DNA_gpencil_legacy_types.h"
 
 #include "BLI_blenlib.h"
@@ -22,6 +18,7 @@
 
 #include "RNA_access.hh"
 
+#include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_mask.h"
@@ -38,7 +35,6 @@
 #include "ED_uvedit.hh"
 
 #include "WM_api.hh"
-#include "WM_types.hh"
 
 #include "UI_view2d.hh"
 
@@ -128,7 +124,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   ScrArea *area = CTX_wm_area(C);
 
-  bGPdata *gpd = CTX_data_gpencil_data(C);
   PropertyRNA *prop;
 
   t->mbus = CTX_wm_message_bus(C);
@@ -219,11 +214,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
   }
 
-  /* GPencil editing context. */
-  if (GPENCIL_EDIT_MODE(gpd)) {
-    t->options |= CTX_GPENCIL_STROKES;
-  }
-
   /* Grease Pencil editing context. */
   if (t->obedit_type == OB_GREASE_PENCIL && object_mode == OB_MODE_EDIT &&
       (area->spacetype == SPACE_VIEW3D))
@@ -270,8 +260,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
 
     if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {
-      Paint *p = BKE_paint_get_active_from_context(C);
-      Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+      Paint *paint = BKE_paint_get_active_from_context(C);
+      Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
       if (brush && (brush->flag & BRUSH_CURVE)) {
         t->options |= CTX_PAINT_CURVE;
       }
@@ -303,8 +293,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       t->options |= CTX_MASK;
     }
     else if (sima->mode == SI_MODE_PAINT) {
-      Paint *p = &sce->toolsettings->imapaint.paint;
-      Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+      Paint *paint = &sce->toolsettings->imapaint.paint;
+      Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
       if (brush && (brush->flag & BRUSH_CURVE)) {
         t->options |= CTX_PAINT_CURVE;
       }
@@ -1111,10 +1101,11 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
     }
   }
   else if (t->options & CTX_PAINT_CURVE) {
-    Paint *p = BKE_paint_get_active(t->scene, t->view_layer);
-    Brush *br = BKE_paint_brush(p);
+    Paint *paint = BKE_paint_get_active(t->scene, t->view_layer);
+    Brush *br = BKE_paint_brush(paint);
     PaintCurve *pc = br->paint_curve;
     copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
+    BKE_brush_tag_unsaved_changes(br);
     r_center[2] = 0.0f;
     return true;
   }
@@ -1233,7 +1224,7 @@ void calculateCenter(TransInfo *t)
   calculateZfac(t);
 }
 
-void tranformViewUpdate(TransInfo *t)
+void transformViewUpdate(TransInfo *t)
 {
   float zoom_prev = t->zfac;
   float zoom_new;
@@ -1267,6 +1258,7 @@ void tranformViewUpdate(TransInfo *t)
   }
 
   calculateCenter2D(t);
+  transform_snap_grid_init(t, t->snap_spatial, &t->snap_spatial_precision);
   transform_input_update(t, zoom_prev / zoom_new);
 }
 

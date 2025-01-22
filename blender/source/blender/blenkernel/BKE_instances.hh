@@ -25,16 +25,19 @@
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_shared_cache.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_customdata_types.h"
 
+#include "BKE_attribute_filter.hh"
+
 struct Object;
 struct Collection;
 namespace blender::bke {
-class AnonymousAttributePropagationInfo;
 class AttributeAccessor;
 class MutableAttributeAccessor;
 }  // namespace blender::bke
@@ -86,10 +89,24 @@ class InstanceReference {
   GeometrySet &geometry_set();
   const GeometrySet &geometry_set() const;
 
+  /**
+   * Converts the instance reference to a geometry set, even if it was an object or collection
+   * before.
+   *
+   * \note Uses out-parameter to be able to use #GeometrySet forward declaration.
+   */
+  void to_geometry_set(GeometrySet &r_geometry_set) const;
+
+  StringRefNull name() const;
+
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   friend bool operator==(const InstanceReference &a, const InstanceReference &b);
+
+  uint64_t hash() const;
 };
 
 class Instances {
@@ -103,6 +120,11 @@ class Instances {
   int instances_num_ = 0;
 
   CustomData attributes_;
+
+  /**
+   * Caches how often each reference is used.
+   */
+  mutable SharedCache<Array<int>> reference_user_counts_;
 
   /* These almost unique ids are generated based on the `id` attribute, which might not contain
    * unique ids at all. They are *almost* unique, because under certain very unlikely
@@ -133,6 +155,10 @@ class Instances {
    * Otherwise a new handle is added.
    */
   int add_reference(const InstanceReference &reference);
+  /**
+   * Same as above, but does not deduplicate with existing references.
+   */
+  int add_new_reference(const InstanceReference &reference);
   std::optional<int> find_reference_handle(const InstanceReference &query);
   /**
    * Add a reference to the instance reference with an index specified by the #instance_handle
@@ -169,11 +195,16 @@ class Instances {
    * Remove the indices that are not contained in the mask input, and remove unused instance
    * references afterwards.
    */
-  void remove(const IndexMask &mask, const AnonymousAttributePropagationInfo &propagation_info);
+  void remove(const IndexMask &mask, const AttributeFilter &attribute_filter);
   /**
    * Get an id for every instance. These can be used for e.g. motion blur.
    */
   Span<int> almost_unique_ids() const;
+
+  /**
+   * Get cached user counts for every reference.
+   */
+  Span<int> reference_user_counts() const;
 
   bke::AttributeAccessor attributes() const;
   bke::MutableAttributeAccessor attributes_for_write();
@@ -187,8 +218,11 @@ class Instances {
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   void tag_reference_handles_changed()
   {
+    reference_user_counts_.tag_dirty();
     almost_unique_ids_cache_.tag_dirty();
   }
 };
@@ -212,14 +246,6 @@ inline InstanceReference::InstanceReference(Object &object) : type_(Type::Object
 inline InstanceReference::InstanceReference(Collection &collection)
     : type_(Type::Collection), data_(&collection)
 {
-}
-
-inline InstanceReference::InstanceReference(const InstanceReference &other)
-    : type_(other.type_), data_(other.data_)
-{
-  if (other.geometry_set_) {
-    geometry_set_ = std::make_unique<GeometrySet>(*other.geometry_set_);
-  }
 }
 
 inline InstanceReference::InstanceReference(InstanceReference &&other)

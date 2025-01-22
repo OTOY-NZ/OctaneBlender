@@ -16,11 +16,11 @@
 #include "BLI_kdtree.h"
 #include "BLI_utildefines.h"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "mathutils.h"
-#include "mathutils_kdtree.h" /* own include */
+#include "mathutils.hh"
+#include "mathutils_kdtree.hh" /* own include */
 
 #include "BLI_strict_flags.h" /* Keep last. */
 
@@ -115,7 +115,7 @@ PyDoc_STRVAR(
     "   Insert a point into the KDTree.\n"
     "\n"
     "   :arg co: Point 3d position.\n"
-    "   :type co: float triplet\n"
+    "   :type co: Sequence[float]\n"
     "   :arg index: The index of the point.\n"
     "   :type index: int\n");
 static PyObject *py_kdtree_insert(PyKDTree *self, PyObject *args, PyObject *kwargs)
@@ -202,13 +202,13 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest point to ``co``.\n"
     "\n"
-    "   :arg co: 3d coordinates.\n"
-    "   :type co: float triplet\n"
+    "   :arg co: 3D coordinates.\n"
+    "   :type co: Sequence[float]\n"
     "   :arg filter: function which takes an index and returns True for indices to "
     "include in the search.\n"
-    "   :type filter: callable\n"
-    "   :return: Returns (:class:`Vector`, index, distance).\n"
-    "   :rtype: :class:`tuple`\n");
+    "   :type filter: Callable[[int], bool]\n"
+    "   :return: Returns (position, index, distance).\n"
+    "   :rtype: tuple[:class:`Vector`, int, float]\n");
 static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
   PyObject *py_co, *py_filter = nullptr;
@@ -259,12 +259,12 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest ``n`` points to ``co``.\n"
     "\n"
-    "   :arg co: 3d coordinates.\n"
-    "   :type co: float triplet\n"
+    "   :arg co: 3D coordinates.\n"
+    "   :type co: Sequence[float]\n"
     "   :arg n: Number of points to find.\n"
     "   :type n: int\n"
-    "   :return: Returns a list of tuples (:class:`Vector`, index, distance).\n"
-    "   :rtype: :class:`list`\n");
+    "   :return: Returns a list of tuples (position, index, distance).\n"
+    "   :rtype: list[tuple[:class:`Vector`, int, float]]\n");
 static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
   PyObject *py_list;
@@ -315,12 +315,12 @@ PyDoc_STRVAR(
     "\n"
     "   Find all points within ``radius`` of ``co``.\n"
     "\n"
-    "   :arg co: 3d coordinates.\n"
-    "   :type co: float triplet\n"
+    "   :arg co: 3D coordinates.\n"
+    "   :type co: Sequence[float]\n"
     "   :arg radius: Distance to search for points.\n"
     "   :type radius: float\n"
-    "   :return: Returns a list of tuples (:class:`Vector`, index, distance).\n"
-    "   :rtype: :class:`list`\n");
+    "   :return: Returns a list of tuples (position, index, distance).\n"
+    "   :rtype: list[tuple[:class:`Vector`, int, float]]\n");
 static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
   PyObject *py_list;

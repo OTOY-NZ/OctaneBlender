@@ -28,15 +28,15 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "bpy_rna_id_collection.h"
+#include "bpy_rna_id_collection.hh"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
 #include "RNA_enum_types.hh"
 
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 struct IDUserMapData {
   /** We loop over data-blocks that this ID points to (do build a reverse lookup table) */
@@ -119,21 +119,20 @@ PyDoc_STRVAR(
     ".. method:: user_map(subset, key_types, value_types)\n"
     "\n"
     "   Returns a mapping of all ID data-blocks in current ``bpy.data`` to a set of all "
-    "datablocks using them.\n"
+    "data-blocks using them.\n"
     "\n"
     "   For list of valid set members for key_types & value_types, see: "
     ":class:`bpy.types.KeyingSetPath.id_type`.\n"
     "\n"
     "   :arg subset: When passed, only these data-blocks and their users will be "
     "included as keys/values in the map.\n"
-    "   :type subset: sequence\n"
+    "   :type subset: Sequence[:class:`bpy.types.ID`]\n"
     "   :arg key_types: Filter the keys mapped by ID types.\n"
-    "   :type key_types: set of strings\n"
+    "   :type key_types: set[str]\n"
     "   :arg value_types: Filter the values in the set by ID types.\n"
-    "   :type value_types: set of strings\n"
-    "   :return: dictionary of :class:`bpy.types.ID` instances, with sets of ID's as "
-    "their values.\n"
-    "   :rtype: dict\n");
+    "   :type value_types: set[str]\n"
+    "   :return: dictionary that maps data-blocks ID's to their users.\n"
+    "   :rtype: dict[:class:`bpy.types.ID`, set[:class:`bpy.types.ID`]]\n");
 static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
 #if 0 /* If someone knows how to get a proper 'self' in that case... */
@@ -287,8 +286,8 @@ PyDoc_STRVAR(
     "   ID collections), but less safe/versatile (it can break Blender, e.g. by removing "
     "all scenes...).\n"
     "\n"
-    "   :arg ids: Iterables of IDs (types can be mixed).\n"
-    "   :type subset: sequence\n");
+    "   :arg ids: Sequence of IDs (types can be mixed).\n"
+    "   :type ids: Sequence[:class:`bpy.types.ID`]\n");
 static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
 #if 0 /* If someone knows how to get a proper 'self' in that case... */
@@ -315,7 +314,7 @@ static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject 
   }
 
   if (ids) {
-    BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+    BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
     PyObject *ids_fast = PySequence_Fast(ids, "batch_remove");
     if (ids_fast == nullptr) {
@@ -334,7 +333,7 @@ static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject 
         goto error;
       }
 
-      id->tag |= LIB_TAG_DOIT;
+      id->tag |= ID_TAG_DOIT;
     }
     Py_DECREF(ids_fast);
 
@@ -407,7 +406,7 @@ static PyObject *bpy_orphans_purge(PyObject * /*self*/, PyObject *args, PyObject
   }
 
   /* Tag all IDs to delete. */
-  BKE_lib_query_unused_ids_tag(bmain, LIB_TAG_DOIT, unused_ids_data);
+  BKE_lib_query_unused_ids_tag(bmain, ID_TAG_DOIT, unused_ids_data);
 
   if (unused_ids_data.num_total[INDEX_ID_NULL] == 0) {
     return PyLong_FromSize_t(0);

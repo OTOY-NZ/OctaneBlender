@@ -52,7 +52,7 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_customdata.hh"
@@ -487,7 +487,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     /* tex->extend and tex->imageflag have changed: */
     Tex *tex = static_cast<Tex *>(bmain->textures.first);
     while (tex) {
-      if (tex->id.tag & LIB_TAG_NEED_LINK) {
+      if (tex->id.tag & ID_TAG_NEED_LINK) {
 
         if (tex->extend == 0) {
           if (tex->xrepeat || tex->yrepeat) {
@@ -1600,9 +1600,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       }
 
       /* uv calculation options moved to toolsettings */
-      if (sce->toolsettings->unwrapper == 0) {
+      if (sce->toolsettings->unwrapper == UVCALC_UNWRAP_METHOD_ANGLE) {
+        sce->toolsettings->unwrapper = UVCALC_UNWRAP_METHOD_CONFORMAL;
         sce->toolsettings->uvcalc_flag = UVCALC_FILLHOLES;
-        sce->toolsettings->unwrapper = 1;
       }
     }
 
@@ -2262,14 +2262,17 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
             MEM_callocN(sizeof(ParticleSystem), "particle_system"));
         psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 
+        /* Bad, but better not try to change this prehistorical code nowadays. */
+        bmain->is_locked_for_linking = false;
         part = psys->part = BKE_particlesettings_add(bmain, "ParticleSettings");
+        bmain->is_locked_for_linking = true;
 
         /* needed for proper libdata lookup */
         blo_do_versions_oldnewmap_insert(fd->libmap, psys->part, psys->part, 0);
         part->id.lib = ob->id.lib;
 
         part->id.us--;
-        part->id.tag |= (ob->id.tag & LIB_TAG_NEED_LINK);
+        part->id.tag |= (ob->id.tag & ID_TAG_NEED_LINK);
 
         psys->totpart = 0;
         psys->flag = PSYS_CURRENT;

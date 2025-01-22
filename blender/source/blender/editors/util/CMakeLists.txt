@@ -14,7 +14,7 @@ set(INC
   ../../makesrna
   ../../sequencer
   ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -51,6 +51,7 @@ set(SRC
   ../include/ED_gizmo_utils.hh
   ../include/ED_gpencil_legacy.hh
   ../include/ED_grease_pencil.hh
+  ../include/ED_id_management.hh
   ../include/ED_image.hh
   ../include/ED_info.hh
   ../include/ED_keyframes_draw.hh
@@ -127,5 +128,5 @@ endif()
 
 blender_add_lib(bf_editor_util "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_util bf_rna)

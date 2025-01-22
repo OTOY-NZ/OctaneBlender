@@ -11,6 +11,7 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
+#include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
 #include "vk_common.hh"
@@ -18,8 +19,8 @@
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_pipeline_pool.hh"
+#include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
-#include "vk_timeline_semaphore.hh"
 
 namespace blender::gpu {
 class VKBackend;
@@ -52,6 +53,73 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+
+  /**
+   * Is the workaround for devices that don't support
+   * #VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR::fragmentShaderBarycentric enabled.
+   * If set to true, the backend would inject a geometry shader to produce barycentric coordinates.
+   */
+  bool fragment_shader_barycentric = false;
+
+  /**
+   * Is the workarounds for devices that don't support VK_EXT_dynamic_rendering_unused_attachments
+   * enabled.
+   */
+  bool dynamic_rendering_unused_attachments = false;
+};
+
+/**
+ * Shared resources between contexts that run in the same thread.
+ */
+class VKThreadData : public NonCopyable, NonMovable {
+  static constexpr uint32_t resource_pools_count = 3;
+
+ public:
+  /** Thread ID this instance belongs to. */
+  pthread_t thread_id;
+  /**
+   * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
+   * rendering.
+   *
+   * NOTE: Initialized to `UINT32_MAX` to detect first change.
+   */
+  uint32_t resource_pool_index = UINT32_MAX;
+  std::array<VKResourcePool, resource_pools_count> resource_pools;
+
+  /**
+   * The current rendering depth.
+   *
+   * GPU_rendering_begin can be called multiple times forming a hierarchy. The same resource pool
+   * should be used for the whole hierarchy. rendering_depth is increased for every
+   * GPU_rendering_begin and decreased when GPU_rendering_end is called. Resources pools are cycled
+   * when the rendering_depth set to 0.
+   */
+  int32_t rendering_depth = 0;
+
+  VKThreadData(VKDevice &device, pthread_t thread_id);
+  void deinit(VKDevice &device);
+
+  /**
+   * Get the active resource pool.
+   */
+  VKResourcePool &resource_pool_get()
+  {
+    if (resource_pool_index >= resource_pools.size()) {
+      return resource_pools[0];
+    }
+    return resource_pools[resource_pool_index];
+  }
+
+  /** Activate the next resource pool. */
+  void resource_pool_next()
+  {
+    if (resource_pool_index == UINT32_MAX) {
+      resource_pool_index = 1;
+    }
+    else {
+      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
+    }
+  }
 };
 
 class VKDevice : public NonCopyable {
@@ -62,12 +130,10 @@ class VKDevice : public NonCopyable {
   VkDevice vk_device_ = VK_NULL_HANDLE;
   uint32_t vk_queue_family_ = 0;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
+  std::mutex *queue_mutex_ = nullptr;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
-
-  /* Semaphore for CPU GPU synchronization when submitting commands to the queue. */
-  VKTimelineSemaphore timeline_semaphore_;
 
   /**
    * Available Contexts for this device.
@@ -82,15 +148,16 @@ class VKDevice : public NonCopyable {
 
   /** Allocator used for texture and buffers and other resources. */
   VmaAllocator mem_allocator_ = VK_NULL_HANDLE;
-  VkPipelineCache vk_pipeline_cache_ = VK_NULL_HANDLE;
 
   /** Limits of the device linked to this context. */
   VkPhysicalDeviceProperties vk_physical_device_properties_ = {};
+  VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_ = {};
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
   VkPhysicalDeviceVulkan12Features vk_physical_device_vulkan_12_features_ = {};
+  Array<VkExtensionProperties> device_extensions_;
 
   /** Functions of vk_ext_debugutils for this device/instance. */
   debug::VKDebuggingTools debugging_tools_;
@@ -98,21 +165,15 @@ class VKDevice : public NonCopyable {
   /* Workarounds */
   VKWorkarounds workarounds_;
 
-  /** Buffer to bind to unbound resource locations. */
-  VKBuffer dummy_buffer_;
-  std::optional<std::reference_wrapper<VKTexture>> dummy_color_attachment_;
-
-  Vector<std::pair<VkImage, VmaAllocation>> discarded_images_;
-  Vector<std::pair<VkBuffer, VmaAllocation>> discarded_buffers_;
-  Vector<VkRenderPass> discarded_render_passes_;
-  Vector<VkFramebuffer> discarded_frame_buffers_;
-  Vector<VkImageView> discarded_image_views_;
-
   std::string glsl_patch_;
+  Vector<VKThreadData *> thread_data_;
 
  public:
   render_graph::VKResourceStateTracker resources;
+  VKDiscardPool orphaned_data;
   VKPipelinePool pipelines;
+  /** Buffer to bind to unbound resource locations. */
+  VKBuffer dummy_buffer;
 
   /**
    * This struct contains the functions pointer to extension provided functions.
@@ -125,6 +186,9 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_EXT_debug_utils */
     PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabel = nullptr;
     PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabel = nullptr;
+    PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName = nullptr;
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
+    PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
   } functions;
 
   VkPhysicalDevice physical_device_get() const
@@ -157,7 +221,7 @@ class VKDevice : public NonCopyable {
     return vk_instance_;
   };
 
-  VkDevice device_get() const
+  VkDevice vk_handle() const
   {
     return vk_device_;
   }
@@ -165,6 +229,10 @@ class VKDevice : public NonCopyable {
   VkQueue queue_get() const
   {
     return vk_queue_;
+  }
+  std::mutex &queue_mutex_get()
+  {
+    return *queue_mutex_;
   }
 
   const uint32_t queue_family_get() const
@@ -175,11 +243,6 @@ class VKDevice : public NonCopyable {
   VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
-  }
-
-  VkPipelineCache vk_pipeline_cache_get() const
-  {
-    return vk_pipeline_cache_;
   }
 
   VKDescriptorSetLayouts &descriptor_set_layouts_get()
@@ -197,20 +260,13 @@ class VKDevice : public NonCopyable {
     return debugging_tools_;
   }
 
-  VKSamplers &samplers()
+  const VKSamplers &samplers() const
   {
     return samplers_;
   }
 
   bool is_initialized() const;
   void init(void *ghost_context);
-  /**
-   * Initialize a dummy buffer that can be bound for missing attributes.
-   *
-   * Dummy buffer can only be initialized after the command buffer of the context is retrieved.
-   */
-  void init_dummy_buffer(VKContext &context);
-  void init_dummy_color_attachment();
   void reinit();
   void deinit();
 
@@ -218,6 +274,14 @@ class VKDevice : public NonCopyable {
   eGPUDriverType driver_type() const;
   std::string vendor_name() const;
   std::string driver_version() const;
+
+  /**
+   * Check if a specific extension is supported by the device.
+   *
+   * This should be called from vk_backend to set the correct capabilities and workarounds needed
+   * for this device.
+   */
+  bool supports_extension(const char *extension_name) const;
 
   const VKWorkarounds &workarounds_get() const
   {
@@ -231,44 +295,32 @@ class VKDevice : public NonCopyable {
   /** \name Resource management
    * \{ */
 
+  /**
+   * Get or create current thread data.
+   */
+  VKThreadData &current_thread_data();
+
+  /**
+   * Get the discard pool for the current thread.
+   *
+   * When the active thread has a context a discard pool associated to the thread is returned.
+   * When there is no context the orphan discard pool is returned.
+   *
+   * A thread with a context can have multiple discard pools. One for each swap-chain image.
+   * A thread without a context is most likely a discarded resource triggered during dependency
+   * graph update. A dependency graph update from the viewport during playback or editing;
+   * or a dependency graph update when rendering.
+   * These can happen from a different thread which will don't have a context at all.
+   */
+  VKDiscardPool &discard_pool_for_current_thread();
+
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
   Span<std::reference_wrapper<VKContext>> contexts_get() const;
 
-  const VKBuffer &dummy_buffer_get() const
-  {
-    return dummy_buffer_;
-  }
-
-  VKTexture &dummy_color_attachment_get() const
-  {
-    BLI_assert(dummy_color_attachment_.has_value());
-    return (*dummy_color_attachment_).get();
-  }
-
-  void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
-  void discard_image_view(VkImageView vk_image_view);
-  void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
-  void discard_render_pass(VkRenderPass vk_render_pass);
-  void discard_frame_buffer(VkFramebuffer vk_framebuffer);
-  void destroy_discarded_resources();
-
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
-
-  /** \} */
-
-  /* -------------------------------------------------------------------- */
-  /** \name Queue management
-   * \{ */
-
-  VKTimelineSemaphore &timeline_semaphore_get()
-  {
-    return timeline_semaphore_;
-  }
-  const VKTimelineSemaphore &timeline_semaphore_get() const
-  {
-    return timeline_semaphore_;
-  }
+  static void debug_print(std::ostream &os, const VKDiscardPool &discard_pool);
+  void debug_print();
 
   /** \} */
 
@@ -276,13 +328,18 @@ class VKDevice : public NonCopyable {
   void init_physical_device_properties();
   void init_physical_device_memory_properties();
   void init_physical_device_features();
+  void init_physical_device_extensions();
   void init_debug_callbacks();
   void init_memory_allocator();
-  void init_pipeline_cache();
   /**
    * Initialize the functions struct with extension specific function pointer.
    */
   void init_functions();
+
+  /**
+   * Initialize a dummy buffer that can be bound for missing attributes.
+   */
+  void init_dummy_buffer();
 
   /* During initialization the backend requires access to update the workarounds. */
   friend VKBackend;

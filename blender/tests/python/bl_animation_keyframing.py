@@ -13,6 +13,16 @@ blender -b --factory-startup --python tests/python/bl_animation_keyframing.py --
 """
 
 
+def enable_experimental_animation_baklava():
+    bpy.context.preferences.view.show_developer_ui = True
+    bpy.context.preferences.experimental.use_animation_baklava = True
+
+
+def disable_experimental_animation_baklava():
+    bpy.context.preferences.view.show_developer_ui = False
+    bpy.context.preferences.experimental.use_animation_baklava = False
+
+
 def _fcurve_paths_match(fcurves: list, expected_paths: list) -> bool:
     data_paths = list(set([fcurve.data_path for fcurve in fcurves]))
     data_paths.sort()
@@ -177,6 +187,87 @@ class InsertKeyTest(AbstractKeyframingTest, unittest.TestCase):
         keyed_rna_paths = [f"[\"{bpy.utils.escape_identifier(path)}\"]" for path in keyed_properties.keys()]
         _fcurve_paths_match(keyed_object.animation_data.action.fcurves, keyed_rna_paths)
         bpy.data.objects.remove(keyed_object, do_unlink=True)
+
+    def test_key_selection_state(self):
+        keyed_object = _create_animation_object()
+        bpy.context.preferences.edit.key_insert_channels = {"LOCATION"}
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.anim.keyframe_insert()
+            bpy.context.scene.frame_set(5)
+            bpy.ops.anim.keyframe_insert()
+
+        for fcurve in keyed_object.animation_data.action.fcurves:
+            self.assertEqual(len(fcurve.keyframe_points), 2)
+            self.assertFalse(fcurve.keyframe_points[0].select_control_point)
+            self.assertTrue(fcurve.keyframe_points[1].select_control_point)
+
+    def test_keyframe_insert_py_func(self):
+        curve_object = _create_animation_object()
+
+        # Test on location, which is a 3-item array, without explicitly passing an array index.
+        self.assertTrue(curve_object.keyframe_insert('location'))
+
+        ob_fcurves = curve_object.animation_data.action.fcurves
+
+        self.assertEqual(len(ob_fcurves), 3,
+                         "Keying 'location' without any array index should have created 3 F-Curves")
+        self.assertEqual(3 * ['location'], [fcurve.data_path for fcurve in ob_fcurves])
+        self.assertEqual([0, 1, 2], [fcurve.array_index for fcurve in ob_fcurves])
+
+        ob_fcurves.clear()
+
+        # Test on 'rotation_quaterion' (4 items), with explicit index=-1.
+        self.assertTrue(curve_object.keyframe_insert('rotation_quaternion', index=-1))
+        self.assertEqual(len(ob_fcurves), 4,
+                         "Keying 'rotation_quaternion' with index=-1 should have created 4 F-Curves")
+        self.assertEqual(4 * ['rotation_quaternion'], [fcurve.data_path for fcurve in ob_fcurves])
+        self.assertEqual([0, 1, 2, 3], [fcurve.array_index for fcurve in ob_fcurves])
+
+        ob_fcurves.clear()
+
+        # Test on 'scale' (3 items) with explicit index=1.
+        self.assertTrue(curve_object.keyframe_insert('scale', index=2))
+        self.assertEqual(len(ob_fcurves), 1,
+                         "Keying 'scale' with index=2 should have created 1 F-Curve")
+        self.assertEqual('scale', ob_fcurves[0].data_path)
+        self.assertEqual(2, ob_fcurves[0].array_index)
+
+    def test_keyframe_insert_py_func_with_group(self):
+        curve_object = _create_animation_object()
+
+        # Test with property for which Blender knows a group name too ('Object Transforms').
+        self.assertTrue(curve_object.keyframe_insert('location', group="Téšt"))
+
+        fcurves = curve_object.animation_data.action.fcurves
+        fgroups = curve_object.animation_data.action.groups
+
+        self.assertEqual(3 * ['location'], [fcurve.data_path for fcurve in fcurves])
+        self.assertEqual([0, 1, 2], [fcurve.array_index for fcurve in fcurves])
+        self.assertEqual(["Téšt"], [group.name for group in fgroups])
+        self.assertEqual(3 * ["Téšt"], [fcurve.group and fcurve.group.name for fcurve in fcurves])
+
+        fcurves.clear()
+        while fgroups:
+            fgroups.remove(fgroups[0])
+
+        # Test with property that does not have predefined group name.
+        self.assertTrue(curve_object.keyframe_insert('show_wire', group="Téšt"))
+        self.assertEqual('show_wire', fcurves[0].data_path)
+        self.assertEqual(["Téšt"], [group.name for group in fgroups])
+
+
+if hasattr(bpy.types, 'ActionSlot'):
+    # This test only makes sense when built with slotted/layered Actions.
+    class LayeredInsertKeyTest(InsertKeyTest):
+        @classmethod
+        def setUpClass(cls) -> None:
+            enable_experimental_animation_baklava()
+            super().setUpClass()
+
+        @classmethod
+        def tearDownClass(cls) -> None:
+            disable_experimental_animation_baklava()
+            super().tearDownClass()
 
 
 class VisualKeyingTest(AbstractKeyframingTest, unittest.TestCase):
@@ -367,6 +458,20 @@ class AutoKeyframingTest(AbstractKeyframingTest, unittest.TestCase):
         bone_path = f"pose.bones[\"{_BONE_NAME}\"]"
         expected_paths = [f"{bone_path}.location", f"{bone_path}.rotation_euler", f"{bone_path}.scale"]
         _fcurve_paths_match(action.fcurves, expected_paths)
+
+    def test_key_selection_state(self):
+        armature_obj = _create_armature()
+        bpy.ops.object.mode_set(mode='POSE')
+        bpy.ops.transform.translate(value=(1, 0, 0))
+        bpy.context.scene.frame_set(5)
+        bpy.ops.transform.translate(value=(0, 1, 0))
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        action = armature_obj.animation_data.action
+        for fcurve in action.fcurves:
+            self.assertEqual(len(fcurve.keyframe_points), 2)
+            self.assertFalse(fcurve.keyframe_points[0].select_control_point)
+            self.assertTrue(fcurve.keyframe_points[1].select_control_point)
 
 
 class InsertAvailableTest(AbstractKeyframingTest, unittest.TestCase):
@@ -659,6 +764,42 @@ class NlaInsertTest(AbstractKeyframingTest, unittest.TestCase):
         self.assertAlmostEqual(nla_anim_object.location.x, 2.0, 8)
         fcurve_loc_x = base_action.fcurves.find("location", index=0)
         self.assertAlmostEqual(fcurve_loc_x.keyframe_points[-1].co[1], 1.0, 8)
+
+
+class KeyframeDeleteTest(AbstractKeyframingTest, unittest.TestCase):
+
+    def test_delete_in_v3d_pose_mode(self):
+        armature = _create_armature()
+        bpy.context.scene.frame_set(1)
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+        self.assertTrue(armature.animation_data is not None)
+        self.assertTrue(armature.animation_data.action is not None)
+        action = armature.animation_data.action
+        self.assertEqual(len(action.fcurves), 3)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+            bpy.context.scene.frame_set(5)
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+            # This should have added new FCurves for the pose bone.
+            self.assertEqual(len(action.fcurves), 6)
+
+            bpy.ops.anim.keyframe_delete_v3d()
+            # No Fcurves should yet be deleted.
+            self.assertEqual(len(action.fcurves), 6)
+            self.assertEqual(len(action.fcurves[0].keyframe_points), 1)
+            bpy.context.scene.frame_set(1)
+            bpy.ops.anim.keyframe_delete_v3d()
+            # This should leave the object level keyframes of the armature
+            self.assertEqual(len(action.fcurves), 3)
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.anim.keyframe_delete_v3d()
+        # The last FCurves should be deleted from the object now.
+        self.assertEqual(len(action.fcurves), 0)
 
 
 def main():

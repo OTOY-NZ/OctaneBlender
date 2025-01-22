@@ -191,7 +191,9 @@ void Session::run_render()
             params.out_of_core_mem_limit,
             params.out_of_core_gpu_headroom,
             params.render_priority,
-            params.resource_cache_type);  // FIXME: Perhaps the wrong place for it...
+            params.resource_cache_type,
+            params.export_frame_start,
+            params.export_frame_end);  // FIXME: Perhaps the wrong place for it...
         bStarted = true;
       }
 

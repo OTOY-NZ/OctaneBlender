@@ -11,7 +11,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -257,6 +257,12 @@ bool ED_workspace_delete(WorkSpace *workspace, Main *bmain, bContext *C, wmWindo
     }
   }
 
+  /* Also delete managed sceens if they have no other users. */
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
+    BKE_id_free_us(bmain, layout->screen);
+    layout->screen = nullptr;
+  }
+
   BKE_id_free(bmain, &workspace->id);
   return true;
 }
@@ -361,7 +367,7 @@ static int workspace_append_activate_exec(bContext *C, wmOperator *op)
     if (BLT_translate_new_dataname()) {
       /* Translate workspace name */
       BKE_libblock_rename(
-          bmain, &appended_workspace->id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, idname));
+          *bmain, appended_workspace->id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, idname));
     }
 
     /* Set defaults. */

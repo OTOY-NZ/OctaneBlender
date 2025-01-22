@@ -32,6 +32,8 @@ struct Main;
 struct Mesh;
 struct ModifierData;
 struct Object;
+struct PointerRNA;
+struct PropertyRNA;
 struct Scene;
 struct StructRNA;
 struct IDCacheKey;
@@ -127,7 +129,11 @@ enum ModifierTypeFlag {
 ENUM_OPERATORS(ModifierTypeFlag, eModifierTypeFlag_AcceptsGreasePencil)
 
 using IDWalkFunc = void (*)(void *user_data, Object *ob, ID **idpoin, int cb_flag);
-using TexWalkFunc = void (*)(void *user_data, Object *ob, ModifierData *md, const char *propname);
+using TexWalkFunc = void (*)(void *user_data,
+                             Object *ob,
+                             ModifierData *md,
+                             const PointerRNA *ptr,
+                             PropertyRNA *texture_prop);
 
 enum ModifierApplyFlag {
   /** Render time. */
@@ -140,13 +146,13 @@ enum ModifierApplyFlag {
   /** Ignore scene simplification flag and use subdivisions
    * level set in multires modifier. */
   MOD_APPLY_IGNORE_SIMPLIFY = 1 << 3,
-  /** The effect of this modifier will be applied to the base mesh
+  /** The effect of this modifier will be applied to the original geometry
    * The modifier itself will be removed from the modifier stack.
    * This flag can be checked to ignore rendering display data to the mesh.
    * See `OBJECT_OT_modifier_apply` operator. */
-  MOD_APPLY_TO_BASE_MESH = 1 << 4,
+  MOD_APPLY_TO_ORIGINAL = 1 << 4,
 };
-ENUM_OPERATORS(ModifierApplyFlag, MOD_APPLY_TO_BASE_MESH);
+ENUM_OPERATORS(ModifierApplyFlag, MOD_APPLY_TO_ORIGINAL);
 
 struct ModifierUpdateDepsgraphContext {
   Scene *scene;

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2011 Blender Authors
+# SPDX-FileCopyrightText: 2011-2024 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -13,7 +13,7 @@ set(INC
   ../render
   ../windowmanager
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -25,6 +25,7 @@ set(SRC
   SEQ_add.hh
   SEQ_animation.hh
   SEQ_channels.hh
+  SEQ_connect.hh
   SEQ_edit.hh
   SEQ_effects.hh
   SEQ_iterator.hh
@@ -37,6 +38,7 @@ set(SRC
   SEQ_select.hh
   SEQ_sequencer.hh
   SEQ_sound.hh
+  SEQ_thumbnail_cache.hh
   SEQ_time.hh
   SEQ_transform.hh
   SEQ_utils.hh
@@ -66,6 +68,7 @@ set(SRC
   intern/sequencer.hh
   intern/sound.cc
   intern/strip_add.cc
+  intern/strip_connect.cc
   intern/strip_edit.cc
   intern/strip_relations.cc
   intern/strip_retiming.cc
@@ -73,6 +76,7 @@ set(SRC
   intern/strip_time.cc
   intern/strip_time.hh
   intern/strip_transform.cc
+  intern/thumbnail_cache.cc
   intern/utils.cc
   intern/utils.hh
 )
@@ -107,5 +111,5 @@ endif()
 
 blender_add_lib(bf_sequencer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_sequencer bf_rna)

@@ -13,9 +13,12 @@
 #include "vk_shader.hh"
 
 #include "vk_backend.hh"
+#include "vk_framebuffer.hh"
 #include "vk_memory.hh"
 #include "vk_shader_interface.hh"
 #include "vk_shader_log.hh"
+#include "vk_state_manager.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "BLI_string_utils.hh"
 #include "BLI_vector.hh"
@@ -479,25 +482,6 @@ static std::string main_function_wrapper(std::string &pre_main, std::string &pos
   return ss.str();
 }
 
-static const std::string to_stage_name(shaderc_shader_kind stage)
-{
-  switch (stage) {
-    case shaderc_vertex_shader:
-      return std::string("vertex");
-    case shaderc_geometry_shader:
-      return std::string("geometry");
-    case shaderc_fragment_shader:
-      return std::string("fragment");
-    case shaderc_compute_shader:
-      return std::string("compute");
-
-    default:
-      BLI_assert_msg(false, "Do not know how to convert shaderc_shader_kind to stage name.");
-      break;
-  }
-  return std::string("unknown stage");
-}
-
 static std::string combine_sources(Span<const char *> sources)
 {
   char *sources_combined = BLI_string_join_arrayN((const char **)sources.data(), sources.size());
@@ -506,106 +490,37 @@ static std::string combine_sources(Span<const char *> sources)
   return result;
 }
 
-Vector<uint32_t> VKShader::compile_glsl_to_spirv(Span<const char *> sources,
-                                                 shaderc_shader_kind stage)
-{
-  std::string combined_sources = combine_sources(sources);
-  VKBackend &backend = VKBackend::get();
-  shaderc::Compiler &compiler = backend.get_shaderc_compiler();
-  shaderc::CompileOptions options;
-  options.SetOptimizationLevel(shaderc_optimization_level_performance);
-  options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
-  if (G.debug & G_DEBUG_GPU_RENDERDOC) {
-    options.SetOptimizationLevel(shaderc_optimization_level_zero);
-    options.SetGenerateDebugInfo();
-  }
-
-  shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
-      combined_sources, stage, name, options);
-  if (module.GetNumErrors() != 0 || module.GetNumWarnings() != 0) {
-    std::string log = module.GetErrorMessage();
-    Vector<char> logcstr(log.c_str(), log.c_str() + log.size() + 1);
-
-    VKLogParser parser;
-    print_log(sources,
-              logcstr.data(),
-              to_stage_name(stage).c_str(),
-              module.GetCompilationStatus() != shaderc_compilation_status_success,
-              &parser);
-  }
-
-  if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-    compilation_failed_ = true;
-    return Vector<uint32_t>();
-  }
-
-  return Vector<uint32_t>(module.cbegin(), module.cend());
-}
-
-void VKShader::build_shader_module(Span<uint32_t> spirv_module, VkShaderModule *r_shader_module)
-{
-  VK_ALLOCATION_CALLBACKS;
-
-  VkShaderModuleCreateInfo create_info = {};
-  create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  create_info.codeSize = spirv_module.size() * sizeof(uint32_t);
-  create_info.pCode = spirv_module.data();
-
-  const VKDevice &device = VKBackend::get().device_get();
-  VkResult result = vkCreateShaderModule(
-      device.device_get(), &create_info, vk_allocation_callbacks, r_shader_module);
-  if (result == VK_SUCCESS) {
-    debug::object_label(*r_shader_module, name);
-  }
-  else {
-    compilation_failed_ = true;
-    *r_shader_module = VK_NULL_HANDLE;
-  }
-}
-
 VKShader::VKShader(const char *name) : Shader(name)
 {
   context_ = VKContext::get();
 }
 
-void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_batch_compilation*/)
+void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
   VKShaderInterface *vk_interface = new VKShaderInterface();
   vk_interface->init(info);
   interface = vk_interface;
+  is_static_shader_ = info.do_static_compilation_;
+  is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
+  use_batch_compilation_ = is_batch_compilation;
 }
 
 VKShader::~VKShader()
 {
-  VK_ALLOCATION_CALLBACKS
-  const VKDevice &device = VKBackend::get().device_get();
-  if (vertex_module_ != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(device.device_get(), vertex_module_, vk_allocation_callbacks);
-    vertex_module_ = VK_NULL_HANDLE;
+  VKDevice &device = VKBackend::get().device;
+  VKDiscardPool &discard_pool = device.discard_pool_for_current_thread();
+
+  if (vk_pipeline_layout != VK_NULL_HANDLE) {
+    discard_pool.discard_pipeline_layout(vk_pipeline_layout);
+    vk_pipeline_layout = VK_NULL_HANDLE;
   }
-  if (geometry_module_ != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(device.device_get(), geometry_module_, vk_allocation_callbacks);
-    geometry_module_ = VK_NULL_HANDLE;
-  }
-  if (fragment_module_ != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(device.device_get(), fragment_module_, vk_allocation_callbacks);
-    fragment_module_ = VK_NULL_HANDLE;
-  }
-  if (compute_module_ != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(device.device_get(), compute_module_, vk_allocation_callbacks);
-    compute_module_ = VK_NULL_HANDLE;
-  }
-  if (vk_pipeline_layout_ != VK_NULL_HANDLE) {
-    vkDestroyPipelineLayout(device.device_get(), vk_pipeline_layout_, vk_allocation_callbacks);
-    vk_pipeline_layout_ = VK_NULL_HANDLE;
-  }
-  /* Reset not owning handles. */
+  /* Unset not owning handles. */
   vk_descriptor_set_layout_ = VK_NULL_HANDLE;
 }
 
 void VKShader::build_shader_module(MutableSpan<const char *> sources,
                                    shaderc_shader_kind stage,
-                                   VkShaderModule *r_shader_module)
+                                   VKShaderModule &r_shader_module)
 {
   BLI_assert_msg(ELEM(stage,
                       shaderc_vertex_shader,
@@ -613,30 +528,34 @@ void VKShader::build_shader_module(MutableSpan<const char *> sources,
                       shaderc_fragment_shader,
                       shaderc_compute_shader),
                  "Only forced ShaderC shader kinds are supported.");
-  const VKDevice &device = VKBackend::get().device_get();
+  r_shader_module.is_ready = false;
+  const VKDevice &device = VKBackend::get().device;
   sources[SOURCES_INDEX_VERSION] = device.glsl_patch_get();
-  Vector<uint32_t> spirv_module = compile_glsl_to_spirv(sources, stage);
-  build_shader_module(spirv_module, r_shader_module);
+  r_shader_module.combined_sources = combine_sources(sources);
+  if (!use_batch_compilation_) {
+    VKShaderCompiler::compile_module(*this, stage, r_shader_module);
+    r_shader_module.is_ready = true;
+  }
 }
 
 void VKShader::vertex_shader_from_glsl(MutableSpan<const char *> sources)
 {
-  build_shader_module(sources, shaderc_vertex_shader, &vertex_module_);
+  build_shader_module(sources, shaderc_vertex_shader, vertex_module);
 }
 
 void VKShader::geometry_shader_from_glsl(MutableSpan<const char *> sources)
 {
-  build_shader_module(sources, shaderc_geometry_shader, &geometry_module_);
+  build_shader_module(sources, shaderc_geometry_shader, geometry_module);
 }
 
 void VKShader::fragment_shader_from_glsl(MutableSpan<const char *> sources)
 {
-  build_shader_module(sources, shaderc_fragment_shader, &fragment_module_);
+  build_shader_module(sources, shaderc_fragment_shader, fragment_module);
 }
 
 void VKShader::compute_shader_from_glsl(MutableSpan<const char *> sources)
 {
-  build_shader_module(sources, shaderc_compute_shader, &compute_module_);
+  build_shader_module(sources, shaderc_compute_shader, compute_module);
 }
 
 void VKShader::warm_cache(int /*limit*/)
@@ -646,7 +565,15 @@ void VKShader::warm_cache(int /*limit*/)
 
 bool VKShader::finalize(const shader::ShaderCreateInfo *info)
 {
-  if (compilation_failed_) {
+  if (!use_batch_compilation_) {
+    compilation_finished = true;
+  }
+  if (compilation_failed) {
+    return false;
+  }
+  /* Add-ons that still use old API will crash as the shader create info isn't available.
+   * See #130555 */
+  if (info == nullptr) {
     return false;
   }
 
@@ -659,39 +586,72 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   }
 
   const VKShaderInterface &vk_interface = interface_get();
-  VKDevice &device = VKBackend::get().device_get();
+  VKDevice &device = VKBackend::get().device;
   if (!finalize_descriptor_set_layouts(device, vk_interface)) {
     return false;
   }
-  if (!finalize_pipeline_layout(device.device_get(), vk_interface)) {
+  if (!finalize_pipeline_layout(device.vk_handle(), vk_interface)) {
     return false;
   }
 
   push_constants = VKPushConstants(&vk_interface.push_constants_layout_get());
-
-  bool result;
-  if (use_render_graph) {
-    result = true;
+  if (use_batch_compilation_) {
+    return true;
   }
-  else {
-    if (is_graphics_shader()) {
-      BLI_assert((fragment_module_ != VK_NULL_HANDLE && info->tf_type_ == GPU_SHADER_TFB_NONE) ||
-                 (fragment_module_ == VK_NULL_HANDLE && info->tf_type_ != GPU_SHADER_TFB_NONE));
-      BLI_assert(compute_module_ == VK_NULL_HANDLE);
-      pipeline_ = VKPipeline::create_graphics_pipeline();
-      result = true;
-    }
-    else {
-      BLI_assert(vertex_module_ == VK_NULL_HANDLE);
-      BLI_assert(geometry_module_ == VK_NULL_HANDLE);
-      BLI_assert(fragment_module_ == VK_NULL_HANDLE);
-      BLI_assert(compute_module_ != VK_NULL_HANDLE);
-      pipeline_ = VKPipeline::create_compute_pipeline(compute_module_, vk_pipeline_layout_);
-      result = pipeline_.is_valid();
-    }
-  }
+  return finalize_post();
+}
 
+bool VKShader::finalize_post()
+{
+  bool result = finalize_shader_module(vertex_module, "vertex") &&
+                finalize_shader_module(geometry_module, "geometry") &&
+                finalize_shader_module(fragment_module, "fragment") &&
+                finalize_shader_module(compute_module, "compute");
+
+  /* Ensure that pipeline of compute shaders are already build. This can improve performance as it
+   * can triggers a back-end compilation step. In this step the Shader module SPIR-V is
+   * compiled to a shader program that can be executed by the device. Depending on the driver this
+   * can take some time as well. If this is done inside the main thread it will stall user
+   * interactivity.
+   *
+   * TODO: We should check if VK_EXT_graphics_pipeline_library can improve the pipeline creation
+   * step for graphical shaders.
+   */
+  if (result && is_compute_shader_) {
+    ensure_and_get_compute_pipeline();
+  }
   return result;
+}
+
+bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char *stage_name)
+{
+  VKLogParser parser;
+  bool compilation_succeeded = ELEM(shader_module.compilation_result.GetCompilationStatus(),
+                                    shaderc_compilation_status_null_result_object,
+                                    shaderc_compilation_status_success);
+  if (bool(shader_module.compilation_result.GetNumWarnings() +
+           shader_module.compilation_result.GetNumErrors()))
+  {
+    const char *sources = shader_module.combined_sources.c_str();
+    print_log(Span<const char *>(&sources, 1),
+              shader_module.compilation_result.GetErrorMessage().c_str(),
+              stage_name,
+              bool(shader_module.compilation_result.GetNumErrors()),
+              &parser);
+  }
+
+  std::string full_name = std::string(name) + "_" + stage_name;
+  shader_module.finalize(full_name.c_str());
+  shader_module.combined_sources.clear();
+  shader_module.sources_hash.clear();
+  shader_module.compilation_result = {};
+  shader_module.spirv_binary.clear();
+  return compilation_succeeded;
+}
+
+bool VKShader::is_ready() const
+{
+  return compilation_finished;
 }
 
 bool VKShader::finalize_pipeline_layout(VkDevice vk_device,
@@ -713,14 +673,14 @@ bool VKShader::finalize_pipeline_layout(VkDevice vk_device,
   if (push_constants_layout.storage_type_get() == VKPushConstants::StorageType::PUSH_CONSTANTS) {
     push_constant_range.offset = 0;
     push_constant_range.size = push_constants_layout.size_in_bytes();
-    push_constant_range.stageFlags = is_graphics_shader() ? VK_SHADER_STAGE_ALL_GRAPHICS :
-                                                            VK_SHADER_STAGE_COMPUTE_BIT;
+    push_constant_range.stageFlags = is_compute_shader_ ? VK_SHADER_STAGE_COMPUTE_BIT :
+                                                          VK_SHADER_STAGE_ALL_GRAPHICS;
     pipeline_info.pushConstantRangeCount = 1;
     pipeline_info.pPushConstantRanges = &push_constant_range;
   }
 
   if (vkCreatePipelineLayout(
-          vk_device, &pipeline_info, vk_allocation_callbacks, &vk_pipeline_layout_) != VK_SUCCESS)
+          vk_device, &pipeline_info, vk_allocation_callbacks, &vk_pipeline_layout) != VK_SUCCESS)
   {
     return false;
   };
@@ -746,36 +706,30 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
   return vk_descriptor_set_layout_ != VK_NULL_HANDLE;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Transform feedback
+ *
+ * Not supported in the vulkan backend.
+ *
+ * \{ */
+
 void VKShader::transform_feedback_names_set(Span<const char *> /*name_list*/,
                                             eGPUShaderTFBType /*geom_type*/)
 {
-  NOT_YET_IMPLEMENTED
+  BLI_assert_unreachable();
 }
 
 bool VKShader::transform_feedback_enable(VertBuf *)
 {
-  NOT_YET_IMPLEMENTED
   return false;
 }
 
 void VKShader::transform_feedback_disable()
 {
-  NOT_YET_IMPLEMENTED
+  BLI_assert_unreachable();
 }
 
-void VKShader::update_graphics_pipeline(VKContext &context,
-                                        const GPUPrimType prim_type,
-                                        const VKVertexAttributeObject &vertex_attribute_object)
-{
-  BLI_assert(is_graphics_shader());
-  pipeline_get().finalize(context,
-                          vertex_module_,
-                          geometry_module_,
-                          fragment_module_,
-                          vk_pipeline_layout_,
-                          prim_type,
-                          vertex_attribute_object);
-}
+/** \} */
 
 void VKShader::bind()
 {
@@ -836,6 +790,11 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     print_resource(ss, vk_interface, res);
   }
 
+  ss << "\n/* Geometry Resources. */\n";
+  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    print_resource(ss, vk_interface, res);
+  }
+
   /* Push constants. */
   const VKPushConstants::Layout &push_constants_layout = vk_interface.push_constants_layout_get();
   const VKPushConstants::StorageType push_constants_storage =
@@ -871,7 +830,7 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
 {
   std::stringstream ss;
   std::string post_main;
-  const VKWorkarounds &workarounds = VKBackend::get().device_get().workarounds_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   ss << "\n/* Inputs. */\n";
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
@@ -891,18 +850,11 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   {
     ss << "layout(location=" << (location++) << ") out int gpu_ViewportIndex;\n";
   }
-  if (bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD)) {
-    /* Need this for stable barycentric. */
-    ss << "flat out vec4 gpu_pos_flat;\n";
-    ss << "out vec4 gpu_pos;\n";
-
-    post_main += "  gpu_pos = gpu_pos_flat = gl_Position;\n";
-  }
   ss << "\n";
 
   /* Retarget depth from -1..1 to 0..1. This will be done by geometry stage, when geometry shaders
    * are used. */
-  const bool has_geometry_stage = bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD) ||
+  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
                                   !info.geometry_source_.is_empty();
   const bool retarget_depth = !has_geometry_stage;
   if (retarget_depth) {
@@ -916,11 +868,58 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   return ss.str();
 }
 
+static Type to_component_type(const Type &type)
+{
+  switch (type) {
+    case Type::FLOAT:
+    case Type::VEC2:
+    case Type::VEC3:
+    case Type::VEC4:
+    case Type::MAT3:
+    case Type::MAT4:
+      return Type::FLOAT;
+    case Type::UINT:
+    case Type::UVEC2:
+    case Type::UVEC3:
+    case Type::UVEC4:
+      return Type::UINT;
+    case Type::INT:
+    case Type::IVEC2:
+    case Type::IVEC3:
+    case Type::IVEC4:
+    case Type::BOOL:
+      return Type::INT;
+    /* Alias special types. */
+    case Type::UCHAR:
+    case Type::UCHAR2:
+    case Type::UCHAR3:
+    case Type::UCHAR4:
+    case Type::USHORT:
+    case Type::USHORT2:
+    case Type::USHORT3:
+    case Type::USHORT4:
+      return Type::UINT;
+    case Type::CHAR:
+    case Type::CHAR2:
+    case Type::CHAR3:
+    case Type::CHAR4:
+    case Type::SHORT:
+    case Type::SHORT2:
+    case Type::SHORT3:
+    case Type::SHORT4:
+      return Type::INT;
+    case Type::VEC3_101010I2:
+      return Type::FLOAT;
+  }
+  BLI_assert_unreachable();
+  return Type::FLOAT;
+}
+
 std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo &info) const
 {
   std::stringstream ss;
   std::string pre_main;
-  const VKWorkarounds &workarounds = VKBackend::get().device_get().workarounds_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   ss << "\n/* Interfaces. */\n";
   const Span<StageInterfaceInfo *> in_interfaces = info.geometry_source_.is_empty() ?
@@ -939,46 +938,69 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
-  if (bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD)) {
-    std::cout << "native" << std::endl;
-    /* NOTE(fclem): This won't work with geometry shader. Hopefully, we don't need geometry
-     * shader workaround if this extension/feature is detected. */
-    ss << "\n/* Stable Barycentric Coordinates. */\n";
-    ss << "flat in vec4 gpu_pos_flat;\n";
-    ss << "__explicitInterpAMD in vec4 gpu_pos;\n";
-    /* Globals. */
-    ss << "vec3 gpu_BaryCoord;\n";
-    ss << "vec3 gpu_BaryCoordNoPersp;\n";
-    ss << "\n";
-    ss << "vec2 stable_bary_(vec2 in_bary) {\n";
-    ss << "  vec3 bary = vec3(in_bary, 1.0 - in_bary.x - in_bary.y);\n";
-    ss << "  if (interpolateAtVertexAMD(gpu_pos, 0) == gpu_pos_flat) { return bary.zxy; }\n";
-    ss << "  if (interpolateAtVertexAMD(gpu_pos, 2) == gpu_pos_flat) { return bary.yzx; }\n";
-    ss << "  return bary.xyz;\n";
-    ss << "}\n";
-    ss << "\n";
-    ss << "vec4 gpu_position_at_vertex(int v) {\n";
-    ss << "  if (interpolateAtVertexAMD(gpu_pos, 0) == gpu_pos_flat) { v = (v + 2) % 3; }\n";
-    ss << "  if (interpolateAtVertexAMD(gpu_pos, 2) == gpu_pos_flat) { v = (v + 1) % 3; }\n";
-    ss << "  return interpolateAtVertexAMD(gpu_pos, v);\n";
-    ss << "}\n";
-
-    pre_main += "  gpu_BaryCoord = stable_bary_(gl_BaryCoordSmoothAMD);\n";
-    pre_main += "  gpu_BaryCoordNoPersp = stable_bary_(gl_BaryCoordNoPerspAMD);\n";
+  if (workarounds.fragment_shader_barycentric &&
+      bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD))
+  {
+    ss << "layout(location=" << (location++) << ") smooth in vec3 gpu_BaryCoord;\n";
+    ss << "layout(location=" << (location++) << ") noperspective in vec3 gpu_BaryCoordNoPersp;\n";
   }
+
   if (info.early_fragment_test_) {
     ss << "layout(early_fragment_tests) in;\n";
   }
-  ss << "layout(" << to_string(info.depth_write_) << ") out float gl_FragDepth;\n";
+  const bool use_gl_frag_depth = info.depth_write_ != DepthWrite::UNCHANGED &&
+                                 info.fragment_source_.find("gl_FragDepth") != std::string::npos;
+  if (use_gl_frag_depth) {
+    ss << "layout(" << to_string(info.depth_write_) << ") out float gl_FragDepth;\n";
+  }
 
   ss << "\n/* Sub-pass Inputs. */\n";
   for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+    std::string image_name = "gpu_subpass_img_";
+    image_name += std::to_string(input.index);
+
     /* Declare global for input. */
     ss << to_string(input.type) << " " << input.name << ";\n";
 
+    /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
+     * built-in flag. */
+    bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
+
+    /* Start with invalid value to detect failure cases. */
+    ImageType image_type = ImageType::FLOAT_BUFFER;
+    switch (to_component_type(input.type)) {
+      case Type::FLOAT:
+        image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
+        break;
+      case Type::INT:
+        image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
+        break;
+      case Type::UINT:
+        image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
+        break;
+      default:
+        break;
+    }
+    /* Declare image. */
+    using Resource = ShaderCreateInfo::Resource;
+    /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
+     * collide with other resources. */
+    Resource res(Resource::BindType::SAMPLER, input.index);
+    res.sampler.type = image_type;
+    res.sampler.sampler = GPUSamplerState::default_sampler();
+    res.sampler.name = image_name;
+    print_resource(ss, interface_get(), res);
+
+    char swizzle[] = "xyzw";
+    swizzle[to_component_count(input.type)] = '\0';
+
+    std::string texel_co = (is_layered_fb) ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
+                                             "ivec2(gl_FragCoord.xy)";
+
     std::stringstream ss_pre;
-    /* Populate the global before main. */
-    ss_pre << "  " << input.name << " = " << to_string(input.type) << "(0);\n";
+    /* Populate the global before main using imageLoad. */
+    ss_pre << "  " << input.name << " = texelFetch(" << image_name << ", " << texel_co << ", 0)."
+           << swizzle << ";\n";
 
     pre_main += ss_pre.str();
   }
@@ -1099,13 +1121,14 @@ std::string VKShader::workaround_geometry_shader_source_create(
     const shader::ShaderCreateInfo &info)
 {
   std::stringstream ss;
-  const VKWorkarounds &workarounds = VKBackend::get().device_get().workarounds_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   const bool do_layer_workaround = workarounds.shader_output_layer &&
                                    bool(info.builtins_ & BuiltinBits::LAYER);
   const bool do_viewport_workaround = workarounds.shader_output_viewport_index &&
                                       bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
-  const bool do_barycentric_workaround = bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
+  const bool do_barycentric_workaround = workarounds.fragment_shader_barycentric &&
+                                         bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
   shader::ShaderCreateInfo info_modified = info;
   info_modified.geometry_out_interfaces_ = info_modified.vertex_out_interfaces_;
@@ -1124,16 +1147,18 @@ std::string VKShader::workaround_geometry_shader_source_create(
     }
   }
 
+  int location_in = location;
+  int location_out = location;
   if (do_layer_workaround) {
-    ss << "layout(location=" << (location++) << ") in int gpu_Layer[];\n";
+    ss << "layout(location=" << (location_in++) << ") in int gpu_Layer[];\n";
   }
   if (do_viewport_workaround) {
-    ss << "layout(location=" << (location++) << ") in int gpu_ViewportIndex[];\n";
+    ss << "layout(location=" << (location_in++) << ") in int gpu_ViewportIndex[];\n";
   }
   if (do_barycentric_workaround) {
-    ss << "flat out vec4 gpu_pos[3];\n";
-    ss << "smooth out vec3 gpu_BaryCoord;\n";
-    ss << "noperspective out vec3 gpu_BaryCoordNoPersp;\n";
+    ss << "layout(location=" << (location_out++) << ") smooth out vec3 gpu_BaryCoord;\n";
+    ss << "layout(location=" << (location_out++)
+       << ") noperspective out vec3 gpu_BaryCoordNoPersp;\n";
   }
   ss << "\n";
 
@@ -1144,11 +1169,6 @@ std::string VKShader::workaround_geometry_shader_source_create(
   }
   if (do_viewport_workaround) {
     ss << "  gl_ViewportIndex = gpu_ViewportIndex[0];\n";
-  }
-  if (do_barycentric_workaround) {
-    ss << "  gpu_pos[0] = gl_in[0].gl_Position;\n";
-    ss << "  gpu_pos[1] = gl_in[1].gl_Position;\n";
-    ss << "  gpu_pos[2] = gl_in[2].gl_Position;\n";
   }
   for (auto i : IndexRange(3)) {
     for (StageInterfaceInfo *iface : info_modified.vertex_out_interfaces_) {
@@ -1162,17 +1182,17 @@ std::string VKShader::workaround_geometry_shader_source_create(
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
-    ss << "  EmitVertex();\n";
+    ss << "  gpu_EmitVertex();\n";
   }
   ss << "}\n";
   return ss.str();
 }
 
-bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info)
+bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info) const
 {
-  const VKWorkarounds &workarounds = VKBackend::get().device_get().workarounds_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
   BuiltinBits builtins = info->builtins_;
-  if (bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
+  if (workarounds.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
     return true;
   }
   if (workarounds.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
@@ -1188,36 +1208,83 @@ bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 
 VkPipeline VKShader::ensure_and_get_compute_pipeline()
 {
-  BLI_assert(compute_module_ != VK_NULL_HANDLE);
-  BLI_assert(vk_pipeline_layout_ != VK_NULL_HANDLE);
+  BLI_assert(is_compute_shader_);
+  BLI_assert(compute_module.vk_shader_module != VK_NULL_HANDLE);
+  BLI_assert(vk_pipeline_layout != VK_NULL_HANDLE);
 
-  /* Early exit when no specialization constants are used and the vk_pipeline_ is already
+  /* Early exit when no specialization constants are used and the vk_pipeline_base_ is already
    * valid. This would handle most cases. */
-  if (constants.values.is_empty() && vk_pipeline_ != VK_NULL_HANDLE) {
-    return vk_pipeline_;
+  if (constants.values.is_empty() && vk_pipeline_base_ != VK_NULL_HANDLE) {
+    return vk_pipeline_base_;
   }
 
   VKComputeInfo compute_info = {};
   compute_info.specialization_constants.extend(constants.values);
-  compute_info.vk_shader_module = compute_module_;
-  compute_info.vk_pipeline_layout = vk_pipeline_layout_;
+  compute_info.vk_shader_module = compute_module.vk_shader_module;
+  compute_info.vk_pipeline_layout = vk_pipeline_layout;
 
-  VKDevice &device = VKBackend::get().device_get();
+  VKDevice &device = VKBackend::get().device;
   /* Store result in local variable to ensure thread safety. */
-  VkPipeline vk_pipeline = device.pipelines.get_or_create_compute_pipeline(compute_info,
-                                                                           vk_pipeline_);
-  vk_pipeline_ = vk_pipeline;
+  VkPipeline vk_pipeline = device.pipelines.get_or_create_compute_pipeline(
+      compute_info, is_static_shader_, vk_pipeline_base_);
+  if (vk_pipeline_base_ == VK_NULL_HANDLE) {
+    vk_pipeline_base_ = vk_pipeline;
+  }
+  return vk_pipeline;
+}
+
+VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
+                                                      VKVertexAttributeObject &vao,
+                                                      VKStateManager &state_manager,
+                                                      VKFrameBuffer &framebuffer)
+{
+  BLI_assert(!is_compute_shader_);
+  BLI_assert_msg(
+      primitive != GPU_PRIM_POINTS || interface_get().is_point_shader(),
+      "GPU_PRIM_POINTS is used with a shader that doesn't set point size before "
+      "drawing fragments. Calling code should be adapted to use a shader that sets the "
+      "gl_PointSize before entering the fragment stage. For example `GPU_SHADER_3D_POINT_*`.");
+
+  /* TODO: Graphics info should be cached in VKContext and only the changes should be applied. */
+  VKGraphicsInfo graphics_info = {};
+  graphics_info.specialization_constants.extend(constants.values);
+  graphics_info.vk_pipeline_layout = vk_pipeline_layout;
+
+  graphics_info.vertex_in.vk_topology = to_vk_primitive_topology(primitive);
+  graphics_info.vertex_in.attributes = vao.attributes;
+  graphics_info.vertex_in.bindings = vao.bindings;
+
+  graphics_info.pre_rasterization.vk_vertex_module = vertex_module.vk_shader_module;
+  graphics_info.pre_rasterization.vk_geometry_module = geometry_module.vk_shader_module;
+
+  graphics_info.fragment_shader.vk_fragment_module = fragment_module.vk_shader_module;
+  graphics_info.state = state_manager.state;
+  graphics_info.mutable_state = state_manager.mutable_state;
+  // TODO: in stead of extend use a build pattern.
+  graphics_info.fragment_shader.viewports.clear();
+  graphics_info.fragment_shader.viewports.extend(framebuffer.vk_viewports_get());
+  graphics_info.fragment_shader.scissors.clear();
+  graphics_info.fragment_shader.scissors.extend(framebuffer.vk_render_areas_get());
+
+  graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
+  graphics_info.fragment_out.stencil_attachment_format =
+      framebuffer.stencil_attachment_format_get();
+  graphics_info.fragment_out.color_attachment_formats.extend(
+      framebuffer.color_attachment_formats_get());
+
+  VKDevice &device = VKBackend::get().device;
+  /* Store result in local variable to ensure thread safety. */
+  VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
+      graphics_info, is_static_shader_, vk_pipeline_base_);
+  if (vk_pipeline_base_ == VK_NULL_HANDLE) {
+    vk_pipeline_base_ = vk_pipeline;
+  }
   return vk_pipeline;
 }
 
 int VKShader::program_handle_get() const
 {
   return -1;
-}
-
-VKPipeline &VKShader::pipeline_get()
-{
-  return pipeline_;
 }
 
 const VKShaderInterface &VKShader::interface_get() const

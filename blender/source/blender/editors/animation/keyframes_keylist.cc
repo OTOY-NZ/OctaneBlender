@@ -39,6 +39,8 @@
 
 #include "ANIM_action.hh"
 
+using namespace blender;
+
 /* *************************** Keyframe Processing *************************** */
 
 /* ActKeyColumns (Keyframe Columns) ------------------------------------------ */
@@ -528,6 +530,7 @@ static ActKeyColumn *nalloc_ak_cel(void *data)
   /* Set as visible block. */
   ak->totblock = 1;
   ak->block.sel = ak->sel;
+  ak->block.flag |= ACTKEYBLOCK_FLAG_GPENCIL;
 
   return ak;
 }
@@ -1130,9 +1133,9 @@ void fcurve_to_keylist(AnimData *adt,
   const bool do_extremes = (saction_flag & SACTION_SHOW_EXTREMES) != 0;
 
   BezTripleChain chain = {nullptr};
-  /* The indices for which keys have been addeed to the key columns. Initialized as invalid bounds
-   * for the case that no keyframes get added to the keycolumns, which happens when the given range
-   * doesn't overlap with the existing keyframes. */
+  /* The indices for which keys have been added to the key columns. Initialized as invalid bounds
+   * for the case that no keyframes get added to the key-columns, which happens when the given
+   * range doesn't overlap with the existing keyframes. */
   blender::Bounds<int> index_bounds(int(fcu->totvert), 0);
   /* The following is used to find the keys that are JUST outside the range. This is done so
    * drawing in the dope sheet can create lines that extend off-screen. */
@@ -1197,11 +1200,36 @@ void action_group_to_keylist(AnimData *adt,
     return;
   }
 
-  LISTBASE_FOREACH (FCurve *, fcu, &agrp->channels) {
-    if (fcu->grp != agrp) {
-      break;
+  /* Legacy actions. */
+  if (agrp->wrap().is_legacy()) {
+    LISTBASE_FOREACH (FCurve *, fcu, &agrp->channels) {
+      if (fcu->grp != agrp) {
+        break;
+      }
+      fcurve_to_keylist(adt, fcu, keylist, saction_flag, range);
     }
-    fcurve_to_keylist(adt, fcu, keylist, saction_flag, range);
+    return;
+  }
+
+  /* Layered actions. */
+  animrig::ChannelBag &channel_bag = agrp->channel_bag->wrap();
+  Span<FCurve *> fcurves = channel_bag.fcurves().slice(agrp->fcurve_range_start,
+                                                       agrp->fcurve_range_length);
+  for (FCurve *fcurve : fcurves) {
+    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range);
+  }
+}
+
+void action_slot_to_keylist(AnimData *adt,
+                            animrig::Action &action,
+                            const animrig::slot_handle_t slot_handle,
+                            AnimKeylist *keylist,
+                            const int saction_flag,
+                            blender::float2 range)
+{
+  BLI_assert(GS(action.id.name) == ID_AC);
+  for (FCurve *fcurve : fcurves_for_action_slot(action, slot_handle)) {
+    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range);
   }
 }
 
@@ -1217,7 +1245,7 @@ void action_to_keylist(AnimData *adt,
 
   blender::animrig::Action &action = dna_action->wrap();
 
-  /* TODO: move this into fcurves_for_animation(). */
+  /* TODO: move this into fcurves_for_action_slot(). */
   if (action.is_action_legacy()) {
     LISTBASE_FOREACH (FCurve *, fcu, &action.curves) {
       fcurve_to_keylist(adt, fcu, keylist, saction_flag, range);
@@ -1226,12 +1254,10 @@ void action_to_keylist(AnimData *adt,
   }
 
   /**
-   * Assumption: the animation is bound to adt->binding_handle. This assumption will break when we
-   * have things like reference strips, where the strip can reference another binding handle.
+   * Assumption: the animation is bound to adt->slot_handle. This assumption will break when we
+   * have things like reference strips, where the strip can reference another slot handle.
    */
-  for (FCurve *fcurve : fcurves_for_animation(action, adt->binding_handle)) {
-    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range);
-  }
+  action_slot_to_keylist(adt, action, adt->slot_handle, keylist, saction_flag, range);
 }
 
 void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, const bool active)

@@ -21,7 +21,7 @@
 namespace blender::io::usd {
 
 std::optional<pxr::SdfValueTypeName> convert_blender_type_to_usd(
-    const eCustomDataType blender_type)
+    const eCustomDataType blender_type, bool use_color3f_type)
 {
   switch (blender_type) {
     case CD_PROP_FLOAT:
@@ -38,6 +38,10 @@ std::optional<pxr::SdfValueTypeName> convert_blender_type_to_usd(
       return pxr::SdfValueTypeNames->StringArray;
     case CD_PROP_BOOL:
       return pxr::SdfValueTypeNames->BoolArray;
+    case CD_PROP_COLOR:
+    case CD_PROP_BYTE_COLOR:
+      return use_color3f_type ? pxr::SdfValueTypeNames->Color3fArray :
+                                pxr::SdfValueTypeNames->Color4fArray;
     case CD_PROP_QUATERNION:
       return pxr::SdfValueTypeNames->QuatfArray;
     default:
@@ -73,6 +77,9 @@ std::optional<eCustomDataType> convert_usd_type_to_blender(const pxr::SdfValueTy
     map.add_new(pxr::SdfValueTypeNames->Color3fArray, CD_PROP_COLOR);
     map.add_new(pxr::SdfValueTypeNames->Color3hArray, CD_PROP_COLOR);
     map.add_new(pxr::SdfValueTypeNames->Color3dArray, CD_PROP_COLOR);
+    map.add_new(pxr::SdfValueTypeNames->Color4fArray, CD_PROP_COLOR);
+    map.add_new(pxr::SdfValueTypeNames->Color4hArray, CD_PROP_COLOR);
+    map.add_new(pxr::SdfValueTypeNames->Color4dArray, CD_PROP_COLOR);
     map.add_new(pxr::SdfValueTypeNames->StringArray, CD_PROP_STRING);
     map.add_new(pxr::SdfValueTypeNames->BoolArray, CD_PROP_BOOL);
     map.add_new(pxr::SdfValueTypeNames->QuatfArray, CD_PROP_QUATERNION);
@@ -122,10 +129,21 @@ void copy_primvar_to_blender_attribute(const pxr::UsdGeomPrimvar &primvar,
       copy_primvar_to_blender_buffer<pxr::GfVec3f>(
           primvar, timecode, face_indices, attribute.span.typed<float3>());
       break;
-    case CD_PROP_COLOR:
-      copy_primvar_to_blender_buffer<pxr::GfVec3f>(
-          primvar, timecode, face_indices, attribute.span.typed<ColorGeometry4f>());
-      break;
+    case CD_PROP_COLOR: {
+      const pxr::SdfValueTypeName pv_type = primvar.GetTypeName();
+      if (ELEM(pv_type,
+               pxr::SdfValueTypeNames->Color3fArray,
+               pxr::SdfValueTypeNames->Color3hArray,
+               pxr::SdfValueTypeNames->Color3dArray))
+      {
+        copy_primvar_to_blender_buffer<pxr::GfVec3f>(
+            primvar, timecode, face_indices, attribute.span.typed<ColorGeometry4f>());
+      }
+      else {
+        copy_primvar_to_blender_buffer<pxr::GfVec4f>(
+            primvar, timecode, face_indices, attribute.span.typed<ColorGeometry4f>());
+      }
+    } break;
     case CD_PROP_BOOL:
       copy_primvar_to_blender_buffer<bool>(
           primvar, timecode, face_indices, attribute.span.typed<bool>());
@@ -172,6 +190,26 @@ void copy_blender_attribute_to_primvar(const GVArray &attribute,
     case CD_PROP_BOOL:
       copy_blender_buffer_to_primvar<bool, bool>(
           attribute.typed<bool>(), timecode, primvar, value_writer);
+      break;
+    case CD_PROP_COLOR:
+      if (primvar.GetTypeName() == pxr::SdfValueTypeNames->Color3fArray) {
+        copy_blender_buffer_to_primvar<ColorGeometry4f, pxr::GfVec3f>(
+            attribute.typed<ColorGeometry4f>(), timecode, primvar, value_writer);
+      }
+      else {
+        copy_blender_buffer_to_primvar<ColorGeometry4f, pxr::GfVec4f>(
+            attribute.typed<ColorGeometry4f>(), timecode, primvar, value_writer);
+      }
+      break;
+    case CD_PROP_BYTE_COLOR:
+      if (primvar.GetTypeName() == pxr::SdfValueTypeNames->Color3fArray) {
+        copy_blender_buffer_to_primvar<ColorGeometry4b, pxr::GfVec3f>(
+            attribute.typed<ColorGeometry4b>(), timecode, primvar, value_writer);
+      }
+      else {
+        copy_blender_buffer_to_primvar<ColorGeometry4b, pxr::GfVec4f>(
+            attribute.typed<ColorGeometry4b>(), timecode, primvar, value_writer);
+      }
       break;
     case CD_PROP_QUATERNION:
       copy_blender_buffer_to_primvar<math::Quaternion, pxr::GfQuatf>(

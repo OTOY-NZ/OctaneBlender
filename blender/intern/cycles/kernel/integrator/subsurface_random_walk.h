@@ -267,9 +267,9 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 #  endif
 
     /* Sample color channel, use MIS with balance heuristic. */
-    float rphase = path_state_rng_1D(kg, &rng_state, PRNG_SUBSURFACE_PHASE_CHANNEL);
+    float rchannel = path_state_rng_1D(kg, &rng_state, PRNG_SUBSURFACE_COLOR_CHANNEL);
     Spectrum channel_pdf;
-    int channel = volume_sample_channel(alpha, throughput, rphase, &channel_pdf);
+    int channel = volume_sample_channel(alpha, throughput, &rchannel, &channel_pdf);
     float sample_sigma_t = volume_channel_get(sigma_t, channel);
     float randt = path_state_rng_1D(kg, &rng_state, PRNG_SUBSURFACE_SCATTER_DISTANCE);
 
@@ -315,11 +315,11 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
           cos_theta = -cos_theta;
         }
         float3 newD = direction_from_cosine(N, cos_theta, rand_scatter.y);
-        hg_pdf = single_peaked_henyey_greenstein(dot(ray.D, newD), anisotropy);
+        hg_pdf = phase_henyey_greenstein(dot(ray.D, newD), anisotropy);
         ray.D = newD;
       }
       else {
-        float3 newD = henyey_greenstrein_sample(ray.D, anisotropy, rand_scatter, &hg_pdf);
+        float3 newD = phase_henyey_greenstein_sample(ray.D, anisotropy, rand_scatter, &hg_pdf);
         cos_theta = dot(newD, N);
         ray.D = newD;
       }

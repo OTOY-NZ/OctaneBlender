@@ -1834,9 +1834,10 @@ static int file_external_operation_exec(bContext *C, wmOperator *op)
   PointerRNA op_props;
   WM_operator_properties_create_ptr(&op_props, ot);
   RNA_string_set(&op_props, "filepath", filepath);
-  if (WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr) ==
-      OPERATOR_FINISHED)
-  {
+  const int retval = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+  WM_operator_properties_free(&op_props);
+
+  if (retval == OPERATOR_FINISHED) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
     return OPERATOR_FINISHED;
   }
@@ -3193,14 +3194,13 @@ static int file_delete_exec(bContext *C, wmOperator *op)
   }
 
   if (report_error) {
+    const char *error_prefix = "Could not delete file or directory: ";
+    const char *errno_message = errno ? strerror(errno) : "unknown error";
     if (error_message != nullptr) {
-      BKE_reportf(op->reports, RPT_ERROR, "Could not delete file or directory: %s", error_message);
+      BKE_reportf(op->reports, RPT_ERROR, "%s%s, %s", error_prefix, error_message, errno_message);
     }
     else {
-      BKE_reportf(op->reports,
-                  RPT_ERROR,
-                  "Could not delete file or directory: %s",
-                  errno ? strerror(errno) : "unknown error");
+      BKE_reportf(op->reports, RPT_ERROR, "%s%s", error_prefix, errno_message);
     }
   }
 

@@ -35,7 +35,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 extern "C" {
 #include "curve_fit_nd.h"
@@ -935,30 +935,32 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
       if (attributes.contains("resolution")) {
         curves.resolution_for_write()[curve_index] = 12;
       }
-      bke::fill_attribute_range_default(attributes,
-                                        bke::AttrDomain::Point,
-                                        {"position",
-                                         "radius",
-                                         "handle_left",
-                                         "handle_right",
-                                         "handle_type_left",
-                                         "handle_type_right",
-                                         "nurbs_weight",
-                                         ".selection",
-                                         ".selection_handle_left",
-                                         ".selection_handle_right"},
-                                        curves.points_by_curve()[curve_index]);
-      bke::fill_attribute_range_default(attributes,
-                                        bke::AttrDomain::Curve,
-                                        {"curve_type",
-                                         "resolution",
-                                         "cyclic",
-                                         "nurbs_order",
-                                         "knots_mode",
-                                         ".selection",
-                                         ".selection_handle_left",
-                                         ".selection_handle_right"},
-                                        IndexRange(curve_index, 1));
+      bke::fill_attribute_range_default(
+          attributes,
+          bke::AttrDomain::Point,
+          bke::attribute_filter_from_skip_ref({"position",
+                                               "radius",
+                                               "handle_left",
+                                               "handle_right",
+                                               "handle_type_left",
+                                               "handle_type_right",
+                                               "nurbs_weight",
+                                               ".selection",
+                                               ".selection_handle_left",
+                                               ".selection_handle_right"}),
+          curves.points_by_curve()[curve_index]);
+      bke::fill_attribute_range_default(
+          attributes,
+          bke::AttrDomain::Curve,
+          bke::attribute_filter_from_skip_ref({"curve_type",
+                                               "resolution",
+                                               "cyclic",
+                                               "nurbs_order",
+                                               "knots_mode",
+                                               ".selection",
+                                               ".selection_handle_left",
+                                               ".selection_handle_right"}),
+          IndexRange(curve_index, 1));
     }
 
     if (corners_index) {
@@ -1014,12 +1016,17 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Point,
-        {"position", "radius", ".selection", ".selection_handle_left", ".selection_handle_right"},
+        bke::attribute_filter_from_skip_ref({"position",
+                                             "radius",
+                                             ".selection",
+                                             ".selection_handle_left",
+                                             ".selection_handle_right"}),
         new_points);
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Curve,
-        {"curve_type", ".selection", ".selection_handle_left", ".selection_handle_right"},
+        bke::attribute_filter_from_skip_ref(
+            {"curve_type", ".selection", ".selection_handle_left", ".selection_handle_right"}),
         IndexRange(curve_index, 1));
   }
 
@@ -1083,13 +1090,18 @@ static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
         /* needed or else the draw matrix can be incorrect */
         view3d_operator_needs_opengl(C);
 
-        eV3DDepthOverrideMode depth_mode = V3D_DEPTH_NO_OVERLAYS;
+        eV3DDepthOverrideMode depth_mode = V3D_DEPTH_ALL;
         if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
           depth_mode = V3D_DEPTH_SELECTED_ONLY;
         }
 
-        ED_view3d_depth_override(
-            cdd->vc.depsgraph, cdd->vc.region, cdd->vc.v3d, nullptr, depth_mode, &cdd->depths);
+        ED_view3d_depth_override(cdd->vc.depsgraph,
+                                 cdd->vc.region,
+                                 cdd->vc.v3d,
+                                 nullptr,
+                                 depth_mode,
+                                 false,
+                                 &cdd->depths);
 
         if (cdd->depths != nullptr) {
           cdd->project.use_depth = true;

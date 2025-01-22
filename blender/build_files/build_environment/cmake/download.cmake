@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ## Update and uncomment this in the release branch
-set(BLENDER_VERSION 4.2)
+set(BLENDER_VERSION 4.3)
 
 function(download_source dep)
   set(TARGET_FILE ${${dep}_FILE})
@@ -180,3 +180,4 @@ download_source(VULKAN_HEADERS)
 download_source(VULKAN_LOADER)
 download_source(PYBIND11)
 download_source(DEFLATE)
+download_source(HIPRT)

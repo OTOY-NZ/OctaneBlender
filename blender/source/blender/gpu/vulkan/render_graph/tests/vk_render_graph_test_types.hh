@@ -45,13 +45,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     is_recording_ = false;
   }
 
-  void submit_with_cpu_synchronization() override
+  void submit_with_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_FALSE(is_cpu_synchronizing_);
     is_cpu_synchronizing_ = true;
   };
-  void wait_for_cpu_synchronization() override
+  void wait_for_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_TRUE(is_cpu_synchronizing_);
@@ -116,9 +116,15 @@ class CommandBufferLog : public VKCommandBufferInterface {
             uint32_t first_vertex,
             uint32_t first_instance) override
   {
-    UNUSED_VARS(vertex_count, instance_count, first_vertex, first_instance);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "draw(";
+    ss << "vertex_count=" << vertex_count;
+    ss << ", instance_count=" << instance_count;
+    ss << ", first_vertex=" << first_vertex;
+    ss << ", first_instance=" << first_instance;
+    ss << ")";
+    log_.append(ss.str());
   }
 
   void draw_indexed(uint32_t index_count,
@@ -127,9 +133,16 @@ class CommandBufferLog : public VKCommandBufferInterface {
                     int32_t vertex_offset,
                     uint32_t first_instance) override
   {
-    UNUSED_VARS(index_count, instance_count, first_index, vertex_offset, first_instance);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "draw_indexed(";
+    ss << "index_count=" << index_count;
+    ss << ", instance_count=" << instance_count;
+    ss << ", first_index=" << first_index;
+    ss << ", vertex_offset=" << vertex_offset;
+    ss << ", first_instance=" << first_instance;
+    ss << ")";
+    log_.append(ss.str());
   }
 
   void draw_indirect(VkBuffer buffer,
@@ -176,6 +189,20 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
+  void update_buffer(VkBuffer dst_buffer,
+                     VkDeviceSize dst_offset,
+                     VkDeviceSize data_size,
+                     const void * /*p_data*/) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "update_buffer(";
+    ss << "dst_buffer=" << to_string(dst_buffer);
+    ss << ", dst_offset=" << dst_offset;
+    ss << ", data_size=" << data_size;
+    ss << ")";
+    log_.append(ss.str());
+  }
   void copy_buffer(VkBuffer src_buffer,
                    VkBuffer dst_buffer,
                    uint32_t region_count,
@@ -408,6 +435,17 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
+  void begin_query(VkQueryPool /*vk_query_pool*/,
+                   uint32_t /*query_index*/,
+                   VkQueryControlFlags /*vk_query_control_flags*/) override
+  {
+  }
+  void end_query(VkQueryPool /*vk_query_pool*/, uint32_t /*query_index*/) override {}
+  void reset_query_pool(VkQueryPool /*vk_query_pool*/,
+                        uint32_t /*first_query*/,
+                        uint32_t /*query_count*/) override
+  {
+  }
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
   void end_debug_utils_label() override {}
 };

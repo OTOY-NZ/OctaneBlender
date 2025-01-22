@@ -57,9 +57,6 @@ struct wmEventHandler_Op;
 struct wmEventHandler_UI;
 struct wmGenericUserData;
 struct wmGesture;
-struct wmGizmo;
-struct wmGizmoMap;
-struct wmGizmoMapType;
 struct wmJob;
 struct wmJobWorkerStatus;
 struct wmOperator;
@@ -273,8 +270,12 @@ bool WM_window_pixels_read_sample(bContext *C, wmWindow *win, const int pos[2], 
  *
  * \note macOS retina opens window in size X, but it has up to 2 x more pixels.
  */
-int WM_window_pixels_x(const wmWindow *win);
-int WM_window_pixels_y(const wmWindow *win);
+int WM_window_native_pixel_x(const wmWindow *win);
+int WM_window_native_pixel_y(const wmWindow *win);
+
+blender::int2 WM_window_native_pixel_size(const wmWindow *win);
+
+void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y);
 /**
  * Get boundaries usable by all window contents, including global areas.
  */
@@ -304,7 +305,7 @@ Scene *WM_window_get_active_scene(const wmWindow *win) ATTR_NONNULL() ATTR_WARN_
 /**
  * \warning Only call outside of area/region loops.
  */
-void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene_new)
+void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene)
     ATTR_NONNULL();
 WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
@@ -362,11 +363,17 @@ wmWindow *WM_window_open(bContext *C,
                          bool temp,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
-                         void *area_setup_user_data) ATTR_NONNULL(1, 2, 3);
+                         void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
 void WM_window_set_dpi(const wmWindow *win);
 
-bool WM_stereo3d_enabled(wmWindow *win, bool only_fullscreen_test);
+/**
+ * Give a title to a window. With "Title" unspecified or nullptr, it is generated
+ * automatically from window settings and areas. Only use custom title when really needed.
+ */
+void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nullptr);
+
+bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
 /* `wm_files.cc`. */
 
@@ -891,7 +898,7 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, bool no_context);
  */
 bool WM_operator_properties_default(PointerRNA *ptr, bool do_update);
 /**
- * Remove all props without #PROP_SKIP_SAVE.
+ * Remove all props without #PROP_SKIP_SAVE or #PROP_SKIP_PRESET.
  */
 void WM_operator_properties_reset(wmOperator *op);
 void WM_operator_properties_create(PointerRNA *ptr, const char *opstring);
@@ -990,8 +997,8 @@ void WM_operator_properties_id_lookup(wmOperatorType *ot, const bool add_name_pr
  */
 void WM_operator_properties_use_cursor_init(wmOperatorType *ot);
 void WM_operator_properties_border(wmOperatorType *ot);
-void WM_operator_properties_border_to_rcti(wmOperator *op, rcti *rect);
-void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *rect);
+void WM_operator_properties_border_to_rcti(wmOperator *op, rcti *r_rect);
+void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *r_rect);
 /**
  * Use with #WM_gesture_box_invoke
  */
@@ -1534,7 +1541,8 @@ std::string WM_drag_get_string_firstline(const wmDrag *drag);
 /* Set OpenGL viewport and scissor. */
 void wmViewport(const rcti *winrct);
 void wmPartialViewport(rcti *drawrct, const rcti *winrct, const rcti *partialrct);
-void wmWindowViewport(wmWindow *win);
+void wmWindowViewport(const wmWindow *win);
+void wmWindowViewport_ex(const wmWindow *win, float offset);
 
 /* OpenGL utilities with safety check. */
 void wmOrtho2(float x1, float x2, float y1, float y2);
@@ -1550,6 +1558,10 @@ void wmGetProjectionMatrix(float mat[4][4], const rcti *winrct);
 /* Threaded Jobs Manager. */
 enum eWM_JobFlag {
   WM_JOB_PRIORITY = (1 << 0),
+  /**
+   * Only one render job can run at a time, this tags them a such. New jobs with this flag will
+   * wait on previous ones to finish then.
+   */
   WM_JOB_EXCL_RENDER = (1 << 1),
   WM_JOB_PROGRESS = (1 << 2),
 };
@@ -1581,7 +1593,10 @@ enum eWM_JobType {
   WM_JOB_TYPE_SEQ_BUILD_PREVIEW,
   WM_JOB_TYPE_POINTCACHE,
   WM_JOB_TYPE_DPAINT_BAKE,
-  WM_JOB_TYPE_ALEMBIC,
+  WM_JOB_TYPE_ALEMBIC_IMPORT,
+  WM_JOB_TYPE_ALEMBIC_EXPORT,
+  WM_JOB_TYPE_USD_IMPORT,
+  WM_JOB_TYPE_USD_EXPORT,
   WM_JOB_TYPE_SHADER_COMPILATION,
   WM_JOB_TYPE_STUDIOLIGHT,
   WM_JOB_TYPE_LIGHT_BAKE,
@@ -1601,8 +1616,8 @@ enum eWM_JobType {
 /**
  * \return current job or adds new job, but doesn't run it.
  *
- * \note every owner only gets a single job,
- * adding a new one will stop running job and when stopped it starts the new one.
+ * \note every owner only gets a single running job of the same \a job_type (or with the
+ * #WM_JOB_EXCL_RENDER flag). Adding a new one will wait for the running job to finish.
  */
 wmJob *WM_jobs_get(wmWindowManager *wm,
                    wmWindow *win,
@@ -1646,18 +1661,33 @@ void WM_jobs_callbacks_ex(wmJob *wm_job,
                           void (*canceled)(void *));
 
 /**
- * If job running, the same owner gave it a new job.
- * if different owner starts existing #wmJob::startjob, it suspends itself.
+ * Register the given \a wm_job and try to start it immediately.
+ *
+ * The new \a wm_job will not start immediately and wait for other blocking jobs
+ * to end in some way if:
+ * - the new job is flagged with #WM_JOB_EXCL_RENDER and another job with the same flag is already
+ *   running (blocks it), or...
+ * - the new job is __not__ flagged with #WM_JOB_EXCL_RENDER and a job of the same #eWM_JobType is
+ *   already running (blocks it).
+ *
+ * If the new \a wm_job is flagged with #WM_JOB_PRIORITY, it will request other blocking jobs to
+ * stop (using #WM_jobs_stop(), so this doesn't take immediate effect) rather than finish its work.
  */
 void WM_jobs_start(wmWindowManager *wm, wmJob *wm_job);
 /**
- * Signal job(s) from this owner or callback to stop, timer is required to get handled.
+ * Signal all jobs of this type and owner (if non-null) to stop, timer is required to get
+ * handled.
+ *
+ * Don't pass #WM_JOB_TYPE_ANY as \a job_type. Use #WM_jobs_stop_all_from_owner() instead.
  */
-void WM_jobs_stop(wmWindowManager *wm, const void *owner, wm_jobs_start_callback startjob);
+void WM_jobs_stop_type(wmWindowManager *wm, const void *owner, eWM_JobType job_type);
 /**
- * Actually terminate thread and job timer.
+ * Signal all jobs from this owner to stop, timer is required to get handled.
+ *
+ * Beware of the impact of calling this. For example passing the scene will stop **all** jobs
+ * having the scene as owner, even otherwise unrelated jobs.
  */
-void WM_jobs_kill(wmWindowManager *wm, void *owner, wm_jobs_start_callback startjob);
+void WM_jobs_stop_all_from_owner(wmWindowManager *wm, const void *owner) ATTR_NONNULL();
 /**
  * Wait until every job ended.
  */
@@ -1666,7 +1696,19 @@ void WM_jobs_kill_all(wmWindowManager *wm);
  * Wait until every job ended, except for one owner (used in undo to keep screen job alive).
  */
 void WM_jobs_kill_all_except(wmWindowManager *wm, const void *owner);
+/**
+ * Terminate thread and timer of all jobs of this type and owner (if non-null).
+ *
+ * Don't pass #WM_JOB_TYPE_ANY as \a job_type. Use #WM_jobs_kill_all_from_owner() instead.
+ */
 void WM_jobs_kill_type(wmWindowManager *wm, const void *owner, int job_type);
+/**
+ * Terminate thread and timer of all jobs from this owner.
+ *
+ * Beware of the impact of calling this. For example passing the scene will kill **all** jobs
+ * having the scene as owner, even otherwise unrelated jobs.
+ */
+void WM_jobs_kill_all_from_owner(wmWindowManager *wm, const void *owner) ATTR_NONNULL();
 
 bool WM_jobs_has_running(const wmWindowManager *wm);
 bool WM_jobs_has_running_type(const wmWindowManager *wm, int job_type);
@@ -1825,7 +1867,7 @@ bool WM_event_consecutive_gesture_test_break(const wmWindow *win, const wmEvent 
 
 int WM_event_drag_threshold(const wmEvent *event);
 bool WM_event_drag_test(const wmEvent *event, const int prev_xy[2]);
-bool WM_event_drag_test_with_delta(const wmEvent *event, const int delta[2]);
+bool WM_event_drag_test_with_delta(const wmEvent *event, const int drag_delta[2]);
 void WM_event_drag_start_mval(const wmEvent *event, const ARegion *region, int r_mval[2]);
 void WM_event_drag_start_mval_fl(const wmEvent *event, const ARegion *region, float r_mval[2]);
 void WM_event_drag_start_xy(const wmEvent *event, int r_xy[2]);

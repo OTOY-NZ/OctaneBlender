@@ -184,7 +184,7 @@ static void wm_drop_item_free_data(wmDropBox *drop)
 {
   if (drop->ptr) {
     WM_operator_properties_free(drop->ptr);
-    MEM_freeN(drop->ptr);
+    MEM_delete(drop->ptr);
     drop->ptr = nullptr;
     drop->properties = nullptr;
   }
@@ -457,6 +457,8 @@ static wmDropBox *dropbox_active(bContext *C,
 
           const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
           if (drop->ot && WM_operator_poll_context(C, drop->ot, opcontext)) {
+            /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
+            drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, drop);
             CTX_store_set(C, nullptr);
             return drop;
           }
@@ -507,11 +509,11 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
 static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
-  const int winsize_x = WM_window_pixels_x(win);
-  const int winsize_y = WM_window_pixels_y(win);
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
 
   /* For multi-window drags, we only do this if mouse inside. */
-  if (event->xy[0] < 0 || event->xy[1] < 0 || event->xy[0] > winsize_x || event->xy[1] > winsize_y)
+  if (event->xy[0] < 0 || event->xy[1] < 0 || event->xy[0] > win_size[0] ||
+      event->xy[1] > win_size[1])
   {
     return;
   }
@@ -519,6 +521,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   /* Update UI context, before polling so polls can query this context. */
   drag->drop_state.ui_context.reset();
   drag->drop_state.ui_context = wm_drop_ui_context_create(C);
+  drag->drop_state.tooltip = "";
 
   wmDropBox *drop_prev = drag->drop_state.active_dropbox;
   wmDropBox *drop = wm_dropbox_active(C, drag, event);
@@ -656,7 +659,10 @@ wmDragAsset *WM_drag_create_asset_data(const blender::asset_system::AssetReprese
 
 static void wm_drag_free_asset_data(wmDragAsset **asset_data)
 {
-  MEM_SAFE_FREE(*asset_data);
+  if (*asset_data) {
+    MEM_delete(*asset_data);
+    *asset_data = nullptr;
+  }
 }
 
 wmDragAsset *WM_drag_get_asset_data(const wmDrag *drag, int idcode)
@@ -693,7 +699,7 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
                               FILE_ACTIVE_COLLECTION;
 
   const char *name = asset_drag->asset->get_name().c_str();
-  const std::string blend_path = asset_drag->asset->get_identifier().full_library_path();
+  const std::string blend_path = asset_drag->asset->full_library_path();
   const ID_Type idtype = asset_drag->asset->get_id_type();
   const bool use_relative_path = asset_drag->asset->get_use_relative_path();
 
@@ -1057,11 +1063,13 @@ static void wm_drag_draw_item_name(wmDrag *drag, const int x, const int y)
   UI_fontstyle_draw_simple(fstyle, x, y, WM_drag_get_item_name(drag), text_col);
 }
 
-void WM_drag_draw_item_name_fn(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
+void WM_drag_draw_item_name_fn(bContext * /*C*/, wmWindow *win, wmDrag *drag, const int xy[2])
 {
   int x = xy[0] + 10 * UI_SCALE_FAC;
   int y = xy[1] + 1 * UI_SCALE_FAC;
 
+  /* Needs zero offset here or it looks blurry. #128112. */
+  wmWindowViewport_ex(win, 0.0f);
   wm_drag_draw_item_name(drag, x, y);
 }
 
@@ -1073,19 +1081,14 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
   }
   int iconsize = UI_ICON_SIZE;
   int padding = 4 * UI_SCALE_FAC;
-
-  std::string tooltip;
-  if (drag->drop_state.active_dropbox) {
-    tooltip = dropbox_tooltip(C, drag, xy, drag->drop_state.active_dropbox);
-  }
-
+  blender::StringRef tooltip = drag->drop_state.tooltip;
   const bool has_disabled_info = drag->drop_state.disabled_info &&
                                  drag->drop_state.disabled_info[0];
-  if (tooltip.empty() && !has_disabled_info) {
+  if (tooltip.is_empty() && !has_disabled_info) {
     return;
   }
 
-  const int winsize_y = WM_window_pixels_y(win);
+  const int winsize_y = WM_window_native_pixel_y(win);
   int x, y;
   if (drag->imb) {
     const int icon_width = wm_drag_imbuf_icon_width_get(drag);
@@ -1111,7 +1114,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
     }
   }
 
-  if (!tooltip.empty()) {
+  if (!tooltip.is_empty()) {
     wm_drop_operator_draw(tooltip, x, y);
   }
   else if (has_disabled_info) {
@@ -1194,6 +1197,8 @@ void wm_drags_draw(bContext *C, wmWindow *win)
       CTX_wm_region_set(C, region);
     }
 
+    /* Needs zero offset here or it looks blurry. #128112. */
+    wmWindowViewport_ex(win, 0.0f);
     wm_drag_draw_default(C, win, drag, xy);
   }
   GPU_blend(GPU_BLEND_NONE);

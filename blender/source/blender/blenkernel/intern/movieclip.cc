@@ -47,7 +47,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h" /* openanim */
+#include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -234,7 +234,8 @@ static void direct_link_moviePlaneTracks(BlendDataReader *reader, ListBase *plan
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_read_pointer_array(reader, (void **)&plane_track->point_tracks);
+    BLO_read_pointer_array(
+        reader, plane_track->point_tracksnr, (void **)&plane_track->point_tracks);
     for (int i = 0; i < plane_track->point_tracksnr; i++) {
       BLO_read_struct(reader, MovieTrackingTrack, &plane_track->point_tracks[i]);
     }
@@ -1046,7 +1047,7 @@ static ImBuf *get_undistorted_ibuf(MovieClip *clip, MovieDistortion *distortion,
     undistibuf = BKE_tracking_undistort_frame(&clip->tracking, ibuf, ibuf->x, ibuf->y, 0.0f);
   }
 
-  IMB_scaleImBuf(undistibuf, ibuf->x, ibuf->y);
+  IMB_scale(undistibuf, ibuf->x, ibuf->y, IMBScaleFilter::Box, false);
 
   return undistibuf;
 }
@@ -1587,11 +1588,11 @@ void BKE_movieclip_get_cache_segments(MovieClip *clip,
   }
 }
 
-void BKE_movieclip_user_set_frame(MovieClipUser *iuser, int framenr)
+void BKE_movieclip_user_set_frame(MovieClipUser *user, int framenr)
 {
   /* TODO: clamp framenr here? */
 
-  iuser->framenr = framenr;
+  user->framenr = framenr;
 }
 
 static void free_buffers(MovieClip *clip)
@@ -1770,13 +1771,7 @@ static void movieclip_build_proxy_ibuf(
   recty = ibuf->y * size / 100.0f;
 
   scaleibuf = IMB_dupImBuf(ibuf);
-
-  if (threaded) {
-    IMB_scaleImBuf_threaded(scaleibuf, short(rectx), short(recty));
-  }
-  else {
-    IMB_scaleImBuf(scaleibuf, short(rectx), short(recty));
-  }
+  IMB_scale(scaleibuf, rectx, recty, IMBScaleFilter::Bilinear, threaded);
 
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;

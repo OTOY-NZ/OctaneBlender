@@ -3,16 +3,18 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+from typing import (
+    Tuple,
+)
 
 IGNORE_SOURCE = (
-    "/scripts/",
+    "/lib/",
     "/test/",
     "/tests/gtests/",
 
     # Specific source files.
     "extern/audaspace/",
     "extern/quadriflow/3rd/",
-    "extern/sdlew/include/",
     "extern/mantaflow/",
     "extern/Eigen3/",
 
@@ -96,16 +98,31 @@ IGNORE_SOURCE = (
     "intern/libmv/libmv/multiview/test_data_sets.h",
 )
 
-# Ignore cmake file, path pairs.
-IGNORE_SOURCE_MISSING = (
+# Ignore cmake file, path pairs,
+# NOTE: keep commented block to show the intended format (even when unused).
+IGNORE_SOURCE_MISSING: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     (   # Use for `WITH_NANOVDB`.
         "intern/cycles/kernel/CMakeLists.txt", (
-            "nanovdb/util/CSampleFromVoxels.h",
-            "nanovdb/util/SampleFromVoxels.h",
-            "nanovdb/NanoVDB.h",
-            "nanovdb/CNanoVDB.h",
+            "hiprt/impl/Aabb.h",
+            "hiprt/impl/BvhNode.h",
+            "hiprt/impl/Geometry.h",
+            "hiprt/impl/hiprt_device_impl.h",
+            "hiprt/impl/hiprt_kernels_bitcode.h",
+            "hiprt/impl/Instance.h",
+            "hiprt/impl/Math.h",
+            "hiprt/impl/QrDecomposition.h",
+            "hiprt/impl/Quaternion.h",
+            "hiprt/impl/Scene.h",
+            "hiprt/impl/Transform.h",
+            "hiprt/impl/Triangle.h",
+
+            "hiprt/hiprt_common.h",
+            "hiprt/hiprt_device.h",
+            "hiprt/hiprt_types.h",
+            "hiprt/hiprt_vec.h",
         ),
     ),
+
 )
 
 IGNORE_CMAKE = (

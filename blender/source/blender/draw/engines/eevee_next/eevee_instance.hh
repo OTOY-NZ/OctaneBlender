@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <fmt/format.h>
+
 #include "BKE_object.hh"
 #include "DEG_depsgraph.hh"
 #include "DNA_lightprobe_types.h"
@@ -77,6 +79,9 @@ class Instance {
 
   bool shaders_are_ready_ = true;
 
+  /** Info string displayed at the top of the render / viewport, or the console when baking. */
+  std::string info_ = "";
+
  public:
   ShaderModule &shaders;
   SyncModule sync;
@@ -133,8 +138,6 @@ class Instance {
   bool use_curves = true;
   bool use_volumes = true;
 
-  /** Info string displayed at the top of the render / viewport. */
-  std::string info = "";
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -225,6 +228,29 @@ class Instance {
 
   static void update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view_layer);
 
+  /* Append a new line to the info string. */
+  template<typename... Args> void info_append(const char *msg, Args &&...args)
+  {
+    info_ += fmt::format(msg, args...);
+    info_ += "\n";
+  }
+
+  /* The same as `info_append`, but `msg` will be translated.
+   * NOTE: When calling this function, `msg` should be a string literal. */
+  template<typename... Args> void info_append_i18n(const char *msg, Args &&...args)
+  {
+    std::string fmt_msg = fmt::format(RPT_(msg), args...) + "\n";
+    /* Don't print the same error twice. */
+    if (info_ != fmt_msg && !BLI_str_endswith(info_.c_str(), fmt_msg.c_str())) {
+      info_ += fmt_msg;
+    }
+  }
+
+  const char *info_get()
+  {
+    return info_.c_str();
+  }
+
   bool is_viewport() const
   {
     return render == nullptr && !is_baking();
@@ -253,8 +279,7 @@ class Instance {
   /** True if the grease pencil engine might be running. */
   bool gpencil_engine_enabled() const
   {
-    return DEG_id_type_any_exists(depsgraph, ID_GP) ||
-           DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY);
+    return DEG_id_type_any_exists(depsgraph, ID_GP);
   }
 
   bool is_playback() const
@@ -329,10 +354,15 @@ class Instance {
   }
 
  private:
+  /** Wrapper to use with #DRW_render_object_iter. */
   static void object_sync_render(void *instance_,
                                  Object *ob,
                                  RenderEngine *engine,
                                  Depsgraph *depsgraph);
+  /**
+   * Conceptually renders one sample per pixel.
+   * Everything based on random sampling should be done here (i.e: DRWViews jitter)
+   */
   void render_sample();
   void render_read_result(RenderLayer *render_layer, const char *view_name);
 

@@ -27,6 +27,8 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BLO_readfile.hh"
 
 #include "DNA_brush_types.h"
@@ -51,7 +53,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_light.h"
@@ -94,6 +96,9 @@
 #include "ED_view3d_offscreen.hh"
 
 #include "UI_interface_icons.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_pose.hh"
 
 #ifndef NDEBUG
 /* Used for database init assert(). */
@@ -194,16 +199,8 @@ void ED_preview_ensure_dbase(const bool with_gpencil)
     base_initialized = true;
   }
   if (!base_initialized_gpencil && with_gpencil) {
-
-    if (U.experimental.use_grease_pencil_version3) {
-      G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
-                                                      datatoc_preview_grease_pencil_blend_size);
-    }
-    else {
-      G_pr_main_grease_pencil = load_main_from_memory(
-          datatoc_preview_grease_pencil_legacy_blend,
-          datatoc_preview_grease_pencil_legacy_blend_size);
-    }
+    G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
+                                                    datatoc_preview_grease_pencil_blend_size);
     base_initialized_gpencil = true;
   }
 #else
@@ -712,7 +709,8 @@ static bool ed_preview_draw_rect(
   return ok;
 }
 
-void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, rcti *rect)
+void ED_preview_draw(
+    const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect)
 {
   if (idp) {
     Scene *scene = CTX_data_scene(C);
@@ -749,7 +747,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
     /* start a new preview render job if signaled through sbuts->preview,
      * if no render result was found and no preview render job is running,
      * or if the job is running and the size of preview changed */
-    if ((sbuts != nullptr && sbuts->preview) ||
+    if ((sbuts != nullptr && sbuts->preview) || (ui_preview->tag & UI_PREVIEW_TAG_DIRTY) ||
         (!ok && !WM_jobs_test(wm, area, WM_JOB_TYPE_RENDER_PREVIEW)) ||
         (sp && (abs(sp->sizex - newx) >= 2 || abs(sp->sizey - newy) > 2)))
     {
@@ -757,6 +755,22 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
         sbuts->preview = 0;
       }
       ED_preview_shader_job(C, area, id, parent, slot, newx, newy, PR_BUTS_RENDER);
+      ui_preview->tag &= ~UI_PREVIEW_TAG_DIRTY;
+    }
+  }
+}
+
+void ED_previews_tag_dirty_by_id(const Main &bmain, const ID &id)
+{
+  LISTBASE_FOREACH (const bScreen *, screen, &bmain.screens) {
+    LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (const ARegion *, region, &area->regionbase) {
+        LISTBASE_FOREACH (uiPreview *, preview, &region->ui_previews) {
+          if (preview->id_session_uid == id.session_uid) {
+            preview->tag |= UI_PREVIEW_TAG_DIRTY;
+          }
+        }
+      }
     }
   }
 }
@@ -969,7 +983,8 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */
   AnimationEvalContext anim_eval_context = {preview->depsgraph, 0.0f};
-  BKE_pose_apply_action_all_bones(object, action, &anim_eval_context);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+  blender::animrig::pose_apply_action_all_bones(object, action, slot_handle, &anim_eval_context);
 
   /* Force evaluation of the new pose, before the preview is rendered. */
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
@@ -1011,6 +1026,7 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
   if (camera_eval == nullptr) {
     printf("Scene has no camera, unable to render preview of %s without it.\n",
            preview->id->name + 2);
+    action_preview_render_cleanup(preview, pose_backup);
     return;
   }
 
@@ -1330,19 +1346,6 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     /* Use default color-spaces for brushes. */
     brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
 
-    /* Otherwise lets try to find it in other directories. */
-    if (!(brush->icon_imbuf)) {
-      const std::optional<std::string> brushicons_dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
-                                                                             "brushicons");
-      /* Expected to be found, but don't crash if it's not. */
-      if (brushicons_dir.has_value()) {
-        BLI_path_join(filepath, sizeof(filepath), brushicons_dir->c_str(), brush->icon_filepath);
-
-        /* Use default color spaces. */
-        brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
-      }
-    }
-
     if (brush->icon_imbuf) {
       BKE_icon_changed(BKE_icon_id_ensure(&brush->id));
     }
@@ -1391,7 +1394,7 @@ static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect)
   dx = (w - ex) / 2;
   dy = (h - ey) / 2;
 
-  IMB_scalefastImBuf(ima, ex, ey);
+  IMB_scale(ima, ex, ey, IMBScaleFilter::Nearest, false);
 
   /* if needed, convert to 32 bits */
   if (ima->byte_buffer.data == nullptr) {
@@ -1626,9 +1629,8 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
           if (object_preview_is_type_supported((Object *)ip->id)) {
             /* Much simpler than the ShaderPreview mess used for other ID types. */
             object_preview_render(ip, cur_size);
-            continue;
           }
-          break;
+          continue;
         case ID_GR:
           BLI_assert(collection_preview_contains_geometry_recursive((Collection *)ip->id));
           /* A collection instance empty was created, so this can just reuse the object preview
@@ -1826,7 +1828,7 @@ void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
       continue;
     }
 
-    // printf("loading deferred %d×%d preview for %s\n", request->sizex, request->sizey, filepath);
+    // printf("loading deferred %dx%d preview for %s\n", request->sizex, request->sizey, filepath);
 
     IMB_thumb_path_lock(filepath);
     ImBuf *thumb = IMB_thumb_manage(filepath, THB_LARGE, ThumbSource(*source));
@@ -1914,22 +1916,37 @@ static void icon_preview_free(void *customdata)
   MEM_freeN(ip);
 }
 
-bool ED_preview_id_is_supported(const ID *id)
+bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
 {
   if (id == nullptr) {
     return false;
   }
-  if (GS(id->name) == ID_NT) {
-    /* Node groups don't support standard preview generation. */
-    return false;
+
+  /* Get both the result and the "potential" disabled hint. After that we can decide if the
+   * disabled hint needs to be returned to the caller. */
+  const auto [result, disabled_hint] = [id]() -> std::pair<bool, const char *> {
+    switch (GS(id->name)) {
+      case ID_NT:
+        return {false, RPT_("Node groups do not support automatic previews")};
+      case ID_OB:
+        return {object_preview_is_type_supported((const Object *)id),
+                RPT_("Object type does not support automatic previews")};
+      case ID_GR:
+        return {
+            collection_preview_contains_geometry_recursive((const Collection *)id),
+            RPT_("Collection does not contain object types that can be rendered for the automatic "
+                 "preview")};
+      default:
+        return {BKE_previewimg_id_get_p(id) != nullptr,
+                RPT_("Data-block type does not support automatic previews")};
+    }
+  }();
+
+  if (result == false && disabled_hint && r_disabled_hint) {
+    *r_disabled_hint = disabled_hint;
   }
-  if (GS(id->name) == ID_OB) {
-    return object_preview_is_type_supported((const Object *)id);
-  }
-  if (GS(id->name) == ID_GR) {
-    return collection_preview_contains_geometry_recursive((const Collection *)id);
-  }
-  return BKE_previewimg_id_get_p(id) != nullptr;
+
+  return result;
 }
 
 void ED_preview_icon_render(
@@ -2121,8 +2138,7 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)
   if (wm) {
     /* This is called to stop all preview jobs before scene data changes, to
      * avoid invalid memory access. */
-    WM_jobs_kill(wm, nullptr, common_preview_startjob);
-    WM_jobs_kill(wm, nullptr, icon_preview_startjob_all_sizes);
+    WM_jobs_kill_type(wm, nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
   }
 }
 
@@ -2142,7 +2158,7 @@ void ED_preview_restart_queue_free()
 
 void ED_preview_restart_queue_add(ID *id, enum eIconSizes size)
 {
-  PreviewRestartQueueEntry *queue_entry = MEM_new<PreviewRestartQueueEntry>(__func__);
+  PreviewRestartQueueEntry *queue_entry = MEM_cnew<PreviewRestartQueueEntry>(__func__);
   queue_entry->size = size;
   queue_entry->id = id;
   BLI_addtail(&G_restart_previews_queue, queue_entry);

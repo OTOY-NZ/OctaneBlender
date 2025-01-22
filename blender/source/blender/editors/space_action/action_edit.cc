@@ -34,12 +34,13 @@
 #include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_report.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
@@ -273,10 +274,11 @@ static int actkeys_previewrange_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  scene = ac.scene;
-
   /* set the range directly */
-  get_keyframe_extents(&ac, &min, &max, true);
+  if (!get_keyframe_extents(&ac, &min, &max, true)) {
+    return OPERATOR_CANCELLED;
+  }
+  scene = ac.scene;
   scene->r.flag |= SCER_PRV_RANGE;
   scene->r.psfra = floorf(min);
   scene->r.pefra = ceilf(max);
@@ -838,29 +840,42 @@ static void insert_fcurve_key(bAnimContext *ac,
   Scene *scene = ac->scene;
   ToolSettings *ts = scene->toolsettings;
 
-  /* Read value from property the F-Curve represents, or from the curve only?
-   * - ale->id != nullptr:
-   *   Typically, this means that we have enough info to try resolving the path.
-   *
-   * - ale->owner != nullptr:
-   *   If this is set, then the path may not be resolvable from the ID alone,
-   *   so it's easier for now to just read the F-Curve directly.
-   *   (TODO: add the full-blown PointerRNA relative parsing case here...)
-   */
-  if (ale->id && !ale->owner) {
-    CombinedKeyingResult result = insert_keyframe(ac->bmain,
-                                                  *ale->id,
-                                                  ((fcu->grp) ? (fcu->grp->name) : (nullptr)),
-                                                  fcu->rna_path,
-                                                  fcu->array_index,
-                                                  &anim_eval_context,
-                                                  eBezTriple_KeyframeType(ts->keyframe_type),
-                                                  flag);
+  /* These asserts are ensuring that the fcurve we're keying lives on an Action,
+   * rather than being an fcurve for e.g. a driver or NLA Strip. This should
+   * always hold true for this function, since all the other cases take
+   * different code paths before getting here. */
+  BLI_assert(ale->owner == nullptr);
+  BLI_assert(ale->fcurve_owner_id != nullptr);
+  BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
+
+  bAction *action = reinterpret_cast<bAction *>(ale->fcurve_owner_id);
+  ID *id = action_slot_get_id_for_keying(*ale->bmain, action->wrap(), ale->slot_handle, ale->id);
+
+  /* If we found an unambiguous ID to use for keying the channel, go through the
+   * normal keyframing code path.  Otherwise, just directly key the fcurve
+   * itself. */
+  if (id) {
+    const std::optional<blender::StringRefNull> channel_group = fcu->grp ?
+                                                                    std::optional(fcu->grp->name) :
+                                                                    std::nullopt;
+    PointerRNA id_rna_pointer = RNA_id_pointer_create(id);
+    CombinedKeyingResult result = insert_keyframes(ac->bmain,
+                                                   &id_rna_pointer,
+                                                   channel_group,
+                                                   {{fcu->rna_path, {}, fcu->array_index}},
+                                                   std::nullopt,
+                                                   anim_eval_context,
+                                                   eBezTriple_KeyframeType(ts->keyframe_type),
+                                                   flag);
     if (result.get_count(SingleKeyingResult::SUCCESS) == 0) {
       result.generate_reports(reports);
     }
   }
   else {
+    /* TODO: when layered action strips are allowed to have time offsets, that
+     * mapping will need to be handled here. */
+    assert_baklava_phase_1_invariants(action->wrap());
+
     AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 
     /* adjust current frame for NLA-scaling */
@@ -960,6 +975,8 @@ static int actkeys_insertkey_exec(bContext *C, wmOperator *op)
 
   /* what channels to affect? */
   mode = RNA_enum_get(op->ptr, "type");
+
+  ANIM_deselect_keys_in_animation_editors(C);
 
   /* insert keyframes */
   insert_action_keys(&ac, mode);

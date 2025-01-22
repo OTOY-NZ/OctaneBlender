@@ -54,8 +54,6 @@ class MetalDevice : public Device {
   id<MTLAccelerationStructure> accel_struct = nil;
   /*---------------------------------------------------*/
 
-  MetalGPUVendor device_vendor;
-
   uint kernel_features = 0;
   bool using_nanovdb = false;
   MTLResourceOptions default_storage_mode;

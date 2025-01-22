@@ -194,6 +194,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_text.py
 )
 
+add_blender_test(
+  script_pyapi_grease_pencil
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 
@@ -400,6 +405,8 @@ if(WITH_EXPERIMENTAL_FEATURES)
   add_blender_test(
     bl_animation_action
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
   )
 endif()
 
@@ -623,7 +630,9 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(WARNING "Disabling render tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/render/shader")
-    message(WARNING "Disabling render tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      WARNING "Disabling render tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   elseif(NOT WITH_COMPOSITOR_CPU)
     message(WARNING "Disabling render tests because WITH_COMPOSITOR_CPU is disabled")
   elseif(NOT WITH_OPENCOLORIO)
@@ -665,15 +674,14 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       list(APPEND render_tests openvdb)
     endif()
 
-    # Temporarily disabled until all platforms upgrade to OIDN 2.3.
-    #if(WITH_OPENIMAGEDENOISE)
-    #  list(APPEND render_tests denoise)
-    #endif()
+    if(WITH_OPENIMAGEDENOISE)
+      list(APPEND render_tests denoise)
+    endif()
 
-    # Disabled until new OpenGL version with deterministic results.
-    #if(WITH_CYCLES_PATH_GUIDING)
-    #  list(APPEND render_tests guiding)
-    #endif()
+    # Disabled until new OpenPGL version with deterministic results.
+    # if(WITH_CYCLES_PATH_GUIDING)
+    #   list(APPEND render_tests guiding)
+    # endif()
 
     if(WITH_GPU_RENDER_TESTS)
       list(APPEND render_tests grease_pencil)
@@ -696,7 +704,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
 
         foreach(render_test ${_cycles_render_tests})
           set(_cycles_test_name "cycles_${render_test}_${_cycles_device_lower}")
-          if (NOT(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL AND ("${render_test}" STREQUAL "osl")))
+          if(NOT(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL AND ("${render_test}" STREQUAL "osl")))
             # Only run OSL basic tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
             add_render_test(
               ${_cycles_test_name}
@@ -711,7 +719,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
             endif()
           endif()
 
-          if (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
+          if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
             # OSL is only supported with CPU and OptiX
             # TODO: Enable OptiX support once it's more stable
             if("${_cycles_device_lower}" STREQUAL "cpu")
@@ -738,7 +746,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
 
     if(WITH_GPU_RENDER_TESTS)
       list(APPEND gpu_render_tests ${render_tests})
-      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|light_linking|shadow_catcher|denoise|guiding|reports)
+      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
       set(_gpu_render_tests_arguments)
       if(WITH_GPU_RENDER_TESTS_SILENT)
@@ -746,26 +754,84 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       endif()
 
       # Eevee Next
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          eevee_next_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
-          -testdir "${TEST_SRC_DIR}/render/${render_test}"
-          -outdir "${TEST_OUT_DIR}/eevee_next"
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
+      if(WITH_OPENGL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            eevee_next_${render_test}_opengl
+            ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/eevee_next"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
 
-      foreach(render_test ${gpu_render_tests})
-        # Workbench
-        add_render_test(
-          workbench_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
-          -testdir "${TEST_SRC_DIR}/render/${render_test}"
-          -outdir "${TEST_OUT_DIR}/workbench"
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
+      if(WITH_METAL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            eevee_next_${render_test}_metal
+            ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/eevee_next"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      if(WITH_VULKAN_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            eevee_next_${render_test}_vulkan
+            ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/eevee_next"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      # Workbench
+      if(WITH_OPENGL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            workbench_${render_test}_opengl
+            ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/workbench"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      if(WITH_METAL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            workbench_${render_test}_metal
+            ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/workbench"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      if(WITH_VULKAN_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            workbench_${render_test}_vulkan
+            ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -outdir "${TEST_OUT_DIR}/workbench"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
 
       if(WITH_HYDRA)
         # Hydra Storm
@@ -863,7 +929,9 @@ set(geo_node_tests
   curve_primitives
   curves
   curves/interpolate_curves
+  foreach_geometry_element_zone
   geometry
+  grease_pencil
   instance
   repeat_zone
   mesh_primitives
@@ -925,9 +993,11 @@ if(WITH_GPU_DRAW_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-    message(STATUS "Disabling OpenGL draw tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      STATUS "Disabling OpenGL draw tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   else()
-    # Use all subdirectories of opengl folder.
+    # Use all subdirectories of the `opengl` directory.
     file(GLOB children RELATIVE ${TEST_SRC_DIR}/opengl ${TEST_SRC_DIR}/opengl/*)
     foreach(child ${children})
       # Resolve symlinks, useful to test production files with linked libraries.
@@ -1044,6 +1114,8 @@ else()
     effects
     filter
     transform
+    blend_modes_byte
+    blend_modes_float
   )
 
   foreach(render_test ${render_tests})

@@ -9,7 +9,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "ED_markers.hh"
 
@@ -75,8 +75,13 @@ static void transform_snap_anim_flush_data_ex(
   BLI_assert(t->tsnap.flag);
 
   float ival = td->iloc[0];
-  AnimData *adt = static_cast<AnimData *>(!ELEM(t->spacetype, SPACE_NLA, SPACE_SEQ) ? td->extra :
-                                                                                      nullptr);
+
+  AnimData *adt = nullptr;
+  if (!ELEM(t->spacetype, SPACE_NLA, SPACE_SEQ) && !(td->flag & TD_GREASE_PENCIL_FRAME)) {
+    /* #TD_GREASE_PENCIL_FRAME stores #blender::bke::greasepencil::Layer* in
+     * `td->extra`, and not the #AnimData. */
+    adt = static_cast<AnimData *>(td->extra);
+  }
 
   /* Convert frame to nla-action time (if needed). */
   if (adt) {

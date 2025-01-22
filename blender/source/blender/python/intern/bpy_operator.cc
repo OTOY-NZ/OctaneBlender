@@ -20,20 +20,20 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "BPY_extern.h"
-#include "bpy_capi_utils.h"
-#include "bpy_operator.h"
-#include "bpy_operator_wrap.h"
-#include "bpy_rna.h" /* for setting argument properties & type method `get_rna_type`. */
+#include "BPY_extern.hh"
+#include "bpy_capi_utils.hh"
+#include "bpy_operator.hh"
+#include "bpy_operator_wrap.hh"
+#include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -43,6 +43,7 @@
 #include "BLI_ghash.h"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_report.hh"
 
 /* so operators called can spawn threads which acquire the GIL */
@@ -127,7 +128,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   /* main purpose of this function */
   ret = WM_operator_poll_context((bContext *)C, ot, context) ? Py_True : Py_False;
 
-  return Py_INCREF_RET(ret);
+  return Py_NewRef(ret);
 }
 
 static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
@@ -258,7 +259,11 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 
       /* operator output is nice to have in the terminal/console too */
       if (!BLI_listbase_is_empty(&reports->list)) {
+        /* Restore the print level as this is owned by the operator now. */
+        eReportType level = eReportType(reports->printlevel);
+        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
+        BKE_report_print_level_set(reports, level);
       }
 
       BKE_reports_clear(reports);

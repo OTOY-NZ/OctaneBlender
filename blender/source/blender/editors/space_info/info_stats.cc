@@ -34,7 +34,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_version.h"
 #include "BKE_curve.hh"
@@ -171,24 +171,6 @@ static void stats_object(Object *ob,
         stats->totlampsel++;
       }
       break;
-    case OB_GPENCIL_LEGACY: {
-      if (is_selected) {
-        bGPdata *gpd = (bGPdata *)ob->data;
-        if (!BLI_gset_add(objects_gset, gpd)) {
-          break;
-        }
-        /* GPXX Review if we can move to other place when object change
-         * maybe to depsgraph evaluation
-         */
-        BKE_gpencil_stats_update(gpd);
-
-        stats->totgplayer += gpd->totlayer;
-        stats->totgpframe += gpd->totframe;
-        stats->totgpstroke += gpd->totstroke;
-        stats->totgppoint += gpd->totpoint;
-      }
-      break;
-    }
     case OB_GREASE_PENCIL: {
       if (!is_selected) {
         break;
@@ -362,25 +344,26 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-
-  SculptSession *ss = ob->sculpt;
-
-  if (ss == nullptr || ss->pbvh == nullptr) {
+  const SculptSession *ss = ob->sculpt;
+  const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+  if (ss == nullptr || pbvh == nullptr) {
     return;
   }
 
-  switch (BKE_pbvh_type(*ss->pbvh)) {
-    case PBVH_FACES:
-      stats->totvertsculpt = ss->totvert;
-      stats->totfacesculpt = ss->totfaces;
+  switch (pbvh->type()) {
+    case blender::bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+      stats->totvertsculpt = mesh.verts_num;
+      stats->totfacesculpt = mesh.faces_num;
       break;
-    case PBVH_BMESH:
+    }
+    case blender::bke::pbvh::Type::BMesh:
       stats->totvertsculpt = ob->sculpt->bm->totvert;
       stats->tottri = ob->sculpt->bm->totface;
       break;
-    case PBVH_GRIDS:
-      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ss->pbvh);
-      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ss->pbvh);
+    case blender::bke::pbvh::Type::Grids:
+      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
+      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
       break;
   }
 }

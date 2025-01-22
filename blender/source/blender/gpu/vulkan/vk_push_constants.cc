@@ -30,6 +30,7 @@ static VKPushConstants::Layout::PushConstant init_constant(
   layout.type = push_constant.type;
   layout.array_size = push_constant.array_size;
   layout.offset = *r_offset;
+  layout.inner_row_padding = LayoutT::inner_row_padding(push_constant.type);
 
   reserve<LayoutT>(push_constant.type, push_constant.array_size, r_offset);
   return layout;
@@ -142,33 +143,6 @@ VKPushConstants &VKPushConstants::operator=(VKPushConstants &&other)
   other.data_ = nullptr;
 
   return *this;
-}
-
-void VKPushConstants::update(VKContext &context)
-{
-  VKShader *shader = static_cast<VKShader *>(context.shader);
-  VKDescriptorSetTracker &descriptor_set = context.descriptor_set_get();
-
-  switch (layout_get().storage_type_get()) {
-    case VKPushConstants::StorageType::NONE:
-      break;
-
-    case VKPushConstants::StorageType::PUSH_CONSTANTS:
-      if (!use_render_graph) {
-        VKCommandBuffers &command_buffers = context.command_buffers_get();
-        command_buffers.push_constants(*this,
-                                       shader->vk_pipeline_layout_get(),
-                                       shader->is_graphics_shader() ?
-                                           VK_SHADER_STAGE_ALL_GRAPHICS :
-                                           VK_SHADER_STAGE_COMPUTE_BIT);
-      }
-      break;
-
-    case VKPushConstants::StorageType::UNIFORM_BUFFER:
-      update_uniform_buffer();
-      descriptor_set.bind(*uniform_buffer_get(), layout_get().descriptor_set_location_get());
-      break;
-  }
 }
 
 void VKPushConstants::update_uniform_buffer()

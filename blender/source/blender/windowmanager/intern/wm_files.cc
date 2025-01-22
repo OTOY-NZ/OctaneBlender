@@ -38,6 +38,7 @@
 #include "BLI_filereader.h"
 #include "BLI_linklist.h"
 #include "BLI_math_time.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_system.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
@@ -76,7 +77,8 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
-#include "BKE_packedFile.h"
+#include "BKE_node.hh"
+#include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -106,10 +108,14 @@
 #include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
 
+#include "NOD_composite.hh"
+
 #include "GHOST_C-api.h"
 #include "GHOST_Path-api.hh"
 
 #include "GPU_context.hh"
+
+#include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -119,8 +125,8 @@
 #include "RE_engine.h"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_python.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_python.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "DEG_depsgraph.hh"
@@ -146,6 +152,17 @@ static void wm_history_file_write();
 static void wm_test_autorun_revert_action_exec(bContext *C);
 
 static CLG_LogRef LOG = {"wm.files"};
+
+/**
+ * Fast-path for down-scaling byte buffers.
+ *
+ * NOTE(@ideasman42) Support alternate logic for scaling byte buffers for
+ * thumbnails which doesn't use the higher quality box-filtered floating point math.
+ * This may be removed if similar performance can be achieved from other scale methods,
+ * especially in debug mode - which could cause file saving to be unreasonably slow
+ * (taking seconds just down-scaling the thumbnail).
+ */
+#define USE_THUMBNAIL_FAST_DOWNSCALE
 
 /* -------------------------------------------------------------------- */
 /** \name Misc Utility Functions
@@ -449,6 +466,21 @@ static void wm_file_read_setup_wm_finalize(bContext *C,
   /* Else just using the new WM read from file, nothing to do. */
   BLI_assert(wm_setup_data->old_wm == nullptr);
   MEM_delete(wm_setup_data);
+
+  /* UI Updates. */
+  /* Flag local View3D's to check and exit if they are empty. */
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(sl);
+          if (v3d->localvd) {
+            v3d->localvd->runtime.flag |= V3D_RUNTIME_LOCAL_MAYBE_EMPTY;
+          }
+        }
+      }
+    }
+  }
 }
 
 /** \} */
@@ -494,7 +526,10 @@ static void wm_init_userdef(Main *bmain)
     SET_FLAG_FROM_TEST(G.f, U.flag & USER_INTERNET_ALLOW, G_FLAG_INTERNET_ALLOW);
   }
 
-  MEM_CacheLimiter_set_maximum(size_t(U.memcachelimit) * 1024 * 1024);
+  const int64_t cache_limit = int64_t(U.memcachelimit) * 1024 * 1024;
+  MEM_CacheLimiter_set_maximum(cache_limit);
+  blender::memory_cache::set_approximate_size_limit(cache_limit);
+
   BKE_sound_init(bmain);
 
   /* Update the temporary directory from the preferences or fallback to the system default. */
@@ -757,7 +792,7 @@ static void wm_file_read_post(bContext *C,
     /* Translate workspace names. */
     LISTBASE_FOREACH_MUTABLE (WorkSpace *, workspace, &bmain->workspaces) {
       BKE_libblock_rename(
-          bmain, &workspace->id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2));
+          *bmain, workspace->id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2));
     }
   }
 
@@ -784,6 +819,19 @@ static void wm_file_read_post(bContext *C,
     wm_event_do_depsgraph(C, true);
 
     ED_editors_init(C);
+
+    /* Add-ons are disabled when loading the startup file, so the Render Layer node in compositor
+     * node trees might be wrong due to missing render engines that are available as add-ons, like
+     * Cycles. So we need to update compositor node trees after reading the file when add-ons are
+     * now loaded. */
+    if (is_startup_file) {
+      FOREACH_NODETREE_BEGIN (bmain, node_tree, owner_id) {
+        if (node_tree->type == NTREE_COMPOSIT) {
+          ntreeCompositUpdateRLayers(node_tree);
+        }
+      }
+      FOREACH_NODETREE_END;
+    }
 
 #if 1
     WM_event_add_notifier(C, NC_WM | ND_FILEREAD, nullptr);
@@ -986,7 +1034,7 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
                 RPT_ERROR,
                 "%d sequence strips were not read because they were in a channel larger than %d",
                 bf_reports->count.sequence_strips_skipped,
-                MAXSEQ);
+                SEQ_MAX_CHANNELS);
   }
 
   BLI_linklist_free(bf_reports->resynced_lib_overrides_libraries, nullptr);
@@ -1103,17 +1151,6 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
   else {
     BKE_reportf(reports, RPT_ERROR, "Unknown error loading \"%s\"", filepath);
     BLI_assert_msg(0, "invalid 'retval'");
-  }
-
-  if (success == false) {
-    /* Remove from recent files list. */
-    if (do_history_file_update) {
-      RecentFile *recent = wm_file_history_find(filepath);
-      if (recent) {
-        wm_history_file_free(recent);
-        wm_history_file_write();
-      }
-    }
   }
 
   WM_cursor_wait(false);
@@ -1707,6 +1744,113 @@ static void wm_history_file_update()
  *
  * \{ */
 
+#ifdef USE_THUMBNAIL_FAST_DOWNSCALE
+static uint8_t *blend_file_thumb_fast_downscale(const uint8_t *src_rect,
+                                                const int src_size[2],
+                                                const int dst_size[2])
+{
+  /* NOTE: this is a faster alternative to #IMBScaleFilter::Box which is
+   * especially slow in debug builds, normally debug performance isn't a
+   * consideration however it's slow enough to get in the way of development.
+   * In release builds this gives ~1.4x speedup. */
+
+  /* Scaling using a box-filter where each box uses an integer-rounded region.
+   * Accept a slightly lower quality scale as this is only for thumbnails.
+   * In practice the result is visually indistinguishable.
+   *
+   * Technically the color accumulation *could* overflow (creating some invalid pixels),
+   * however this would require the source image to be larger than
+   * 65,535 pixels squared (when scaling down to 256x256).
+   * As the source input is a screenshot or a small camera render created for the thumbnail,
+   * this isn't a concern. */
+
+  BLI_assert(dst_size[0] <= src_size[0] && dst_size[1] <= src_size[1]);
+  uint8_t *dst_rect = static_cast<uint8_t *>(
+      MEM_mallocN(sizeof(uint8_t[4]) * dst_size[0] * dst_size[1], __func__));
+
+  /* A row, the width of the destination to accumulate pixel values into
+   * before writing into the image. */
+  uint32_t *accum_row = static_cast<uint32_t *>(
+      MEM_callocN(sizeof(uint32_t) * dst_size[0] * 4, __func__));
+
+#  ifndef NDEBUG
+  /* Assert that samples are calculated correctly. */
+  uint64_t sample_count_all = 0;
+#  endif
+
+  const uint32_t src_size_x = src_size[0];
+  const uint32_t src_size_y = src_size[1];
+
+  const uint32_t dst_size_x = dst_size[0];
+  const uint32_t dst_size_y = dst_size[1];
+  const uint8_t *src_px = src_rect;
+
+  uint32_t src_y = 0;
+  for (uint32_t dst_y = 0; dst_y < dst_size_y; dst_y++) {
+    const uint32_t src_y_beg = src_y;
+    const uint32_t src_y_end = ((dst_y + 1) * src_size_y) / dst_size_y;
+    for (; src_y < src_y_end; src_y++) {
+      uint32_t *accum = accum_row;
+      uint32_t src_x = 0;
+      for (uint32_t dst_x = 0; dst_x < dst_size_x; dst_x++, accum += 4) {
+        const uint32_t src_x_end = ((dst_x + 1) * src_size_x) / dst_size_x;
+        for (; src_x < src_x_end; src_x++) {
+          accum[0] += uint32_t(src_px[0]);
+          accum[1] += uint32_t(src_px[1]);
+          accum[2] += uint32_t(src_px[2]);
+          accum[3] += uint32_t(src_px[3]);
+          src_px += 4;
+        }
+        BLI_assert(src_x == src_x_end);
+      }
+      BLI_assert(accum == accum_row + (4 * dst_size[0]));
+    }
+
+    uint32_t *accum = accum_row;
+    uint8_t *dst_px = dst_rect + ((dst_y * dst_size_x) * 4);
+    uint32_t src_x_beg = 0;
+    const uint32_t span_y = src_y_end - src_y_beg;
+    for (uint32_t dst_x = 0; dst_x < dst_size_x; dst_x++) {
+      const uint32_t src_x_end = ((dst_x + 1) * src_size_x) / dst_size_x;
+      const uint32_t span_x = src_x_end - src_x_beg;
+
+      const uint32_t sample_count = span_x * span_y;
+      dst_px[0] = uint8_t(accum[0] / sample_count);
+      dst_px[1] = uint8_t(accum[1] / sample_count);
+      dst_px[2] = uint8_t(accum[2] / sample_count);
+      dst_px[3] = uint8_t(accum[3] / sample_count);
+      accum[0] = accum[1] = accum[2] = accum[3] = 0;
+      accum += 4;
+      dst_px += 4;
+
+      src_x_beg = src_x_end;
+#  ifndef NDEBUG
+      sample_count_all += sample_count;
+#  endif
+    }
+  }
+  BLI_assert(src_px == src_rect + (sizeof(uint8_t[4]) * src_size[0] * src_size[1]));
+  BLI_assert(sample_count_all == size_t(src_size[0]) * size_t(src_size[1]));
+
+  MEM_freeN(accum_row);
+  return dst_rect;
+}
+#endif /* USE_THUMBNAIL_FAST_DOWNSCALE */
+
+static blender::int2 blend_file_thumb_clamp_size(const int size[2], const int limit)
+{
+  blender::int2 result;
+  if (size[0] > size[1]) {
+    result.x = limit;
+    result.y = max_ii(1, int((float(size[1]) / float(size[0])) * limit));
+  }
+  else {
+    result.x = max_ii(1, int((float(size[0]) / float(size[1])) * limit));
+    result.y = limit;
+  }
+  return result;
+}
+
 /**
  * Screen-shot the active window.
  */
@@ -1720,7 +1864,7 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
   }
 
   /* The window to capture should be a main window (without parent). */
-  while (win && win->parent) {
+  while (win->parent) {
     win = win->parent;
   }
 
@@ -1728,36 +1872,49 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
   int win_size[2];
   /* NOTE: always read from front-buffer as drawing a window can cause problems while saving,
    * even if this means the thumbnail from the screen-shot fails to be created, see: #98462. */
-  uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size);
-  ImBuf *ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
+  ImBuf *ibuf = nullptr;
+
+  if (uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size)) {
+    const blender::int2 thumb_size_2x = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE * 2);
+    const blender::int2 thumb_size = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE);
+
+#ifdef USE_THUMBNAIL_FAST_DOWNSCALE
+    if ((thumb_size_2x[0] <= win_size[0]) && (thumb_size_2x[1] <= win_size[1])) {
+      uint8_t *rect_2x = blend_file_thumb_fast_downscale(buffer, win_size, thumb_size_2x);
+      uint8_t *rect = blend_file_thumb_fast_downscale(rect_2x, thumb_size_2x, thumb_size);
+
+      MEM_freeN(buffer);
+      ibuf = IMB_allocFromBufferOwn(rect_2x, nullptr, thumb_size_2x.x, thumb_size_2x.y, 24);
+
+      BlendThumbnail *thumb = BKE_main_thumbnail_from_buffer(nullptr, rect, thumb_size);
+      MEM_freeN(rect);
+      *r_thumb = thumb;
+    }
+    else
+#endif /* USE_THUMBNAIL_FAST_DOWNSCALE */
+    {
+      ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
+      BLI_assert(ibuf != nullptr); /* Never expected to fail. */
+
+      /* File-system thumbnail image can be 256x256. */
+      IMB_scale(ibuf, thumb_size_2x.x, thumb_size_2x.y, IMBScaleFilter::Box, false);
+
+      /* Thumbnail inside blend should be 128x128. */
+      ImBuf *thumb_ibuf = IMB_dupImBuf(ibuf);
+      IMB_scale(thumb_ibuf, thumb_size.x, thumb_size.y, IMBScaleFilter::Box, false);
+
+      BlendThumbnail *thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
+      IMB_freeImBuf(thumb_ibuf);
+      *r_thumb = thumb;
+    }
+  }
 
   if (ibuf) {
-    int ex, ey;
-    if (ibuf->x > ibuf->y) {
-      ex = BLEN_THUMB_SIZE;
-      ey = max_ii(1, int((float(ibuf->y) / float(ibuf->x)) * BLEN_THUMB_SIZE));
-    }
-    else {
-      ex = max_ii(1, int((float(ibuf->x) / float(ibuf->y)) * BLEN_THUMB_SIZE));
-      ey = BLEN_THUMB_SIZE;
-    }
-
-    /* File-system thumbnail image can be 256x256. */
-    IMB_scaleImBuf(ibuf, ex * 2, ey * 2);
-
     /* Save metadata for quick access. */
-    char version_st[10] = {0};
-    SNPRINTF(version_st, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
+    char version_str[10];
+    SNPRINTF(version_str, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
     IMB_metadata_ensure(&ibuf->metadata);
-    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_st);
-
-    /* Thumbnail inside blend should be 128x128. */
-    ImBuf *thumb_ibuf = IMB_dupImBuf(ibuf);
-    IMB_scaleImBuf(thumb_ibuf, ex, ey);
-
-    BlendThumbnail *thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
-    IMB_freeImBuf(thumb_ibuf);
-    *r_thumb = thumb;
+    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_str);
   }
 
   /* Must be freed by caller. */
@@ -1862,17 +2019,21 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
     thumb_ibuf = IMB_dupImBuf(ibuf);
 
     /* Save metadata for quick access. */
-    char version_st[10] = {0};
-    SNPRINTF(version_st, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
+    char version_str[10];
+    SNPRINTF(version_str, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
     IMB_metadata_ensure(&ibuf->metadata);
-    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_st);
+    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_str);
 
     /* BLEN_THUMB_SIZE is size of thumbnail inside blend file: 128x128. */
-    IMB_scaleImBuf(thumb_ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE);
+    IMB_scale(thumb_ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE, IMBScaleFilter::Box, false);
     thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
     IMB_freeImBuf(thumb_ibuf);
     /* Thumbnail saved to file-system should be 256x256. */
-    IMB_scaleImBuf(ibuf, PREVIEW_RENDER_LARGE_HEIGHT, PREVIEW_RENDER_LARGE_HEIGHT);
+    IMB_scale(ibuf,
+              PREVIEW_RENDER_LARGE_HEIGHT,
+              PREVIEW_RENDER_LARGE_HEIGHT,
+              IMBScaleFilter::Box,
+              false);
   }
   else {
     /* '*r_thumb' needs to stay nullptr to prevent a bad thumbnail from being handled. */
@@ -1920,6 +2081,13 @@ static bool wm_file_write_check_with_report_on_failure(Main *bmain,
 
   if (filepath_len >= FILE_MAX) {
     BKE_report(reports, RPT_ERROR, "Path too long, cannot save");
+    return false;
+  }
+
+  if (bmain->is_asset_edit_file &&
+      blender::StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX))
+  {
+    BKE_report(reports, RPT_ERROR, "Cannot overwrite files that are managed by the asset system");
     return false;
   }
 
@@ -2535,11 +2703,6 @@ static int wm_userpref_read_exec(bContext *C, wmOperator *op)
     U.runtime.is_dirty = true;
   }
 
-  /* Ensure the correct icon textures are loaded. When the current theme didn't had an
-   * #icon_border_intensity, but the loaded theme has, the icon with border intensity needs to be
-   * loaded. */
-  UI_icons_reload_internal_textures();
-
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
 
   /* Needed to recalculate UI scaling values (eg, #UserDef.inv_dpi_fac). */
@@ -3062,13 +3225,13 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   }
 
   /* Date. */
-  char date_st[FILELIST_DIRENTRY_DATE_LEN];
-  char time_st[FILELIST_DIRENTRY_TIME_LEN];
+  char date_str[FILELIST_DIRENTRY_DATE_LEN];
+  char time_str[FILELIST_DIRENTRY_TIME_LEN];
   bool is_today, is_yesterday;
   BLI_filelist_entry_datetime_to_string(
-      nullptr, int64_t(stats.st_mtime), false, time_st, date_st, &is_today, &is_yesterday);
+      nullptr, int64_t(stats.st_mtime), false, time_str, date_str, &is_today, &is_yesterday);
   if (is_today || is_yesterday) {
-    STRNCPY(date_st, is_today ? TIP_("Today") : TIP_("Yesterday"));
+    STRNCPY(date_str, is_today ? TIP_("Today") : TIP_("Yesterday"));
   }
 
   /* Size. */
@@ -3078,8 +3241,8 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   return fmt::format("{}\n\n{}: {} {}\n{}: {}",
                      filepath,
                      TIP_("Modified"),
-                     date_st,
-                     time_st,
+                     date_str,
+                     time_str,
                      TIP_("Size"),
                      size_str);
 }
@@ -3268,7 +3431,7 @@ static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
   if (WM_file_recover_last_session(C, op->reports)) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
-      PointerRNA *props_ptr = MEM_cnew<PointerRNA>(__func__);
+      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__);
       WM_operator_properties_create_ptr(props_ptr, ot);
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
@@ -3336,7 +3499,7 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
   if (success) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
-      PointerRNA *props_ptr = MEM_cnew<PointerRNA>(__func__);
+      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__);
       WM_operator_properties_create_ptr(props_ptr, ot);
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
@@ -3427,6 +3590,17 @@ static void save_set_filepath(bContext *C, wmOperator *op)
     }
     else {
       STRNCPY(filepath, blendfile_path);
+    }
+
+    /* For convenience when using "Save As" on asset system files:
+     * Replace `.asset.blend` extension with just `.blend`.
+     * Asset system files must not be overridden (except by the asset system),
+     * there are further checks to prevent this entirely. */
+    if (bmain->is_asset_edit_file &&
+        blender::StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX))
+    {
+      filepath[strlen(filepath) - strlen(BLENDER_ASSET_FILE_SUFFIX)] = '\0';
+      BLI_path_extension_ensure(filepath, FILE_MAX, ".blend");
     }
 
     wm_filepath_default(bmain, filepath);
@@ -3527,19 +3701,21 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!is_save_as) {
-    /* If saved as current file, there are technically no more compatibility issues, the file on
-     * disk now matches the currently opened data version-wise. */
+  if (!use_save_as_copy) {
+    /* If saved file is the active one, there are technically no more compatibility issues, the
+     * file on disk now matches the currently opened data version-wise. */
     bmain->has_forward_compatibility_issues = false;
-  }
 
-  WM_event_add_notifier(C, NC_WM | ND_FILESAVE, nullptr);
-  if (wmWindowManager *wm = CTX_wm_manager(C)) {
-    /* Restart auto-save timer to avoid unnecessary unexpected freezing (because of auto-save) when
-     * often saving manually. */
-    wm_autosave_timer_end(wm);
-    wm_autosave_timer_begin(wm);
-    wm->autosave_scheduled = false;
+    /* If saved file is the active one, notify WM so that saved status and window title can be
+     * updated. */
+    WM_event_add_notifier(C, NC_WM | ND_FILESAVE, nullptr);
+    if (wmWindowManager *wm = CTX_wm_manager(C)) {
+      /* Restart auto-save timer to avoid unnecessary unexpected freezing (because of auto-save)
+       * when often saving manually. */
+      wm_autosave_timer_end(wm);
+      wm_autosave_timer_begin(wm);
+      wm->autosave_scheduled = false;
+    }
   }
 
   if (!is_save_as && RNA_boolean_get(op->ptr, "exit")) {
@@ -3644,7 +3820,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent * 
   }
 
   if (blendfile_path[0] != '\0') {
-    if (CTX_data_main(C)->has_forward_compatibility_issues) {
+    if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
       wm_save_file_overwrite_dialog(C, op);
       ret = OPERATOR_INTERFACE;
     }
@@ -3717,23 +3893,49 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
 /** \name Clear Recent Files List Operator
  * \{ */
 
-static int wm_clear_recent_files_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+enum ClearRecentInclude { CLEAR_RECENT_ALL, CLEAR_RECENT_MISSING };
+
+static const EnumPropertyItem prop_clear_recent_types[] = {
+    {CLEAR_RECENT_ALL, "ALL", 0, "All Items", ""},
+    {CLEAR_RECENT_MISSING, "MISSING", 0, "Items Not Found", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static int wm_clear_recent_files_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  return WM_operator_confirm_ex(C,
-                                op,
-                                nullptr,
-                                IFACE_("Remove all items from the recent files list"),
-                                IFACE_("Remove All"),
-                                ALERT_ICON_WARNING,
-                                false);
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Clear Recent Files List"), IFACE_("Remove"));
 }
 
-static int wm_clear_recent_files_exec(bContext * /*C*/, wmOperator * /*op*/)
+static int wm_clear_recent_files_exec(bContext * /*C*/, wmOperator *op)
 {
-  wm_history_files_free();
+  ClearRecentInclude include = static_cast<ClearRecentInclude>(RNA_enum_get(op->ptr, "remove"));
+
+  if (include == CLEAR_RECENT_ALL) {
+    wm_history_files_free();
+  }
+  else if (include == CLEAR_RECENT_MISSING) {
+    LISTBASE_FOREACH_MUTABLE (RecentFile *, recent, &G.recent_files) {
+      if (!BLI_exists(recent->filepath)) {
+        BLI_freelinkN(&G.recent_files, recent);
+      }
+    }
+  }
+
   wm_history_file_write();
 
   return OPERATOR_FINISHED;
+}
+
+static void wm_clear_recent_files_ui(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiItemS(layout);
+  uiItemR(layout, op->ptr, "remove", UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
+  uiItemS(layout);
 }
 
 void WM_OT_clear_recent_files(wmOperatorType *ot)
@@ -3744,6 +3946,14 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 
   ot->invoke = wm_clear_recent_files_invoke;
   ot->exec = wm_clear_recent_files_exec;
+  ot->ui = wm_clear_recent_files_ui;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
+
+  /* props */
+  ot->prop = RNA_def_enum(
+      ot->srna, "remove", prop_clear_recent_types, CLEAR_RECENT_ALL, "Remove", "");
 }
 
 /** \} */
@@ -3922,7 +4132,7 @@ void wm_test_autorun_revert_action_set(wmOperatorType *ot, PointerRNA *ptr)
   wm_test_autorun_revert_action_data.ot = nullptr;
   if (wm_test_autorun_revert_action_data.ptr != nullptr) {
     WM_operator_properties_free(wm_test_autorun_revert_action_data.ptr);
-    MEM_freeN(wm_test_autorun_revert_action_data.ptr);
+    MEM_delete(wm_test_autorun_revert_action_data.ptr);
     wm_test_autorun_revert_action_data.ptr = nullptr;
   }
   wm_test_autorun_revert_action_data.ot = ot;
@@ -3937,7 +4147,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
   /* Use regular revert. */
   if (ot == nullptr) {
     ot = WM_operatortype_find("WM_OT_revert_mainfile", false);
-    ptr = MEM_cnew<PointerRNA>(__func__);
+    ptr = MEM_new<PointerRNA>(__func__);
     WM_operator_properties_create_ptr(ptr, ot);
     RNA_boolean_set(ptr, "use_scripts", true);
 
@@ -4006,31 +4216,44 @@ static void file_overwrite_detailed_info_show(uiLayout *parent_layout, Main *bma
    * block. */
   uiLayoutSetScaleY(layout, 0.70f);
 
-  char writer_ver_str[16];
-  char current_ver_str[16];
-  if (bmain->versionfile == BLENDER_VERSION) {
-    BKE_blender_version_blendfile_string_from_values(
-        writer_ver_str, sizeof(writer_ver_str), bmain->versionfile, bmain->subversionfile);
-    BKE_blender_version_blendfile_string_from_values(
-        current_ver_str, sizeof(current_ver_str), BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
-  }
-  else {
-    BKE_blender_version_blendfile_string_from_values(
-        writer_ver_str, sizeof(writer_ver_str), bmain->versionfile, -1);
-    BKE_blender_version_blendfile_string_from_values(
-        current_ver_str, sizeof(current_ver_str), BLENDER_VERSION, -1);
+  if (bmain->has_forward_compatibility_issues) {
+    char writer_ver_str[16];
+    char current_ver_str[16];
+    if (bmain->versionfile == BLENDER_VERSION) {
+      BKE_blender_version_blendfile_string_from_values(
+          writer_ver_str, sizeof(writer_ver_str), bmain->versionfile, bmain->subversionfile);
+      BKE_blender_version_blendfile_string_from_values(
+          current_ver_str, sizeof(current_ver_str), BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
+    }
+    else {
+      BKE_blender_version_blendfile_string_from_values(
+          writer_ver_str, sizeof(writer_ver_str), bmain->versionfile, -1);
+      BKE_blender_version_blendfile_string_from_values(
+          current_ver_str, sizeof(current_ver_str), BLENDER_VERSION, -1);
+    }
+
+    char message_line1[256];
+    char message_line2[256];
+    SNPRINTF(message_line1,
+             RPT_("This file was saved by a newer version of Blender (%s)"),
+             writer_ver_str);
+    SNPRINTF(message_line2,
+             RPT_("Saving it with this Blender (%s) may cause loss of data"),
+             current_ver_str);
+    uiItemL(layout, message_line1, ICON_NONE);
+    uiItemL(layout, message_line2, ICON_NONE);
   }
 
-  char message_line1[256];
-  char message_line2[256];
-  SNPRINTF(message_line1,
-           RPT_("This file was saved by a newer version of Blender (%s)"),
-           writer_ver_str);
-  SNPRINTF(message_line2,
-           RPT_("Saving it with this Blender (%s) may cause loss of data"),
-           current_ver_str);
-  uiItemL(layout, message_line1, ICON_NONE);
-  uiItemL(layout, message_line2, ICON_NONE);
+  if (bmain->is_asset_edit_file) {
+    if (bmain->has_forward_compatibility_issues) {
+      uiItemS_ex(layout, 1.4f);
+    }
+
+    uiItemL(layout,
+            RPT_("This file is managed by the Blender asset system. It can only be"),
+            ICON_NONE);
+    uiItemL(layout, RPT_("saved as a new, regular file."), ICON_NONE);
+  }
 }
 
 static void save_file_overwrite_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
@@ -4131,8 +4354,30 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
   uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_WARNING);
 
   /* Title. */
-  uiItemL_ex(
-      layout, RPT_("Overwrite file with an older Blender version?"), ICON_NONE, true, false);
+  if (bmain->has_forward_compatibility_issues) {
+    if (bmain->is_asset_edit_file) {
+      uiItemL_ex(layout,
+                 RPT_("Cannot overwrite asset system files. Save as new file"),
+                 ICON_NONE,
+                 true,
+                 false);
+      uiItemL_ex(layout, RPT_("with an older Blender version?"), ICON_NONE, true, false);
+    }
+    else {
+      uiItemL_ex(
+          layout, RPT_("Overwrite file with an older Blender version?"), ICON_NONE, true, false);
+    }
+  }
+  else if (bmain->is_asset_edit_file) {
+    uiItemL_ex(layout,
+               RPT_("Cannot overwrite asset system files. Save as new file?"),
+               ICON_NONE,
+               true,
+               false);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
 
   /* Filename. */
   const char *blendfile_path = BKE_main_blendfile_path(CTX_data_main(C));
@@ -4159,7 +4404,11 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
   uiLayoutSetScaleY(split, 1.2f);
 
   uiLayoutColumn(split, false);
-  save_file_overwrite_confirm_button(block, post_action);
+  /* Asset files don't actually allow overriding. */
+  const bool allow_overwrite = !bmain->is_asset_edit_file;
+  if (allow_overwrite) {
+    save_file_overwrite_confirm_button(block, post_action);
+  }
 
   uiLayout *split_right = uiLayoutSplit(split, 0.1f, true);
 
@@ -4344,7 +4593,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
 
   uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_QUESTION);
 
-  const bool needs_overwrite_confirm = bmain->has_forward_compatibility_issues;
+  const bool needs_overwrite_confirm = BKE_main_needs_overwrite_confirm(bmain);
 
   /* Title. */
   uiItemL_ex(layout, RPT_("Save changes before closing?"), ICON_NONE, true, false);

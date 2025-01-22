@@ -368,12 +368,12 @@ typedef enum eSpaceOutliner_Filter {
 
   SO_FILTER_ID_TYPE = (1 << 19),
 
-  SO_FILTER_NO_OB_GPENCIL_LEGACY = (1 << 20),
+  SO_FILTER_NO_OB_GREASE_PENCIL = (1 << 20),
 } eSpaceOutliner_Filter;
 
 #define SO_FILTER_OB_TYPE \
   (SO_FILTER_NO_OB_MESH | SO_FILTER_NO_OB_ARMATURE | SO_FILTER_NO_OB_EMPTY | \
-   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_GPENCIL_LEGACY | \
+   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_GREASE_PENCIL | \
    SO_FILTER_NO_OB_OTHERS)
 
 #define SO_FILTER_OB_STATE \
@@ -1646,7 +1646,7 @@ typedef enum eSpaceNode_Flag {
   SNODE_SHOW_R = (1 << 7),
   SNODE_SHOW_G = (1 << 8),
   SNODE_SHOW_B = (1 << 9),
-  SNODE_AUTO_RENDER = (1 << 5),
+  SNODE_FLAG_UNUSED_5 = (1 << 5),   /* cleared */
   SNODE_FLAG_UNUSED_6 = (1 << 6),   /* cleared */
   SNODE_FLAG_UNUSED_10 = (1 << 10), /* cleared */
   SNODE_FLAG_UNUSED_11 = (1 << 11), /* cleared */
@@ -1954,6 +1954,10 @@ typedef struct SpreadsheetColumn {
   char *display_name;
 } SpreadsheetColumn;
 
+typedef struct SpreadsheetInstanceID {
+  int reference_index;
+} SpreadsheetInstanceID;
+
 typedef struct SpaceSpreadsheet {
   SpaceLink *next, *prev;
   /** Storage of regions for inactive spaces. */
@@ -1976,6 +1980,13 @@ typedef struct SpaceSpreadsheet {
    */
   ViewerPath viewer_path;
 
+  /**
+   * The "path" to the currently active instance reference. This is needed when viewing nested
+   * instances.
+   */
+  SpreadsheetInstanceID *instance_ids;
+  int instance_ids_num;
+
   /* eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
@@ -1990,7 +2001,6 @@ typedef struct SpaceSpreadsheet {
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
-  char _pad1[4];
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;

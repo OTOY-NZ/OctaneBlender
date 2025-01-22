@@ -32,7 +32,7 @@
 #include "BLI_math_bits.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_matrix.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
@@ -198,8 +198,8 @@ static void blf_batch_draw_init()
   g_batch.glyph_flags_loc = GPU_vertformat_attr_add(
       &format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
-  g_batch.verts = GPU_vertbuf_create_with_format_ex(&format, GPU_USAGE_STREAM);
-  GPU_vertbuf_data_alloc(g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
+  g_batch.verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STREAM);
+  GPU_vertbuf_data_alloc(*g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
 
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
@@ -209,8 +209,8 @@ static void blf_batch_draw_init()
   g_batch.glyph_len = 0;
 
   /* A dummy VBO containing 4 points, attributes are not used. */
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
 
   /* We render a quad as a triangle strip and instance it for each glyph. */
   g_batch.batch = GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
@@ -336,7 +336,7 @@ void blf_batch_draw()
   }
 
   GPUTexture *texture = blf_batch_cache_texture_load();
-  GPU_vertbuf_data_len_set(g_batch.verts, g_batch.glyph_len);
+  GPU_vertbuf_data_len_set(*g_batch.verts, g_batch.glyph_len);
   GPU_vertbuf_use(g_batch.verts); /* Send data. */
 
   GPU_batch_program_set_builtin(g_batch.batch, GPU_SHADER_TEXT);
@@ -412,7 +412,7 @@ BLI_INLINE ft_pix blf_kerning(FontBLF *font, const GlyphBLF *g_prev, const Glyph
 
 BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
                                                   GlyphCacheBLF *gc,
-                                                  GlyphBLF *g_prev,
+                                                  const GlyphBLF *g_prev,
                                                   const char *str,
                                                   size_t str_len,
                                                   size_t *i_p,
@@ -523,6 +523,95 @@ int blf_font_draw_mono(
   blf_glyph_cache_release(font);
   return columns;
 }
+
+#ifndef WITH_HEADLESS
+void blf_draw_svg_icon(FontBLF *font,
+                       uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       const float color[4],
+                       float outline_alpha,
+                       bool multicolor,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+  blf_font_size(font, size);
+  font->pos[0] = int(x);
+  font->pos[1] = int(y);
+  font->pos[2] = 0;
+
+  if (color != nullptr) {
+    rgba_float_to_uchar(font->color, color);
+  }
+
+  if (outline_alpha > 0.0f) {
+    font->flags |= BLF_SHADOW;
+    font->shadow = FontShadowType::Outline;
+    font->shadow_x = 0;
+    font->shadow_y = 0;
+    font->shadow_color[0] = 0;
+    font->shadow_color[1] = 0;
+    font->shadow_color[2] = 0;
+    font->shadow_color[3] = char(outline_alpha * 255.0f);
+  }
+
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  blf_batch_draw_begin(font);
+
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+  if (g) {
+    blf_glyph_draw(font, gc, g, 0, 0);
+  }
+
+  if (outline_alpha > 0) {
+    font->flags &= ~BLF_SHADOW;
+  }
+
+  blf_batch_draw_end();
+  blf_glyph_cache_release(font);
+}
+
+blender::Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
+                                          uint icon_id,
+                                          float size,
+                                          int *r_width,
+                                          int *r_height,
+                                          bool multicolor,
+                                          blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+  blf_font_size(font, size);
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+
+  if (!g) {
+    blf_glyph_cache_release(font);
+    *r_width = 0;
+    *r_height = 0;
+    return {};
+  }
+
+  *r_width = g->dims[0];
+  *r_height = g->dims[1];
+  blender::Array<uchar> bitmap(g->dims[0] * g->dims[1] * 4);
+
+  if (g->num_channels == 4) {
+    memcpy(bitmap.data(), g->bitmap, size_t(bitmap.size()));
+  }
+  else if (g->num_channels == 1) {
+    for (int64_t y = 0; y < int64_t(g->dims[1]); y++) {
+      for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
+        int64_t offs_in = (y * int64_t(g->pitch)) + x;
+        bitmap[int64_t(offs_in * 4)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 1)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 2)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 3)] = g->bitmap[offs_in];
+      }
+    }
+  }
+  blf_glyph_cache_release(font);
+  return bitmap;
+}
+#endif /* WITH_HEADLESS */
 
 /** \} */
 
@@ -693,7 +782,7 @@ void blf_font_draw_buffer(FontBLF *font, const char *str, const size_t str_len, 
 
 static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
                                                    GlyphCacheBLF *gc,
-                                                   GlyphBLF *g_prev,
+                                                   const GlyphBLF *g_prev,
                                                    GlyphBLF *g,
                                                    ft_pix *pen_x,
                                                    const int width_i)
@@ -728,7 +817,8 @@ static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
 size_t blf_font_width_to_strlen(
     FontBLF *font, const char *str, const size_t str_len, int width, int *r_width)
 {
-  GlyphBLF *g, *g_prev;
+  GlyphBLF *g;
+  const GlyphBLF *g_prev;
   ft_pix pen_x;
   ft_pix width_new;
   size_t i, i_prev;
@@ -777,11 +867,9 @@ size_t blf_font_width_to_rstrlen(
     s_prev = BLI_str_find_prev_char_utf8(s, str);
     i_prev = size_t(s_prev - str);
 
-    if (s_prev != nullptr) {
-      i_tmp = i_prev;
-      g_prev = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-      BLI_assert(i_tmp == i);
-    }
+    i_tmp = i_prev;
+    g_prev = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
+    BLI_assert(i_tmp == i);
 
     if (blf_font_width_to_strlen_glyph_process(font, gc, g_prev, g, &pen_x, width)) {
       break;
@@ -806,11 +894,11 @@ static void blf_font_boundbox_ex(FontBLF *font,
                                  GlyphCacheBLF *gc,
                                  const char *str,
                                  const size_t str_len,
-                                 rcti *box,
+                                 rcti *r_box,
                                  ResultBLF *r_info,
                                  ft_pix pen_y)
 {
-  GlyphBLF *g = nullptr;
+  const GlyphBLF *g = nullptr;
   ft_pix pen_x = 0;
   size_t i = 0;
 
@@ -856,10 +944,10 @@ static void blf_font_boundbox_ex(FontBLF *font,
     box_ymax = 0;
   }
 
-  box->xmin = ft_pix_to_int_floor(box_xmin);
-  box->xmax = ft_pix_to_int_ceil(box_xmax);
-  box->ymin = ft_pix_to_int_floor(box_ymin);
-  box->ymax = ft_pix_to_int_ceil(box_ymax);
+  r_box->xmin = ft_pix_to_int_floor(box_xmin);
+  r_box->xmax = ft_pix_to_int_ceil(box_xmax);
+  r_box->ymin = ft_pix_to_int_floor(box_ymin);
+  r_box->ymax = ft_pix_to_int_ceil(box_ymax);
 
   if (r_info) {
     r_info->lines = 1;
@@ -964,7 +1052,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
     return;
   }
 
-  GlyphBLF *g = nullptr;
+  const GlyphBLF *g = nullptr;
   ft_pix pen_x = 0;
   size_t i = 0;
 
@@ -1067,18 +1155,21 @@ static bool blf_str_offset_foreach_glyph(const char * /*str*/,
 void blf_str_offset_to_glyph_bounds(FontBLF *font,
                                     const char *str,
                                     size_t str_offset,
-                                    rcti *glyph_bounds)
+                                    rcti *r_glyph_bounds)
 {
   StrOffsetToGlyphBounds_Data data{};
   data.str_offset = str_offset;
   data.bounds = {0};
 
   blf_font_boundbox_foreach_glyph(font, str, str_offset + 1, blf_str_offset_foreach_glyph, &data);
-  *glyph_bounds = data.bounds;
+  *r_glyph_bounds = data.bounds;
 }
 
-int blf_str_offset_to_cursor(
-    FontBLF *font, const char *str, size_t str_len, size_t str_offset, float cursor_width)
+int blf_str_offset_to_cursor(FontBLF *font,
+                             const char *str,
+                             const size_t str_len,
+                             const size_t str_offset,
+                             const int cursor_width)
 {
   if (!str || !str[0]) {
     return 0;
@@ -1098,23 +1189,23 @@ int blf_str_offset_to_cursor(
 
   if ((prev.xmax == prev.xmin) && next.xmax) {
     /* Nothing (or a space) to the left, so align to right character. */
-    return next.xmin - int(cursor_width);
+    return next.xmin - (cursor_width / 2);
   }
   if ((prev.xmax != prev.xmin) && !next.xmax) {
     /* End of string, so align to last character. */
-    return prev.xmax;
+    return prev.xmax - (cursor_width / 2);
   }
   if (prev.xmax && next.xmax) {
     /* Between two characters, so use the center. */
-    if (next.xmin >= prev.xmax) {
-      return int((float(prev.xmax + next.xmin) - cursor_width) / 2.0f);
+    if (next.xmin >= prev.xmax || next.xmin == next.xmax) {
+      return ((prev.xmax + next.xmin) - cursor_width) / 2;
     }
     /* A nicer center if reversed order - RTL. */
-    return int((float(next.xmax + prev.xmin) - cursor_width) / 2.0f);
+    return ((next.xmax + prev.xmin) - cursor_width) / 2;
   }
   if (!str_offset) {
     /* Start of string. */
-    return 0 - int(cursor_width);
+    return 0 - cursor_width;
   }
   return int(blf_font_width(font, str, str_len, nullptr));
 }
@@ -1123,8 +1214,8 @@ blender::Vector<blender::Bounds<int>> blf_str_selection_boxes(
     FontBLF *font, const char *str, size_t str_len, size_t sel_start, size_t sel_length)
 {
   blender::Vector<blender::Bounds<int>> boxes;
-  const int start = blf_str_offset_to_cursor(font, str, str_len, sel_start, 0.0f);
-  const int end = blf_str_offset_to_cursor(font, str, str_len, sel_start + sel_length, 0.0f);
+  const int start = blf_str_offset_to_cursor(font, str, str_len, sel_start, 0);
+  const int end = blf_str_offset_to_cursor(font, str, str_len, sel_start + sel_length, 0);
   boxes.append(blender::Bounds(start, end));
   return boxes;
 }
@@ -1158,7 +1249,7 @@ static void blf_font_wrap_apply(FontBLF *font,
                                 void *userdata)
 {
   GlyphBLF *g = nullptr;
-  GlyphBLF *g_prev = nullptr;
+  const GlyphBLF *g_prev = nullptr;
   ft_pix pen_x = 0;
   ft_pix pen_y = 0;
   size_t i = 0;

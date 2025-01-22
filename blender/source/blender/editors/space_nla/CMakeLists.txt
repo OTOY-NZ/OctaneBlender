@@ -11,7 +11,7 @@ set(INC
   ../../makesrna
   ../../windowmanager
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -32,13 +32,18 @@ set(SRC
 
 set(LIB
   bf_blenkernel
+  PRIVATE bf::animrig
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )
 
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_ANIM_BAKLAVA)
+endif()
+
 blender_add_lib(bf_editor_space_nla "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_nla bf_rna)

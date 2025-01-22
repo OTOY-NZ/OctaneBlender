@@ -23,7 +23,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_animsys.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -127,9 +127,9 @@ static const char *give_seqname_by_type(int type)
     case SEQ_TYPE_ADD:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Add");
     case SEQ_TYPE_SUB:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Sub");
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Subtract");
     case SEQ_TYPE_MUL:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mul");
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Multiply");
     case SEQ_TYPE_ALPHAOVER:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Alpha Over");
     case SEQ_TYPE_ALPHAUNDER:
@@ -373,19 +373,6 @@ ListBase *SEQ_get_seqbase_by_seq(const Scene *scene, Sequence *seq)
   if (BLI_findindex(main_seqbase, seq) != -1) {
     return main_seqbase;
   }
-  return nullptr;
-}
-
-Sequence *SEQ_get_meta_by_seqbase(ListBase *seqbase_main, ListBase *meta_seqbase)
-{
-  blender::VectorSet strips = SEQ_query_all_meta_strips_recursive(seqbase_main);
-
-  for (Sequence *seq : strips) {
-    if (&seq->seqbase == meta_seqbase) {
-      return seq;
-    }
-  }
-
   return nullptr;
 }
 

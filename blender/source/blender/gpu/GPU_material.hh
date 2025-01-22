@@ -21,7 +21,6 @@
 
 struct GHash;
 struct GPUMaterial;
-struct GPUNode;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUPass;
@@ -84,13 +83,6 @@ enum eGPUMaterialFlag {
   GPU_MATFLAG_AOV = (1 << 19),
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
-
-  /* Optimization to only add the branches of the principled shader that are necessary. */
-  GPU_MATFLAG_PRINCIPLED_COAT = (1 << 21),
-  GPU_MATFLAG_PRINCIPLED_METALLIC = (1 << 22),
-  GPU_MATFLAG_PRINCIPLED_DIELECTRIC = (1 << 23),
-  GPU_MATFLAG_PRINCIPLED_GLASS = (1 << 24),
-  GPU_MATFLAG_PRINCIPLED_ANY = (1 << 25),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
@@ -189,7 +181,7 @@ GPUNodeLink *GPU_image_sky(GPUMaterial *mat,
                            const float *pixels,
                            float *layer,
                            GPUSamplerState sampler_state);
-GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *row);
+GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_row);
 
 /**
  * Create an implementation defined differential calculation of a float function.
@@ -228,10 +220,6 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
                                       GPUNodeLink **link);
 
 bool GPU_material_sss_profile_create(GPUMaterial *material, float radii[3]);
-GPUUniformBuf *GPU_material_sss_profile_get(GPUMaterial *material,
-                                            int sample_len,
-                                            GPUTexture **tex_profile);
-
 /**
  * High level functions to create and use GPU materials.
  */
@@ -260,29 +248,9 @@ void GPU_material_compile(GPUMaterial *mat);
 void GPU_material_free_single(GPUMaterial *material);
 void GPU_material_free(ListBase *gpumaterial);
 
-/**
- * Request the creation of multiple `GPUMaterial`s at once, allowing the backend to use
- * multithreaded compilation.
- * Returns a handle that can be used to poll if all materials have been
- * compiled, and to retrieve the compiled result.
- * NOTE: This function is asynchronous on OpenGL, but it's blocking on Vulkan and Metal.
- * WARNING: The material pointers and their pass->create_info should be valid until
- * `GPU_material_batch_finalize` has returned.
- */
-BatchHandle GPU_material_batch_compile(blender::Span<GPUMaterial *> mats);
-/**
- * Returns true if all the materials from the batch have finished their compilation.
- */
-bool GPU_material_batch_is_ready(BatchHandle handle);
-/**
- * Assign the compiled shaders to their respective materials and flag their status.
- * The materials list should have the same length and order as in the `GPU_material_batch_compile`
- * call.
- * If the compilation has not finished yet, this call will block the thread until all the
- * shaders are ready.
- * WARNING: The handle will be invalidated by this call, you can't process the same batch twice.
- */
-void GPU_material_batch_finalize(BatchHandle &handle, blender::Span<GPUMaterial *> mats);
+void GPU_material_async_compile(GPUMaterial *mat);
+/** Returns true if the material have finished its compilation. */
+bool GPU_material_async_try_finalize(GPUMaterial *mat);
 
 void GPU_material_acquire(GPUMaterial *mat);
 void GPU_material_release(GPUMaterial *mat);
@@ -347,7 +315,6 @@ GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
  * \param inputs: Items are #LinkData, data is #GPUInput (`BLI_genericNodeN(GPUInput)`).
  */
 void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs);
-GPUUniformBuf *GPU_material_create_sss_profile_ubo();
 
 bool GPU_material_has_surface_output(GPUMaterial *mat);
 bool GPU_material_has_volume_output(GPUMaterial *mat);

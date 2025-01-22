@@ -47,9 +47,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  AnonymousAttributeIDPtr uv_map_id = params.get_output_anonymous_attribute_id_if_needed("UV Map");
+  std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
-  Mesh *mesh = geometry::create_grid_mesh(verts_x, verts_y, size_x, size_y, uv_map_id.get());
+  Mesh *mesh = geometry::create_grid_mesh(verts_x, verts_y, size_x, size_y, uv_map_id);
   BKE_id_material_eval_ensure_default_slot(reinterpret_cast<ID *>(mesh));
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
@@ -62,7 +63,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_GRID, "Grid", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

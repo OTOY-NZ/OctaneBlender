@@ -110,7 +110,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
                               const ViewLayer *view_layer_src,
                               int flag);
 
-void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *name);
+void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *newname);
 
 /**
  * Get the active collection
@@ -434,7 +434,7 @@ void BKE_view_layer_visible_bases_iterator_end(BLI_Iterator *iter);
   } \
   ((void)0)
 
-#define FOREACH_OBJECT_FLAG_BEGIN(_scene, _view_layer, _v3d, flag, _instance) \
+#define FOREACH_OBJECT_FLAG_BEGIN(_scene, _view_layer, _v3d, _flag, _instance) \
   { \
     IteratorBeginCb func_begin; \
     IteratorCb func_next, func_end; \
@@ -446,25 +446,28 @@ void BKE_view_layer_visible_bases_iterator_end(BLI_Iterator *iter);
 \
     SceneObjectsIteratorExData data_flag_ = {NULL}; \
     data_flag_.scene = _scene; \
-    data_flag_.flag = flag; \
-\
-    if (flag == SELECT) { \
-      func_begin = &BKE_view_layer_selected_objects_iterator_begin; \
-      func_next = &BKE_view_layer_selected_objects_iterator_next; \
-      func_end = &BKE_view_layer_selected_objects_iterator_end; \
-      data_in = &data_select_; \
-    } \
-    else if (flag != 0) { \
-      func_begin = BKE_scene_objects_iterator_begin_ex; \
-      func_next = BKE_scene_objects_iterator_next_ex; \
-      func_end = BKE_scene_objects_iterator_end_ex; \
-      data_in = &data_flag_; \
-    } \
-    else { \
-      func_begin = BKE_scene_objects_iterator_begin; \
-      func_next = BKE_scene_objects_iterator_next; \
-      func_end = BKE_scene_objects_iterator_end; \
-      data_in = data_flag_.scene; \
+    switch ((data_flag_.flag = _flag)) { \
+      case SELECT: { \
+        func_begin = &BKE_view_layer_selected_objects_iterator_begin; \
+        func_next = &BKE_view_layer_selected_objects_iterator_next; \
+        func_end = &BKE_view_layer_selected_objects_iterator_end; \
+        data_in = &data_select_; \
+        break; \
+      } \
+      case 0: { \
+        func_begin = BKE_scene_objects_iterator_begin; \
+        func_next = BKE_scene_objects_iterator_next; \
+        func_end = BKE_scene_objects_iterator_end; \
+        data_in = data_flag_.scene; \
+        break; \
+      } \
+      default: { \
+        func_begin = BKE_scene_objects_iterator_begin_ex; \
+        func_next = BKE_scene_objects_iterator_next_ex; \
+        func_end = BKE_scene_objects_iterator_end_ex; \
+        data_in = &data_flag_; \
+        break; \
+      } \
     } \
     if (data_select_.view_layer) { \
       BKE_view_layer_synced_ensure(data_flag_.scene, data_select_.view_layer); \
@@ -569,13 +572,12 @@ void BKE_view_layer_verify_aov(RenderEngine *engine, Scene *scene, ViewLayer *vi
  * Check if the given view layer has at least one valid AOV.
  */
 bool BKE_view_layer_has_valid_aov(ViewLayer *view_layer);
-ViewLayer *BKE_view_layer_find_with_aov(Scene *scene, ViewLayerAOV *view_layer_aov);
+ViewLayer *BKE_view_layer_find_with_aov(Scene *scene, ViewLayerAOV *aov);
 
 ViewLayerLightgroup *BKE_view_layer_add_lightgroup(ViewLayer *view_layer, const char *name);
 void BKE_view_layer_remove_lightgroup(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup);
 void BKE_view_layer_set_active_lightgroup(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup);
-ViewLayer *BKE_view_layer_find_with_lightgroup(Scene *scene,
-                                               ViewLayerLightgroup *view_layer_lightgroup);
+ViewLayer *BKE_view_layer_find_with_lightgroup(Scene *scene, ViewLayerLightgroup *lightgroup);
 void BKE_view_layer_rename_lightgroup(Scene *scene,
                                       ViewLayer *view_layer,
                                       ViewLayerLightgroup *lightgroup,

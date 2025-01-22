@@ -73,9 +73,18 @@ ImBuf *IMB_testiffname(const char *filepath, int flags);
 
 ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_SPACE]);
 
+enum class IMBThumbLoadFlags {
+  Zero = 0,
+  /** Normally files larger than 100MB are not loaded for thumbnails, except when this flag is set.
+   */
+  LoadLargeFiles = (1 << 0),
+};
+ENUM_OPERATORS(IMBThumbLoadFlags, IMBThumbLoadFlags::LoadLargeFiles);
+
 ImBuf *IMB_thumb_load_image(const char *filepath,
                             const size_t max_thumb_size,
-                            char colorspace[IM_MAX_SPACE]);
+                            char colorspace[IM_MAX_SPACE],
+                            IMBThumbLoadFlags load_flags = IMBThumbLoadFlags::Zero);
 
 void IMB_freeImBuf(ImBuf *ibuf);
 
@@ -368,7 +377,6 @@ void IMB_free_anim(ImBufAnim *anim);
 #define FILTER_MASK_MARGIN 1
 #define FILTER_MASK_USED 2
 
-void IMB_filter(ImBuf *ibuf);
 void IMB_mask_filter_extend(char *mask, int width, int height);
 void IMB_mask_clear(ImBuf *ibuf, const char *mask, int val);
 /**
@@ -392,17 +400,30 @@ void IMB_filtery(ImBuf *ibuf);
 
 ImBuf *IMB_onehalf(ImBuf *ibuf1);
 
-/**
- * Return true if \a ibuf is modified.
- */
-bool IMB_scaleImBuf(ImBuf *ibuf, unsigned int newx, unsigned int newy);
+/** Interpolation filter used by `IMB_scale`. */
+enum class IMBScaleFilter {
+  /** No filtering (point sampling). This is fastest but lowest quality. */
+  Nearest,
+  /**
+   * Bilinear filter: each pixel in result image interpolates between 2x2 pixels of source image.
+   */
+  Bilinear,
+  /**
+   * Box filter. Behaves exactly like Bilinear when scaling up,
+   * better results when scaling down by more than 2x.
+   */
+  Box,
+};
 
 /**
+ * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
  */
-bool IMB_scalefastImBuf(ImBuf *ibuf, unsigned int newx, unsigned int newy);
-
-void IMB_scaleImBuf_threaded(ImBuf *ibuf, unsigned int newx, unsigned int newy);
+bool IMB_scale(ImBuf *ibuf,
+               unsigned int newx,
+               unsigned int newy,
+               IMBScaleFilter filter,
+               bool threaded = true);
 
 bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags);
 
@@ -760,6 +781,6 @@ ImBuf *IMB_stereo3d_ImBuf(const ImageFormatData *im_format, ImBuf *ibuf_left, Im
  * Reading a stereo encoded ibuf (*left) and generating two ibufs from it (*left and *right).
  */
 void IMB_ImBufFromStereo3d(const Stereo3dFormat *s3d,
-                           ImBuf *ibuf_stereo,
+                           ImBuf *ibuf_stereo3d,
                            ImBuf **r_ibuf_left,
                            ImBuf **r_ibuf_right);

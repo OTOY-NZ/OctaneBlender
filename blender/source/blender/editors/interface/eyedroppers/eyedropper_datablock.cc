@@ -78,7 +78,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
   st = BKE_spacetype_from_id(SPACE_VIEW3D);
   art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
 
-  DataDropper *ddr = MEM_cnew<DataDropper>(__func__);
+  DataDropper *ddr = MEM_new<DataDropper>(__func__);
 
   uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
 
@@ -86,7 +86,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
       (RNA_property_type(ddr->prop) != PROP_POINTER))
   {
-    MEM_freeN(ddr);
+    MEM_delete(ddr);
     return false;
   }
   op->customdata = ddr;
@@ -118,15 +118,13 @@ static void datadropper_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(win);
 
   if (op->customdata) {
-    DataDropper *ddr = (DataDropper *)op->customdata;
+    DataDropper *ddr = static_cast<DataDropper *>(op->customdata);
 
     if (ddr->art) {
       ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
     }
-
-    MEM_freeN(op->customdata);
-
     op->customdata = nullptr;
+    MEM_delete(ddr);
   }
 
   WM_event_add_mousemove(win);
@@ -221,7 +219,7 @@ static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event
   int event_xy_win[2];
   wmWindow *win;
   ScrArea *area;
-  datadropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
+  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
 
   datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   return datadropper_id_set(C, ddr, id);
@@ -288,7 +286,7 @@ static int datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
     int event_xy_win[2];
     wmWindow *win;
     ScrArea *area;
-    datadropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
 
     /* Set the region for eyedropper cursor text drawing */
     datadropper_set_draw_callback_region(area, ddr);

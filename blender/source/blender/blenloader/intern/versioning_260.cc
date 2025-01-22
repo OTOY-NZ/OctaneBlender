@@ -50,7 +50,7 @@
 
 #include "BKE_anim_visualization.h"
 #include "BKE_customdata.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh" /* for Main */
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
@@ -315,8 +315,8 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         }
       }
 
-      blender::bke::nodeRemoveSocket(ntree, node, old_image);
-      blender::bke::nodeRemoveSocket(ntree, node, old_z);
+      blender::bke::node_remove_socket(ntree, node, old_image);
+      blender::bke::node_remove_socket(ntree, node, old_z);
       if (old_data) {
         MEM_freeN(old_data);
       }
@@ -861,28 +861,28 @@ static const char *node_socket_get_static_idname(bNodeSocket *sock)
   switch (sock->type) {
     case SOCK_FLOAT: {
       bNodeSocketValueFloat *dval = sock->default_value_typed<bNodeSocketValueFloat>();
-      return blender::bke::nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
+      return blender::bke::node_static_socket_type(SOCK_FLOAT, dval->subtype);
     }
     case SOCK_INT: {
       bNodeSocketValueInt *dval = sock->default_value_typed<bNodeSocketValueInt>();
-      return blender::bke::nodeStaticSocketType(SOCK_INT, dval->subtype);
+      return blender::bke::node_static_socket_type(SOCK_INT, dval->subtype);
     }
     case SOCK_BOOLEAN: {
-      return blender::bke::nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
+      return blender::bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
     }
     case SOCK_VECTOR: {
       bNodeSocketValueVector *dval = sock->default_value_typed<bNodeSocketValueVector>();
-      return blender::bke::nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
+      return blender::bke::node_static_socket_type(SOCK_VECTOR, dval->subtype);
     }
     case SOCK_RGBA: {
-      return blender::bke::nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
+      return blender::bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
     }
     case SOCK_STRING: {
       bNodeSocketValueString *dval = sock->default_value_typed<bNodeSocketValueString>();
-      return blender::bke::nodeStaticSocketType(SOCK_STRING, dval->subtype);
+      return blender::bke::node_static_socket_type(SOCK_STRING, dval->subtype);
     }
     case SOCK_SHADER: {
-      return blender::bke::nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
+      return blender::bke::node_static_socket_type(SOCK_SHADER, PROP_NONE);
     }
   }
   return "";
@@ -1069,7 +1069,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
   return socket;
 }
 
-/* Same as nodeAddStaticNode but does not rely on node typeinfo. */
+/* Same as node_add_static_node but does not rely on node typeinfo. */
 static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
 {
   ListBase *ntree_socket_list = nullptr;
@@ -1099,7 +1099,7 @@ static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
 
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree->nodes, node);
-  blender::bke::nodeUniqueID(ntree, node);
+  blender::bke::node_unique_id(ntree, node);
 
   /* Manual initialization of the node,
    * node->typeinfo is only set after versioning. */
@@ -1329,7 +1329,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 260, 8)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (brush->sculpt_tool == SCULPT_TOOL_ROTATE) {
+      if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
         brush->alpha = 1.0f;
       }
     }
@@ -2003,7 +2003,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->toolsettings->uvcalc_margin == 0.0f) {
         scene->toolsettings->uvcalc_margin = 0.001f;
-        scene->toolsettings->unwrapper = 0;
+        scene->toolsettings->unwrapper = UVCALC_UNWRAP_METHOD_ANGLE;
       }
     }
   }
@@ -2251,7 +2251,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          blender::bke::nodeUniqueName(ntree, node);
+          blender::bke::node_unique_name(ntree, node);
         }
       }
       FOREACH_NODETREE_END;
@@ -2344,7 +2344,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (free_link) {
-          blender::bke::nodeRemLink(ntree, link);
+          blender::bke::node_remove_link(ntree, link);
         }
       }
 
@@ -2373,7 +2373,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         next_link = link->next;
         if (link->fromnode == nullptr || link->tonode == nullptr) {
-          blender::bke::nodeRemLink(ntree, link);
+          blender::bke::node_remove_link(ntree, link);
         }
       }
     }

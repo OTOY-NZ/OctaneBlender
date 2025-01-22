@@ -12,9 +12,10 @@ namespace blender::workbench {
 
 MeshPass::MeshPass(const char *name) : PassMain(name){};
 
-/* Move to draw::Pass */
 bool MeshPass::is_empty() const
 {
+  /* TODO: Move to #draw::Pass. */
+
   return is_empty_;
 }
 
@@ -25,6 +26,9 @@ void MeshPass::init_pass(SceneResources &resources, DRWState state, int clip_pla
   PassMain::init();
   state_set(state, clip_planes);
   bind_texture(WB_MATCAP_SLOT, resources.matcap_tx);
+  bind_texture(WB_TEXTURE_SLOT, resources.dummy_texture_tx);
+  bind_texture(WB_TILE_ARRAY_SLOT, resources.dummy_tile_array_tx);
+  bind_texture(WB_TILE_DATA_SLOT, resources.dummy_tile_data_tx);
   bind_ssbo(WB_MATERIAL_SLOT, &resources.material_buf);
   bind_ubo(WB_WORLD_SLOT, resources.world_buf);
   if (clip_planes > 0) {

@@ -11,17 +11,17 @@
 
 #include "BLI_utildefines.h"
 
-#include "bpy_capi_utils.h"
+#include "bpy_capi_utils.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BKE_blender_cli_command.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "bpy_cli_command.h" /* Own include. */
+#include "bpy_cli_command.hh" /* Own include. */
 
 static const char *bpy_cli_command_capsule_name = "bpy_cli_command";
 static const char *bpy_cli_command_capsule_name_invalid = "bpy_cli_command<invalid>";
@@ -238,7 +238,7 @@ static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, P
   const char *id = PyUnicode_AsUTF8(py_id);
 
   std::unique_ptr<CommandHandler> cmd_ptr = std::make_unique<BPyCommandHandler>(
-      std::string(id), Py_INCREF_RET(py_exec_fn));
+      std::string(id), Py_NewRef(py_exec_fn));
   void *cmd_p = cmd_ptr.get();
 
   BKE_blender_cli_command_register(std::move(cmd_ptr));

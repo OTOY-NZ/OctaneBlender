@@ -37,7 +37,7 @@ static void reverse_grease_pencil(GreasePencil &grease_pencil, const Field<bool>
 {
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
     if (drawing == nullptr) {
       continue;
     }
@@ -59,7 +59,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const bke::CurvesFieldContext field_context{curves, AttrDomain::Curve};
+      const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
       reverse_curve(curves, field_context, selection_field);
     }
     if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
@@ -76,7 +76,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_REVERSE_CURVE, "Reverse Curve", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

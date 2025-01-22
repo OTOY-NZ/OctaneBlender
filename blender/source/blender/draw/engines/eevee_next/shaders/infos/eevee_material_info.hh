@@ -96,6 +96,7 @@ GPU_SHADER_CREATE_INFO(eevee_geom_gpencil)
     .vertex_source("eevee_geom_gpencil_vert.glsl")
     .vertex_out(eevee_surf_iface)
     .additional_info("draw_gpencil_new",
+                     "draw_modelmat_new",
                      "draw_object_infos_new",
                      "draw_resource_id_varying",
                      "draw_resource_id_new");
@@ -289,7 +290,7 @@ GPU_SHADER_CREATE_INFO(eevee_surf_shadow_tbdr)
     .define("SHADOW_UPDATE_TBDR")
     .builtins(BuiltinBits::LAYER)
     /* Use greater depth write to avoid loosing the early Z depth test but ensure correct fragment
-       ordering after slope bias. */
+     * ordering after slope bias. */
     .depth_write(DepthWrite::GREATER)
     /* F32 color attachment for on-tile depth accumulation without atomics. */
     .fragment_out(0, Type::FLOAT, "out_depth", DualBlend::NONE, SHADOW_ROG_ID);

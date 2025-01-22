@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
 from bpy.types import Panel, Header, Menu, UIList
 from bpy.app.translations import (
     pgettext_iface as iface_,
@@ -1368,7 +1367,7 @@ class CLIP_MT_clip(Menu):
         sc = context.space_data
         clip = sc.clip
 
-        layout.operator("clip.open")
+        layout.operator("clip.open", text="Open...", icon='FILE_FOLDER')
 
         if clip:
             layout.operator("clip.set_scene_frames")

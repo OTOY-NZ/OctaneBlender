@@ -204,7 +204,7 @@ int GPU_batch_vertbuf_add(Batch *batch, VertBuf *vertex_buf, bool own_vbo)
   return -1;
 }
 
-bool GPU_batch_vertbuf_has(const Batch *batch, VertBuf *vertex_buf)
+bool GPU_batch_vertbuf_has(const Batch *batch, const VertBuf *vertex_buf)
 {
   for (uint v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
     if (batch->verts[v] == vertex_buf) {
@@ -234,6 +234,91 @@ void GPU_batch_set_shader(Batch *batch, GPUShader *shader)
   GPU_shader_bind(batch->shader);
 }
 
+static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
+                                       GPUShader *shader,
+                                       VertBuf *vbo)
+{
+  const GPUVertFormat *format = &vbo->format;
+
+  /* We need to support GPU OpenSubdiv meshes. This assert can be enabled back after we refactor
+   * our OpenSubdiv implementation to output the same layout as the regular mesh extraction. */
+  // BLI_assert_msg(format->attr_len == 1, "Multi attribute buffers are not supported for now");
+
+  char uniform_name[] = "gpu_attr_0";
+  uint stride = format->stride;
+  uint offset = 0;
+  uint16_t bound_attr = 0u;
+  for (uint a_idx = 0; a_idx < format->attr_len; a_idx++) {
+    const GPUVertAttr *a = &format->attrs[a_idx];
+    for (uint n_idx = 0; n_idx < a->name_len; n_idx++) {
+      const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
+      const ShaderInput *input = interface->ssbo_get(name);
+      if (input == nullptr || input->location == -1) {
+        continue;
+      }
+      GPU_vertbuf_bind_as_ssbo(vbo, input->location);
+      bound_attr |= (1 << input->location);
+
+      /* WORKAROUND: This is to support complex format. But ideally this should not be supported.
+       */
+      uniform_name[9] = '0' + input->location;
+
+      if (format->deinterleaved) {
+        offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * vbo->vertex_len;
+        stride = a->size;
+      }
+      else {
+        offset = a->offset;
+      }
+
+      /* Only support 4byte aligned attributes. */
+      BLI_assert((stride % 4) == 0);
+      BLI_assert((offset % 4) == 0);
+      int descriptor[2] = {int(stride) / 4, int(offset) / 4};
+      GPU_shader_uniform_2iv(shader, uniform_name, descriptor);
+    }
+  }
+  return bound_attr;
+}
+
+void GPU_batch_bind_as_resources(Batch *batch, GPUShader *shader)
+{
+  const ShaderInterface *interface = unwrap(shader)->interface;
+  if (interface->ssbo_attr_mask_ == 0) {
+    return;
+  }
+
+  uint16_t ssbo_attributes = interface->ssbo_attr_mask_;
+
+  if (ssbo_attributes & (1 << GPU_SSBO_INDEX_BUF_SLOT)) {
+    /* Ensure binding for setting uniforms. This is required by the OpenGL backend. */
+    GPU_shader_bind(shader);
+    if (batch->elem) {
+      GPU_indexbuf_bind_as_ssbo(batch->elem, GPU_SSBO_INDEX_BUF_SLOT);
+      GPU_shader_uniform_1b(shader, "gpu_index_no_buffer", false);
+      GPU_shader_uniform_1b(shader, "gpu_index_16bit", !batch->elem->is_32bit());
+      GPU_shader_uniform_1i(shader, "gpu_index_base_index", batch->elem->index_base_get());
+    }
+    else {
+      /* Still fulfill the binding requirements even if the buffer will not be read. */
+      GPU_vertbuf_bind_as_ssbo(batch->verts[0], GPU_SSBO_INDEX_BUF_SLOT);
+      GPU_shader_uniform_1b(shader, "gpu_index_no_buffer", true);
+    }
+    ssbo_attributes &= ~(1 << GPU_SSBO_INDEX_BUF_SLOT);
+  }
+
+  /* Reverse order so first VBO'S have more prevalence (in term of attribute override). */
+  for (int v = GPU_BATCH_VBO_MAX_LEN - 1; v > -1; v--) {
+    VertBuf *vbo = batch->verts_(v);
+    if (vbo) {
+      ssbo_attributes &= ~bind_attribute_as_ssbo(interface, shader, vbo);
+    }
+  }
+
+  BLI_assert_msg(ssbo_attributes == 0, "Not all attribute storage buffer fulfilled");
+  UNUSED_VARS_NDEBUG(ssbo_attributes);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -244,7 +329,7 @@ void GPU_batch_draw_parameter_get(Batch *gpu_batch,
                                   int *r_vertex_count,
                                   int *r_vertex_first,
                                   int *r_base_index,
-                                  int *r_indices_count)
+                                  int *r_instance_count)
 {
   Batch *batch = static_cast<Batch *>(gpu_batch);
 
@@ -264,7 +349,27 @@ void GPU_batch_draw_parameter_get(Batch *gpu_batch,
   if (batch->inst[1] != nullptr) {
     i_count = min_ii(i_count, batch->inst_(1)->vertex_len);
   }
-  *r_indices_count = i_count;
+  *r_instance_count = i_count;
+}
+
+blender::IndexRange GPU_batch_draw_expanded_parameter_get(const blender::gpu::Batch *batch,
+                                                          GPUPrimType expanded_prim_type,
+                                                          int vertex_count,
+                                                          int vertex_first)
+{
+  int vert_per_original_primitive = indices_per_primitive(batch->prim_type);
+  int vert_per_expanded_primitive = indices_per_primitive(expanded_prim_type);
+
+  BLI_assert_msg(vert_per_original_primitive != -1,
+                 "Primitive expansion only works for primitives with known amount of vertices");
+
+  int prim_first = vertex_first / vert_per_original_primitive;
+  int prim_len = vertex_count / vert_per_original_primitive;
+
+  int out_vertex_first = prim_first * vert_per_expanded_primitive;
+  int out_vertex_count = prim_len * vert_per_expanded_primitive;
+
+  return blender::IndexRange(out_vertex_first, out_vertex_count);
 }
 
 void GPU_batch_draw(Batch *batch)

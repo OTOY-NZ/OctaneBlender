@@ -123,15 +123,6 @@ class Instance {
 
     const ObjectState object_state = ObjectState(scene_state, resources, ob);
 
-    /* Needed for mesh cache validation, to prevent two copies of
-     * of vertex color arrays from being sent to the GPU (e.g.
-     * when switching from eevee to workbench).
-     */
-    if (ob_ref.object->sculpt && ob_ref.object->sculpt->pbvh) {
-      /* TODO(Miguel Pozo): Could this me moved to sculpt_batches_get()? */
-      BKE_pbvh_is_drawing_set(*ob_ref.object->sculpt->pbvh, object_state.sculpt_pbvh);
-    }
-
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
                                   (ob->dt >= OB_SOLID || DRW_state_is_scene_render());
@@ -155,7 +146,8 @@ class Instance {
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
-        const Bounds<float3> bounds = bke::pbvh::bounds_get(*ob_ref.object->sculpt->pbvh);
+        const Bounds<float3> bounds = bke::pbvh::bounds_get(
+            *bke::object::pbvh_get(*ob_ref.object));
         const float3 center = math::midpoint(bounds.min, bounds.max);
         const float3 half_extent = bounds.max - center;
         ResourceHandle handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
@@ -421,15 +413,16 @@ class Instance {
      * re-sync (See #113580). */
     bool needs_depth_in_front = !transparent_ps.accumulation_in_front_ps_.is_empty() ||
                                 (!opaque_ps.gbuffer_in_front_ps_.is_empty() &&
-                                 scene_state.overlays_enabled && scene_state.sample == 0);
+                                 scene_state.sample == 0);
     resources.depth_in_front_tx.wrap(needs_depth_in_front ? depth_in_front_tx : nullptr);
-    if ((!needs_depth_in_front && scene_state.overlays_enabled) ||
-        (needs_depth_in_front && opaque_ps.gbuffer_in_front_ps_.is_empty()))
-    {
+    if (!needs_depth_in_front || opaque_ps.gbuffer_in_front_ps_.is_empty()) {
       resources.clear_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(depth_in_front_tx));
       resources.clear_in_front_fb.bind();
       GPU_framebuffer_clear_depth_stencil(resources.clear_in_front_fb, 1.0f, 0x00);
     }
+
+    resources.depth_tx.wrap(depth_tx);
+    resources.color_tx.wrap(color_tx);
 
     if (scene_state.render_finished) {
       /* Just copy back the already rendered result */
@@ -439,8 +432,6 @@ class Instance {
 
     anti_aliasing_ps.setup_view(view, scene_state);
 
-    resources.depth_tx.wrap(depth_tx);
-    resources.color_tx.wrap(color_tx);
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state.draw_object_id) {
       resources.object_id_tx.acquire(
@@ -474,15 +465,6 @@ class Instance {
                      GPUTexture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
-
-    if (!scene_state.overlays_enabled) {
-      resources.clear_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(depth_in_front_tx));
-      resources.clear_in_front_fb.bind();
-      GPU_framebuffer_clear_depth_stencil(resources.clear_in_front_fb, 1.0f, 0x00);
-      resources.clear_depth_only_fb.ensure(GPU_ATTACHMENT_TEXTURE(depth_tx));
-      resources.clear_depth_only_fb.bind();
-      GPU_framebuffer_clear_depth_stencil(resources.clear_depth_only_fb, 1.0f, 0x00);
-    }
 
     if (scene_state.sample + 1 < scene_state.samples_len) {
       DRW_viewport_request_redraw();

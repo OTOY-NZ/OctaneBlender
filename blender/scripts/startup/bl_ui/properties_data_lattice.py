@@ -5,6 +5,7 @@
 import bpy
 from bpy.types import Panel
 from rna_prop_ui import PropertyPanel
+from .space_properties import PropertiesAnimationMixin
 
 
 class DataButtonsPanel:
@@ -66,13 +67,27 @@ class DATA_PT_lattice(DataButtonsPanel, Panel):
         col.prop_search(lat, "vertex_group", context.object, "vertex_groups")
 
 
+class DATA_PT_lattice_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        # DataButtonsPanel.poll ensures this is not None.
+        lattice = context.lattice
+
+        col = layout.column(align=True)
+        col.label(text="Lattice")
+        self.draw_action_and_slot_selector(context, col, lattice)
+
+        if shape_keys := lattice.shape_keys:
+            col = layout.column(align=True)
+            col.label(text="Shape Keys")
+            self.draw_action_and_slot_selector(context, col, shape_keys)
+
+
 class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH',
-    }
     _context_path = "object.data"
     _property_type = bpy.types.Lattice
 
@@ -80,6 +95,7 @@ class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, Panel):
 classes = (
     DATA_PT_context_lattice,
     DATA_PT_lattice,
+    DATA_PT_lattice_animation,
     DATA_PT_custom_props_lattice,
 )
 

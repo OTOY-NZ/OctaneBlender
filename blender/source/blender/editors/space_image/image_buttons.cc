@@ -20,8 +20,8 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_node.hh"
 #include "BKE_screen.hh"
 
@@ -745,16 +745,8 @@ void uiTemplateImage(uiLayout *layout,
 
   SpaceImage *space_image = CTX_wm_space_image(C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
-    uiTemplateID(layout,
-                 C,
-                 ptr,
-                 propname,
-                 ima ? nullptr : "IMAGE_OT_new",
-                 "IMAGE_OT_open",
-                 nullptr,
-                 UI_TEMPLATE_ID_FILTER_ALL,
-                 false,
-                 nullptr);
+    uiTemplateID(
+        layout, C, ptr, propname, ima ? nullptr : "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
 
     if (ima != nullptr) {
       uiItemS(layout);

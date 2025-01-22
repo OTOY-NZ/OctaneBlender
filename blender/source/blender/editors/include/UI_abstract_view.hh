@@ -22,6 +22,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "DNA_defs.h"
 #include "DNA_vec_types.h"
@@ -38,13 +39,17 @@ struct uiBlock;
 struct uiButViewItem;
 struct uiLayout;
 struct ViewLink;
-struct wmDrag;
 struct wmNotifier;
 
 namespace blender::ui {
 
 class AbstractViewItem;
 class AbstractViewItemDragController;
+
+enum class ViewScrollDirection {
+  UP,
+  DOWN,
+};
 
 class AbstractView {
   friend class AbstractViewItem;
@@ -59,11 +64,17 @@ class AbstractView {
    * may be able to bind the button to a `std::string` or similar.
    */
   std::unique_ptr<std::array<char, MAX_NAME>> rename_buffer_;
+  /* Search/filter string from the previous redraw, stored to detect changes. */
+  std::string prev_filter_string_;
+
+  bool needs_filtering_ = true;
 
   /* See #get_bounds(). */
   std::optional<rcti> bounds_;
 
   std::string context_menu_title;
+  /** See #set_popup_keep_open(). */
+  bool popup_keep_open_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -86,9 +97,12 @@ class AbstractView {
    */
   virtual bool begin_filtering(const bContext &C) const;
 
-  virtual void draw_overlays(const ARegion &region) const;
+  virtual void draw_overlays(const ARegion &region, const uiBlock &block) const;
 
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
+
+  virtual bool supports_scrolling() const;
+  virtual void scroll(ViewScrollDirection direction);
 
   /**
    * Makes \a item valid for display in this view. Behavior is undefined for items not registered
@@ -110,7 +124,13 @@ class AbstractView {
   std::optional<rcti> get_bounds() const;
 
   std::string get_context_menu_title() const;
-  void set_context_menu_title(std::string title);
+  void set_context_menu_title(const std::string &title);
+
+  bool get_popup_keep_open() const;
+  /** If this view is displayed in a popup, don't close it when clicking to activate items. */
+  void set_popup_keep_open();
+
+  void clear_search_highlight();
 
  protected:
   AbstractView() = default;
@@ -138,6 +158,9 @@ class AbstractView {
    * #update_from_old() have finished.
    */
   bool is_reconstructed() const;
+
+  void filter(std::optional<StringRef> filter_str);
+  const AbstractViewItem *search_highlight_item() const;
 };
 
 class AbstractViewItem {
@@ -156,9 +179,11 @@ class AbstractViewItem {
   bool is_interactive_ = true;
   bool is_active_ = false;
   bool is_renaming_ = false;
+  /** See #is_search_highlight(). */
+  bool is_highlighted_search_ = false;
 
   /** Cache filtered state here to avoid having to re-query. */
-  mutable std::optional<bool> is_filtered_visible_;
+  bool is_filtered_visible_ = true;
 
  public:
   virtual ~AbstractViewItem() = default;
@@ -212,9 +237,14 @@ class AbstractViewItem {
    */
   virtual std::unique_ptr<DropTargetInterface> create_item_drop_target();
 
-  /** Return the result of #is_filtered_visible(), but ensure the result is cached so it's only
-   * queried once per redraw. */
-  bool is_filtered_visible_cached() const;
+  /**
+   * View types should implement this to return some name or identifier of the item, which is
+   * helpful for debugging (there's nothing to identify the item just from the #AbstractViewItem
+   * otherwise).
+   */
+  virtual std::optional<std::string> debug_name() const;
+
+  bool is_filtered_visible() const;
 
   /** Get the view this item is registered for using #AbstractView::register_item(). */
   AbstractView &get_view() const;
@@ -248,6 +278,11 @@ class AbstractViewItem {
    * can't be sure about the item state.
    */
   bool is_active() const;
+  /**
+   * Should this item be highlighted as matching search result? Only one item should be highlighted
+   * this way at a time. Pressing enter will activate it.
+   */
+  bool is_search_highlight() const;
 
   bool is_renaming() const;
   void begin_renaming();
@@ -291,9 +326,9 @@ class AbstractViewItem {
 
   /**
    * \note Do not call this directly to avoid constantly rechecking the filter state. Instead use
-   *       #is_filtered_visible_cached() for querying.
+   *       #is_filtered_visible() for querying.
    */
-  virtual bool is_filtered_visible() const;
+  virtual bool should_be_filtered_visible(StringRefNull filter_string) const;
 
   /**
    * Add a text button for renaming the item to \a block. This must be used for the built-in

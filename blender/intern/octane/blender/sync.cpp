@@ -557,7 +557,9 @@ SessionParams BlenderSync::get_session_params(
     bool background,
     int width,
     int height,
-    ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type)
+    ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type,
+    int export_frame_start,
+    int export_frame_end)
 {
   SessionParams params;
 
@@ -594,6 +596,8 @@ SessionParams BlenderSync::get_session_params(
 
   params.anim_mode = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
   params.export_type = params.interactive ? ::OctaneEngine::SceneExportTypes::NONE : export_type;
+  params.export_frame_start = export_frame_start;
+  params.export_frame_end = export_frame_end;
 
   params.deep_image = get_boolean(oct_scene, "deep_image");
   params.deep_render_passes = get_boolean(oct_scene, "deep_render_passes");

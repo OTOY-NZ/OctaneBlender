@@ -241,5 +241,5 @@ void register_node_type_tex_oct_composite(void)
   ntype.updatefunc = (node_shader_update_composite_tex);
   
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_tex_oct_composite() */

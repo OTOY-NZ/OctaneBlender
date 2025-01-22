@@ -51,7 +51,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
@@ -191,7 +191,7 @@ static void shapekey_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *i
 {
   /* ShapeKeys should always only be linked indirectly through their user ID (mesh, Curve etc.), or
    * be fully local data. */
-  BLI_assert((id->tag & LIB_TAG_EXTERN) == 0);
+  BLI_assert((id->tag & ID_TAG_EXTERN) == 0);
   UNUSED_VARS_NDEBUG(id);
 }
 
@@ -2575,20 +2575,21 @@ bool BKE_keyblock_is_basis(const Key *key, const int index)
   return false;
 }
 
-bool *BKE_keyblock_get_dependent_keys(const Key *key, const int index)
+std::optional<blender::Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key,
+                                                                    const int index)
 {
   if (key->type != KEY_RELATIVE) {
-    return nullptr;
+    return std::nullopt;
   }
 
   const int count = BLI_listbase_count(&key->block);
 
   if (index < 0 || index >= count) {
-    return nullptr;
+    return std::nullopt;
   }
 
   /* Seed the table with the specified key. */
-  bool *marked = static_cast<bool *>(MEM_callocN(sizeof(bool) * count, __func__));
+  blender::Array<bool> marked(count, false);
 
   marked[index] = true;
 
@@ -2609,8 +2610,7 @@ bool *BKE_keyblock_get_dependent_keys(const Key *key, const int index)
   } while (updated);
 
   if (!found) {
-    MEM_freeN(marked);
-    return nullptr;
+    return std::nullopt;
   }
 
   /* After the search is complete, exclude the original key. */

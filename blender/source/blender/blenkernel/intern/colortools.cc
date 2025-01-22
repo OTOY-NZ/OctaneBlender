@@ -669,7 +669,6 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   /* default rect also is table range */
   cuma->mintable = clipr->xmin;
   cuma->maxtable = clipr->xmax;
-  float table_range = cuma->maxtable - cuma->mintable;
   const int bezt_totpoint = max_ii(cuma->totpoint, 2);
 
   /* Rely on Blender interpolation for bezier curves, support extra functionality here as well. */
@@ -717,6 +716,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
 
   BezTriple *bezt_post_ptr;
 
+  float table_range = cuma->maxtable - cuma->mintable;
   if (use_wrapping) {
     /* Handle location of pre and post points for wrapping curves. */
     bezt_pre.h1 = bezt_pre.h2 = bezt[bezt_totpoint - 1].h2;
@@ -954,7 +954,7 @@ void BKE_curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
 {
   CurveMap *cuma = cumap->cm + cumap->cur;
   CurveMapPoint *cmp = cuma->curve;
-  rctf *clipr = &cumap->clipr;
+  const rctf *clipr = &cumap->clipr;
   float thresh = 0.01f * BLI_rctf_size_x(clipr);
   float dx = 0.0f, dy = 0.0f;
   int a;
@@ -1954,6 +1954,8 @@ void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings
   new_settings->flag = settings->flag;
   new_settings->exposure = settings->exposure;
   new_settings->gamma = settings->gamma;
+  new_settings->temperature = settings->temperature;
+  new_settings->tint = settings->tint;
 
   if (settings->curve_mapping) {
     new_settings->curve_mapping = BKE_curvemapping_copy(settings->curve_mapping);

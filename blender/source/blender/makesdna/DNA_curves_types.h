@@ -142,7 +142,9 @@ typedef struct CurvesGeometry {
   ListBase vertex_group_names;
   /** The active index in the #vertex_group_names list. */
   int vertex_group_active_index;
-  char _pad[4];
+
+  /** Set to -1 when none is active. */
+  int attributes_active_index;
 
   /**
    * Runtime data for curves, stored as a pointer to allow defining this as a C++ class.
@@ -169,7 +171,7 @@ typedef struct Curves {
   CurvesGeometry geometry;
 
   int flag;
-  int attributes_active_index;
+  int attributes_active_index_legacy;
 
   /* Materials. */
   struct Material **mat;

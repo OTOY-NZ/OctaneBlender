@@ -48,13 +48,13 @@ static void oct_node_object_data_update(bNodeTree *tree, bNode *node)
 
   ObjectDataNodeSourceType type = (ObjectDataNodeSourceType)node->custom1;
 
-  blender::bke::nodeSetSocketAvailability(
+  blender::bke::node_set_socket_availability(
       tree, object_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
-  blender::bke::nodeSetSocketAvailability(
+  blender::bke::node_set_socket_availability(
       tree, collection_socket, type == OBJECT_DATA_NODE_TYPE_COLLECTION);
-  blender::bke::nodeSetSocketAvailability(
+  blender::bke::node_set_socket_availability(
       tree, out_transform_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
-  blender::bke::nodeSetSocketAvailability(
+  blender::bke::node_set_socket_availability(
       tree, out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
 }
 
@@ -83,5 +83,5 @@ void register_node_type_oct_object_data(void)
   ntype.updatefunc = (oct_node_object_data_update);
   node_type_storage(&ntype, "", NULL, NULL);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

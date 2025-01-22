@@ -14,21 +14,21 @@
 
 #include "DNA_packedFile_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 
 #include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_image.h"
-#  include "BKE_image_format.h"
-#  include "BKE_image_save.h"
+#  include "BKE_image.hh"
+#  include "BKE_image_format.hh"
+#  include "BKE_image_save.hh"
 #  include "BKE_main.hh"
 #  include "BKE_scene.hh"
 #  include <errno.h>
@@ -390,7 +390,7 @@ void RNA_api_image(StructRNA *srna)
       func,
       "Load the image into an OpenGL texture. On success, image.bindcode will contain the "
       "OpenGL texture bindcode. Colors read from the texture will be in scene linear color space "
-      "and have premultiplied or straight alpha matching the image alpha mode");
+      "and have premultiplied or straight alpha matching the image alpha mode.");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_int(
       func, "frame", 0, 0, INT_MAX, "Frame", "Frame of image sequence or movie", 0, INT_MAX);

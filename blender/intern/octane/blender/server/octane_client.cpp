@@ -697,7 +697,9 @@ void OctaneClient::startRender(bool bInteractive,
                                int32_t iOutOfCoreMemLimit,
                                int32_t iOutOfCoreGPUHeadroom,
                                int32_t iRenderPriority,
-                               int32_t iResourceCacheType)
+                               int32_t iResourceCacheType,
+                               int32_t iExportStartFrame,
+                               int32_t iExportEndFrame)
 {
   if (m_bRenderStarted)
     m_bRenderStarted = false;
@@ -708,12 +710,13 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 9 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
+              sizeof(int32_t) * 11 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
                   (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
   snd << bInteractive << bUseSharedSurface << bEnableRealtime << iClientProcessId << iDeviceLuid
       << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority
-      << iResourceCacheType << iWidth << iHeigth << imgType << m_sOutPath.c_str()
+      << iResourceCacheType << iWidth << iHeigth << imgType << iExportStartFrame << iExportEndFrame
+      << m_sOutPath.c_str()
       << m_sCachePath.c_str();
   snd.write();
 

@@ -12,7 +12,7 @@
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_cachefile.hh"
@@ -43,7 +43,7 @@ static void cachefile_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_cnew<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
@@ -67,8 +67,11 @@ static int cachefile_open_invoke(bContext *C, wmOperator *op, const wmEvent * /*
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
-  op->customdata = nullptr;
+  if (op->customdata) {
+    PropertyPointerRNA *prop_ptr = static_cast<PropertyPointerRNA *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(prop_ptr);
+  }
 }
 
 static int cachefile_open_exec(bContext *C, wmOperator *op)
@@ -102,7 +105,8 @@ static int cachefile_open_exec(bContext *C, wmOperator *op)
       RNA_property_update(C, &pprop->ptr, pprop->prop);
     }
 
-    MEM_freeN(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(pprop);
   }
 
   return OPERATOR_FINISHED;

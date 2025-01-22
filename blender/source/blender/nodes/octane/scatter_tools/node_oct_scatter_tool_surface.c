@@ -451,5 +451,5 @@ void register_node_type_scatter_tool_surface(void)
   ntype.initfunc = (node_type_oct_scatter_on_surface_init);
   // node_type_exec(&ntype, 0, 0, 0);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 } /* register_node_type_scatter_tool_surface() */

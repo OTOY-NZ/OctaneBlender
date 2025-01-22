@@ -43,7 +43,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -169,7 +169,8 @@ static int new_particle_settings_exec(bContext *C, wmOperator * /*op*/)
 
   /* add or copy particle setting */
   if (psys->part) {
-    part = (ParticleSettings *)BKE_id_copy(bmain, &psys->part->id);
+    part = reinterpret_cast<ParticleSettings *>(BKE_id_copy_ex(
+        bmain, &psys->part->id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
   }
   else {
     part = BKE_particlesettings_add(bmain, "ParticleSettings");
@@ -1011,6 +1012,7 @@ static void copy_particle_edit(Depsgraph *depsgraph,
   psys->edit = edit;
 
   edit->pathcache = nullptr;
+  edit->mirror_cache = nullptr;
   BLI_listbase_clear(&edit->pathcachebufs);
 
   edit->emitter_field = nullptr;
@@ -1330,6 +1332,10 @@ static bool duplicate_particle_systems_poll(bContext *C)
   }
   Object *ob = blender::ed::object::context_active_object(C);
   if (BLI_listbase_is_empty(&ob->particlesystem)) {
+    return false;
+  }
+  if (ob->mode != OB_MODE_OBJECT) {
+    CTX_wm_operator_poll_msg_set(C, "Object must be in object mode");
     return false;
   }
   return true;

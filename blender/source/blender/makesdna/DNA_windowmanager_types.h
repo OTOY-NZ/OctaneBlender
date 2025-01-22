@@ -33,6 +33,7 @@ typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
 
 /* Defined here: */
 
+struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
 
@@ -182,7 +183,9 @@ typedef struct wmWindowManager {
    * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
    */
   struct GSet *notifier_queue_set;
-  void *_pad1;
+
+  /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
+  const struct wmNotifier *notifier_current;
 
   /** Available/pending extensions updates. */
   int extensions_updates;
@@ -308,7 +311,7 @@ typedef struct wmWindow {
    * \note Loading a window typically uses the size & position saved in the blend-file,
    * there is an exception for startup files which works as follows:
    * Setting the window size to zero before `ghostwin` has been set has a special meaning,
-   * it causes the window size to be initialized to `wm_init_state.size_x` (& `size_y`).
+   * it causes the window size to be initialized to `wm_init_state.size`.
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
    */

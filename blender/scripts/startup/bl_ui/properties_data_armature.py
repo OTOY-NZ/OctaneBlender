@@ -5,6 +5,7 @@
 import bpy
 from bpy.types import Panel, Menu, UIList
 from rna_prop_ui import PropertyPanel
+from .space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_animviz import (
     MotionPathButtonsPanel,
@@ -280,14 +281,16 @@ class DATA_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
         self.draw_settings(context, avs, mpath, bones=True)
 
 
+class DATA_PT_armature_animation(ArmatureButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    _animated_id_context_property = "armature"
+
+
 class DATA_PT_custom_props_arm(ArmatureButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
     _context_path = "object.data"
     _property_type = bpy.types.Armature
 
 
 class DATA_PT_custom_props_bcoll(ArmatureButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
     _context_path = "armature.collections.active"
     _property_type = bpy.types.BoneCollection
     bl_parent_id = "DATA_PT_bone_collections"
@@ -378,7 +381,6 @@ class POSE_PT_selection_sets(Panel):
 class POSE_UL_selection_set(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row()
-        row.separator()
         row.prop(item, "name", text="", emboss=False)
         if self.layout_type in ('DEFAULT', 'COMPACT'):
             row.prop(item, "is_selected", text="")
@@ -394,7 +396,7 @@ class POSE_MT_selection_set_create(Menu):
 
 
 class POSE_MT_selection_sets_select(Menu):
-    bl_label = 'Select Selection Set'
+    bl_label = "Select Selection Set"
 
     @classmethod
     def poll(cls, context):
@@ -419,6 +421,7 @@ classes = (
     DATA_PT_motion_paths_display,
     DATA_PT_display,
     DATA_PT_iksolver_itasc,
+    DATA_PT_armature_animation,
     DATA_PT_custom_props_arm,
     DATA_PT_custom_props_bcoll,
     POSE_MT_selection_set_create,

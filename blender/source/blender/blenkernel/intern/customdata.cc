@@ -27,8 +27,9 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_mempool.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
@@ -2486,11 +2487,6 @@ static bool customdata_merge_internal(const CustomData *source,
     new_layer->active_clone = last_clone;
     new_layer->active_mask = last_mask;
     changed = true;
-
-    if (src_layer.anonymous_id != nullptr) {
-      new_layer->anonymous_id = src_layer.anonymous_id;
-      new_layer->anonymous_id->add_user();
-    }
   }
 
   CustomData_update_typemap(dest);
@@ -2686,7 +2682,10 @@ void CustomData_realloc(CustomData *data,
   }
 }
 
-void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask mask, int totelem)
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem)
 {
   CustomData_reset(dest);
 
@@ -2697,11 +2696,11 @@ void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask
   CustomData_merge(source, dest, mask, totelem);
 }
 
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem)
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem)
 {
   CustomData_reset(dest);
 
@@ -2714,10 +2713,6 @@ void CustomData_copy_layout(const CustomData *source,
 
 static void customData_free_layer__internal(CustomDataLayer *layer, const int totelem)
 {
-  if (layer->anonymous_id != nullptr) {
-    layer->anonymous_id->remove_user_and_delete_if_last();
-    layer->anonymous_id = nullptr;
-  }
   const eCustomDataType type = eCustomDataType(layer->type);
   if (layer->sharing_info == nullptr) {
     if (layer->data) {
@@ -3077,7 +3072,7 @@ bool CustomData_layer_is_anonymous(const CustomData *data, eCustomDataType type,
 
   BLI_assert(layer_index >= 0);
 
-  return data->layers[layer_index].anonymous_id != nullptr;
+  return blender::bke::attribute_name_is_anonymous(data->layers[layer_index].name);
 }
 
 static void customData_resize(CustomData *data, const int grow_amount)
@@ -3279,47 +3274,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
   return nullptr;
 }
 
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     const eCustomDataType type,
-                                     const eCDAllocType alloctype,
-                                     const int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id)
-{
-  const StringRef name = anonymous_id->name().c_str();
-  CustomDataLayer *layer = customData_add_layer__internal(
-      data, type, alloctype, nullptr, nullptr, totelem, name);
-  CustomData_update_typemap(data);
-
-  if (layer == nullptr) {
-    return nullptr;
-  }
-
-  anonymous_id->add_user();
-  layer->anonymous_id = anonymous_id;
-  return layer->data;
-}
-
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    const eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    const int totelem,
-    void *layer_data,
-    const ImplicitSharingInfo *sharing_info)
-{
-  const StringRef name = anonymous_id->name().c_str();
-  CustomDataLayer *layer = customData_add_layer__internal(
-      data, type, std::nullopt, layer_data, sharing_info, totelem, name);
-  CustomData_update_typemap(data);
-
-  if (layer == nullptr) {
-    return nullptr;
-  }
-  anonymous_id->add_user();
-  layer->anonymous_id = anonymous_id;
-  return layer->data;
-}
-
 bool CustomData_free_layer(CustomData *data,
                            const eCustomDataType type,
                            const int totelem,
@@ -3434,7 +3388,9 @@ int CustomData_number_of_anonymous_layers(const CustomData *data, const eCustomD
   int number = 0;
 
   for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type && data->layers[i].anonymous_id != nullptr) {
+    if (data->layers[i].type == type &&
+        blender::bke::attribute_name_is_anonymous(data->layers[i].name))
+    {
       number++;
     }
   }
@@ -4471,7 +4427,7 @@ void CustomData_blend_write_prepare(CustomData &data,
     if (layer.flag & CD_FLAG_NOCOPY) {
       continue;
     }
-    if (layer.anonymous_id != nullptr) {
+    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
       continue;
     }
     if (skip_names.contains(layer.name)) {
@@ -5337,8 +5293,8 @@ static void write_grid_paint_mask(BlendWriter *writer,
     for (int i = 0; i < count; i++) {
       const GridPaintMask *gpm = &grid_paint_mask[i];
       if (gpm->data) {
-        const int gridsize = BKE_ccg_gridsize(gpm->level);
-        BLO_write_raw(writer, sizeof(*gpm->data) * gridsize * gridsize, gpm->data);
+        const uint32_t gridsize = uint32_t(BKE_ccg_gridsize(gpm->level));
+        BLO_write_float_array(writer, gridsize * gridsize, gpm->data);
       }
     }
   }
@@ -5357,19 +5313,21 @@ static void blend_write_layer_data(BlendWriter *writer,
           writer, count, static_cast<const MDisps *>(layer.data), layer.flag & CD_FLAG_EXTERNAL);
       break;
     case CD_PAINT_MASK:
-      BLO_write_raw(writer, sizeof(float) * count, static_cast<const float *>(layer.data));
+      BLO_write_float_array(writer, count, static_cast<const float *>(layer.data));
       break;
     case CD_GRID_PAINT_MASK:
       write_grid_paint_mask(writer, count, static_cast<const GridPaintMask *>(layer.data));
       break;
     case CD_PROP_BOOL:
-      BLO_write_raw(writer, sizeof(bool) * count, static_cast<const bool *>(layer.data));
+      BLI_STATIC_ASSERT(sizeof(bool) == sizeof(uint8_t),
+                        "bool type is expected to have the same size as uint8_t")
+      BLO_write_uint8_array(writer, count, static_cast<const uint8_t *>(layer.data));
       break;
     default: {
       const char *structname;
       int structnum;
       CustomData_file_write_info(eCustomDataType(layer.type), &structname, &structnum);
-      if (structnum) {
+      if (structnum > 0) {
         int datasize = structnum * count;
         BLO_write_struct_array_by_name(writer, structname, datasize, layer.data);
       }
@@ -5457,8 +5415,44 @@ static void blend_read_paint_mask(BlendDataReader *reader,
 
 static void blend_read_layer_data(BlendDataReader *reader, CustomDataLayer &layer, const int count)
 {
-  const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
-  BLO_read_struct_array(reader, char, elem_size *count, &layer.data);
+  switch (layer.type) {
+    case CD_MDEFORMVERT:
+      BLO_read_struct_array(reader, MDeformVert, count, &layer.data);
+      BKE_defvert_blend_read(reader, count, static_cast<MDeformVert *>(layer.data));
+      break;
+    case CD_MDISPS:
+      BLO_read_struct_array(reader, MDisps, count, &layer.data);
+      blend_read_mdisps(
+          reader, count, static_cast<MDisps *>(layer.data), layer.flag & CD_FLAG_EXTERNAL);
+      break;
+    case CD_PAINT_MASK:
+      BLO_read_float_array(reader, count, reinterpret_cast<float **>(&layer.data));
+      break;
+    case CD_GRID_PAINT_MASK:
+      BLO_read_struct_array(reader, GridPaintMask, count, &layer.data);
+      blend_read_paint_mask(reader, count, static_cast<GridPaintMask *>(layer.data));
+      break;
+    case CD_PROP_BOOL:
+      BLI_STATIC_ASSERT(sizeof(bool) == sizeof(uint8_t),
+                        "bool type is expected to have the same size as uint8_t")
+      BLO_read_uint8_array(reader, count, reinterpret_cast<uint8_t **>(&layer.data));
+      break;
+    default: {
+      const char *structname;
+      int structnum;
+      CustomData_file_write_info(eCustomDataType(layer.type), &structname, &structnum);
+      if (structnum > 0) {
+        const int data_num = structnum * count;
+        layer.data = BLO_read_struct_by_name_array(reader, structname, data_num, layer.data);
+      }
+      else {
+        /* Can happen with deprecated types of customdata. */
+        const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
+        BLO_read_struct_array(reader, char, elem_size *count, &layer.data);
+      }
+    }
+  }
+
   if (CustomData_layer_ensure_data_exists(&layer, count)) {
     /* Under normal operations, this shouldn't happen, but...
      * For a CD_PROP_BOOL example, see #84935.
@@ -5466,17 +5460,6 @@ static void blend_read_layer_data(BlendDataReader *reader, CustomDataLayer &laye
     CLOG_WARN(&LOG,
               "Allocated custom data layer that was not saved correctly for layer.type = %d.",
               layer.type);
-  }
-
-  if (layer.type == CD_MDISPS) {
-    blend_read_mdisps(
-        reader, count, static_cast<MDisps *>(layer.data), layer.flag & CD_FLAG_EXTERNAL);
-  }
-  else if (layer.type == CD_GRID_PAINT_MASK) {
-    blend_read_paint_mask(reader, count, static_cast<GridPaintMask *>(layer.data));
-  }
-  else if (layer.type == CD_MDEFORMVERT) {
-    BKE_defvert_blend_read(reader, count, static_cast<MDeformVert *>(layer.data));
   }
 }
 
@@ -5609,4 +5592,17 @@ std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(const Volume
 size_t CustomData_get_elem_size(const CustomDataLayer *layer)
 {
   return LAYERTYPEINFO[layer->type].size;
+}
+
+void CustomData_count_memory(const CustomData &data,
+                             const int totelem,
+                             blender::MemoryCounter &memory)
+{
+  for (const CustomDataLayer &layer : Span{data.layers, data.totlayer}) {
+    memory.add_shared(layer.sharing_info, [&](blender::MemoryCounter &shared_memory) {
+      /* Not quite correct for all types, but this is only a rough approximation anyway. */
+      const int64_t elem_size = CustomData_get_elem_size(&layer);
+      shared_memory.add(totelem * elem_size);
+    });
+  }
 }

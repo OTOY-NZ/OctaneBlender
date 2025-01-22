@@ -29,10 +29,23 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "rna_access_internal.h"
+#include "rna_access_internal.hh"
 #include "rna_internal.hh"
+
+bool operator==(const RNAPath &left, const RNAPath &right)
+{
+  if (left.path != right.path) {
+    return false;
+  }
+
+  if (left.key.has_value() || right.key.has_value()) {
+    return left.key == right.key;
+  }
+
+  return left.index == right.index;
+}
 
 /**
  * Extract the first token from `path`.
@@ -423,7 +436,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
     }
 
     if (r_elements) {
-      prop_elem = MEM_cnew<PropertyElemRNA>(__func__);
+      prop_elem = MEM_new<PropertyElemRNA>(__func__);
       prop_elem->ptr = curptr;
       prop_elem->prop = prop;
       prop_elem->index = -1; /* index will be added later, if needed. */
@@ -499,7 +512,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
   if (prop_elem &&
       (prop_elem->ptr.data != curptr.data || prop_elem->prop != prop || prop_elem->index != index))
   {
-    prop_elem = MEM_cnew<PropertyElemRNA>(__func__);
+    prop_elem = MEM_new<PropertyElemRNA>(__func__);
     prop_elem->ptr = curptr;
     prop_elem->prop = prop;
     prop_elem->index = index;
@@ -937,7 +950,7 @@ ID *RNA_find_real_ID_and_path(ID *id, const char **r_path)
     *r_path = "";
   }
 
-  if ((id == nullptr) || (id->flag & LIB_EMBEDDED_DATA) == 0) {
+  if ((id == nullptr) || (id->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
     return id;
   }
 
@@ -1200,7 +1213,10 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
       }
     }
 
-    BLI_freelistN(&path_elems);
+    LISTBASE_FOREACH_MUTABLE (PropertyElemRNA *, prop_elem, &path_elems) {
+      MEM_delete(prop_elem);
+    }
+    BLI_listbase_clear(&path_elems);
   }
 
   return path;

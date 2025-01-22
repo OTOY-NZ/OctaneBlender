@@ -21,6 +21,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -170,15 +171,18 @@ static void blo_update_defaults_screen(bScreen *screen,
       seq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_SOURCE | SEQ_TIMELINE_SHOW_STRIP_NAME |
                                     SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
-                                    SEQ_TIMELINE_SHOW_STRIP_RETIMING | SEQ_TIMELINE_WAVEFORMS_HALF;
+                                    SEQ_TIMELINE_SHOW_STRIP_RETIMING |
+                                    SEQ_TIMELINE_WAVEFORMS_HALF | SEQ_TIMELINE_SHOW_THUMBNAILS;
       seq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
       seq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
+      seq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
     }
     else if (area->spacetype == SPACE_TEXT) {
       /* Show syntax and line numbers in Script workspace text editor. */
       SpaceText *stext = static_cast<SpaceText *>(area->spacedata.first);
       stext->showsyntax = true;
       stext->showlinenrs = true;
+      stext->flags |= ST_FIND_WRAP;
     }
     else if (area->spacetype == SPACE_VIEW3D) {
       View3D *v3d = static_cast<View3D *>(area->spacedata.first);
@@ -308,7 +312,7 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
     /* For 2D animation template. */
     if (STREQ(workspace->id.name + 2, "Drawing")) {
-      workspace->object_mode = OB_MODE_PAINT_GPENCIL_LEGACY;
+      workspace->object_mode = OB_MODE_PAINT_GREASE_PENCIL;
     }
 
     /* For Sculpting template. */
@@ -340,7 +344,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
-    blender::bke::ntreeFreeEmbeddedTree(scene->nodetree);
+    blender::bke::node_tree_free_embedded_tree(scene->nodetree);
     MEM_freeN(scene->nodetree);
     scene->nodetree = nullptr;
     scene->use_nodes = false;
@@ -361,19 +365,11 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   }
 
   /* New EEVEE defaults. */
-  scene->eevee.bloom_intensity = 0.05f;
-  scene->eevee.bloom_clamp = 0.0f;
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
 
   copy_v3_v3(scene->display.light_direction, blender::float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
-
-  /* Change default cube-map quality. */
-  scene->eevee.gi_filter_quality = 3.0f;
-
-  /* Enable Soft Shadows by default. */
-  scene->eevee.flag |= SCE_EEVEE_SHADOW_SOFT;
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
@@ -443,6 +439,11 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   if (ts->unified_paint_settings.input_samples == 0) {
     ts->unified_paint_settings.input_samples = 1;
   }
+
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  ts->unified_paint_settings.flag = default_ups.flag;
+  copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
@@ -452,43 +453,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     BLO_update_defaults_workspace(workspace, app_template);
   }
 
-  /* New grease pencil brushes and vertex paint setup. */
+  /* Grease pencil materials and paint modes setup. */
   {
-    /* Update Grease Pencil brushes. */
-    Brush *brush;
-
-    /* Pencil brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Pencil", "Pencil");
-
-    /* Pen brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Pen", "Pen");
-
-    /* Pen Soft brush. */
-    brush = reinterpret_cast<Brush *>(
-        do_versions_rename_id(bmain, ID_BR, "Draw Soft", "Pencil Soft"));
-    if (brush) {
-      brush->gpencil_settings->icon_id = GP_BRUSH_ICON_PEN;
-    }
-
-    /* Ink Pen brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Ink", "Ink Pen");
-
-    /* Ink Pen Rough brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Noise", "Ink Pen Rough");
-
-    /* Marker Bold brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Marker", "Marker Bold");
-
-    /* Marker Chisel brush. */
-    do_versions_rename_id(bmain, ID_BR, "Draw Block", "Marker Chisel");
-
-    /* Remove useless Fill Area.001 brush. */
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, "Fill Area.001", offsetof(ID, name) + 2));
-    if (brush) {
-      BKE_id_delete(bmain, brush);
-    }
-
     /* Rename and fix materials and enable default object lights on. */
     if (app_template && STREQ(app_template, "2D_Animation")) {
       Material *ma = nullptr;
@@ -539,27 +505,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       }
     }
 
-    /* Reset all grease pencil brushes. */
+    /* Reset grease pencil paint modes. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
 
-      if (ts->gp_paint) {
-        BKE_brush_gpencil_paint_presets(bmain, ts, true);
-      }
-      if (ts->gp_sculptpaint) {
-        BKE_brush_gpencil_sculpt_presets(bmain, ts, true);
-      }
-      if (ts->gp_vertexpaint) {
-        BKE_brush_gpencil_vertex_presets(bmain, ts, true);
-      }
-      if (ts->gp_weightpaint) {
-        BKE_brush_gpencil_weight_presets(bmain, ts, true);
-      }
-
       /* Ensure new Paint modes. */
-      BKE_paint_ensure_from_paintmode(bmain, scene, PaintMode::VertexGPencil);
-      BKE_paint_ensure_from_paintmode(bmain, scene, PaintMode::SculptGPencil);
-      BKE_paint_ensure_from_paintmode(bmain, scene, PaintMode::WeightGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::VertexGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::SculptGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::WeightGPencil);
 
       /* Enable cursor. */
       if (ts->gp_paint) {
@@ -589,7 +542,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
         if (layout->screen) {
           bScreen *screen = layout->screen;
           if (!STREQ(screen->id.name + 2, workspace->id.name + 2)) {
-            BKE_libblock_rename(bmain, &screen->id, workspace->id.name + 2);
+            BKE_libblock_rename(*bmain, screen->id, workspace->id.name + 2);
           }
         }
 
@@ -644,7 +597,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       if (object->type == OB_GPENCIL_LEGACY) {
         /* Set grease pencil object in drawing mode */
         bGPdata *gpd = (bGPdata *)object->data;
-        object->mode = OB_MODE_PAINT_GPENCIL_LEGACY;
+        object->mode = OB_MODE_PAINT_GREASE_PENCIL;
         gpd->flag |= GP_DATA_STROKE_PAINTMODE;
         break;
       }
@@ -692,11 +645,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ma->nodetree) {
       for (bNode *node : ma->nodetree->all_nodes()) {
         if (node->type == SH_NODE_BSDF_PRINCIPLED) {
-          bNodeSocket *roughness_socket = blender::bke::nodeFindSocket(node, SOCK_IN, "Roughness");
+          bNodeSocket *roughness_socket = blender::bke::node_find_socket(
+              node, SOCK_IN, "Roughness");
           *version_cycles_node_socket_float_value(roughness_socket) = 0.5f;
-          bNodeSocket *emission = blender::bke::nodeFindSocket(node, SOCK_IN, "Emission Color");
+          bNodeSocket *emission = blender::bke::node_find_socket(node, SOCK_IN, "Emission Color");
           copy_v4_fl(version_cycles_node_socket_rgba_value(emission), 1.0f);
-          bNodeSocket *emission_strength = blender::bke::nodeFindSocket(
+          bNodeSocket *emission_strength = blender::bke::node_find_socket(
               node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
 
@@ -714,210 +668,24 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
   /* Brushes */
   {
-    /* Enable for UV sculpt (other brush types will be created as needed),
-     * without this the grab brush will be active but not selectable from the list. */
-    const char *brush_name = "Grab";
-    Brush *brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (brush) {
-      brush->ob_mode |= OB_MODE_EDIT;
-    }
-  }
-
-  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    brush->blur_kernel_radius = 2;
-
-    /* Use full strength for all non-sculpt brushes,
-     * when painting we want to use full color/weight always.
-     *
-     * Note that sculpt is an exception,
-     * its values are overwritten by #BKE_brush_sculpt_reset below. */
-    brush->alpha = 1.0;
-
-    /* Enable anti-aliasing by default. */
-    brush->sampling_flag |= BRUSH_PAINT_ANTIALIASING;
-
-    /* By default, each brush should use a single input sample. */
-    brush->input_samples = 1;
-  }
-
-  {
-    /* Change the spacing of the Smear brush to 3.0% */
-    const char *brush_name;
-    Brush *brush;
-
-    brush_name = "Smear";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (brush) {
-      brush->spacing = 3.0;
-    }
-
-    brush_name = "Draw Sharp";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_DRAW_SHARP;
-    }
-
-    brush_name = "Elastic Deform";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_ELASTIC_DEFORM;
-    }
-
-    brush_name = "Pose";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_POSE;
-    }
-
-    brush_name = "Multi-plane Scrape";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_MULTIPLANE_SCRAPE;
-    }
-
-    brush_name = "Clay Thumb";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_CLAY_THUMB;
-    }
-
-    brush_name = "Cloth";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_CLOTH;
-    }
-
-    brush_name = "Slide Relax";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_SLIDE_RELAX;
-    }
-
-    brush_name = "Paint";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_PAINT;
-    }
-
-    brush_name = "Smear";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_SMEAR;
-    }
-
-    brush_name = "Boundary";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_BOUNDARY;
-    }
-
-    brush_name = "Simplify";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_SIMPLIFY;
-    }
-
-    brush_name = "Draw Face Sets";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_DRAW_FACE_SETS;
-    }
-
-    brush_name = "Multires Displacement Eraser";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_DISPLACEMENT_ERASER;
-    }
-
-    brush_name = "Multires Displacement Smear";
-    brush = static_cast<Brush *>(
-        BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2));
-    if (!brush) {
-      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
-      id_us_min(&brush->id);
-      brush->sculpt_tool = SCULPT_TOOL_DISPLACEMENT_SMEAR;
-    }
-  }
-
-  {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      /* Use the same tool icon color in the brush cursor */
-      if (brush->ob_mode & OB_MODE_SCULPT) {
-        BLI_assert(brush->sculpt_tool != 0);
-        BKE_brush_sculpt_reset(brush);
-      }
-
-      /* Set the default texture mapping.
-       * Do it for all brushes, since some of them might be coming from the startup file. */
-      brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
-      brush->mask_mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
-    }
-  }
-
-  {
-    const Brush *default_brush = DNA_struct_default_get(Brush);
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      brush->automasking_start_normal_limit = default_brush->automasking_start_normal_limit;
-      brush->automasking_start_normal_falloff = default_brush->automasking_start_normal_falloff;
-
-      brush->automasking_view_normal_limit = default_brush->automasking_view_normal_limit;
-      brush->automasking_view_normal_falloff = default_brush->automasking_view_normal_falloff;
-    }
-  }
-
-  {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (!brush->automasking_cavity_curve) {
-        brush->automasking_cavity_curve = BKE_sculpt_default_cavity_curve();
+    /* Remove default brushes replaced by assets. Also remove outliner `treestore` that may point
+     * to brushes. Normally the treestore is updated properly but it doesn't seem to update during
+     * versioning code. It's not helpful anyway. */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, space_link, &area->spacedata) {
+          if (space_link->spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(space_link);
+            if (space_outliner->treestore) {
+              BLI_mempool_destroy(space_outliner->treestore);
+              space_outliner->treestore = nullptr;
+            }
+          }
+        }
       }
     }
-  }
-
-  if (app_template && STREQ(app_template, "2D_Animation")) {
-    /* Disable the unified paint setting for the brush radius. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->toolsettings->unified_paint_settings.flag &= ~UNIFIED_PAINT_SIZE;
+    LISTBASE_FOREACH_MUTABLE (Brush *, brush, &bmain->brushes) {
+      BKE_id_delete(bmain, brush);
     }
   }
 

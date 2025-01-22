@@ -32,6 +32,11 @@ enum eShaderType {
   FILM_COMP,
   FILM_CRYPTOMATTE_POST,
   FILM_FRAG,
+  FILM_PASS_CONVERT_COMBINED,
+  FILM_PASS_CONVERT_DEPTH,
+  FILM_PASS_CONVERT_VALUE,
+  FILM_PASS_CONVERT_COLOR,
+  FILM_PASS_CONVERT_CRYPTOMATTE,
 
   DEFERRED_CAPTURE_EVAL,
   DEFERRED_COMBINE,
@@ -134,6 +139,7 @@ enum eShaderType {
   SHADOW_TILEMAP_TAG_USAGE_SURFELS,
   SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
   SHADOW_TILEMAP_TAG_USAGE_VOLUME,
+  SHADOW_VIEW_VISIBILITY,
 
   SUBSURFACE_CONVOLVE,
   SUBSURFACE_SETUP,
@@ -188,6 +194,11 @@ class ShaderModule {
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type);
+
+  /**
+   * Variation to compile a material only with a `nodetree`. Caller needs to maintain the list of
+   * materials and call GPU_material_free on it to update the material.
+   */
   GPUMaterial *material_shader_get(const char *name,
                                    ListBase &materials,
                                    bNodeTree *nodetree,

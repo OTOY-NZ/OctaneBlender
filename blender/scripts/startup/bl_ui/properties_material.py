@@ -8,6 +8,8 @@ from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bpy_extras.node_utils import find_node_input
 
+from .space_properties import PropertiesAnimationMixin
+
 
 class MATERIAL_MT_context_menu(Menu):
     bl_label = "Material Specials"
@@ -66,7 +68,6 @@ class MATERIAL_PT_preview(MaterialButtonsPanel, Panel):
 class MATERIAL_PT_custom_props(MaterialButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
         'BLENDER_WORKBENCH_NEXT',
@@ -79,7 +80,10 @@ class EEVEE_MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
     bl_label = ""
     bl_context = "material"
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -129,8 +133,7 @@ class EEVEE_MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
             row.template_ID(ob, "active_material", new="material.new")
 
             if slot:
-                icon_link = 'MESH_DATA' if slot.link == 'DATA' else 'OBJECT_DATA'
-                row.prop(slot, "link", icon=icon_link, icon_only=True)
+                row.prop(slot, "link", icon_only=True)
 
             if ob.mode == 'EDIT':
                 row = layout.row(align=True)
@@ -158,7 +161,7 @@ def panel_node_draw(layout, ntree, _output_type, input_name):
 class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
     bl_label = "Surface"
     bl_context = "material"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
 
     def draw(self, context):
         layout = self.layout
@@ -182,7 +185,7 @@ class EEVEE_MATERIAL_PT_volume(MaterialButtonsPanel, Panel):
     bl_translation_context = i18n_contexts.id_id
     bl_context = "material"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -204,7 +207,7 @@ class EEVEE_MATERIAL_PT_displacement(MaterialButtonsPanel, Panel):
     bl_label = "Displacement"
     bl_context = "material"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -296,6 +299,7 @@ def draw_material_settings(self, context):
     draw_material_volume_settings(layout, mat, False)
 
 
+# TODO: used by `./scripts/addons_core/hydra_storm/ui.py`, move to `EEVEE_NEXT_MATERIAL_PT_settings`.
 class EEVEE_MATERIAL_PT_settings(MaterialButtonsPanel, Panel):
     bl_label = "Settings"
     bl_context = "material"
@@ -422,6 +426,31 @@ class MATERIAL_PT_lineart(MaterialButtonsPanel, Panel):
         subrow.prop(lineart, "intersection_priority", text="")
 
 
+class MATERIAL_PT_animation(MaterialButtonsPanel, Panel, PropertiesAnimationMixin):
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        # MaterialButtonsPanel.poll ensures this is not None.
+        material = context.material
+
+        col = layout.column(align=True)
+        col.label(text="Material")
+        self.draw_action_and_slot_selector(context, col, material)
+
+        if node_tree := material.node_tree:
+            col = layout.column(align=True)
+            col.label(text="Shader Node Tree")
+            self.draw_action_and_slot_selector(context, col, node_tree)
+
+
 classes = (
     MATERIAL_MT_context_menu,
     MATERIAL_UL_matslots,
@@ -438,6 +467,7 @@ classes = (
     MATERIAL_PT_lineart,
     MATERIAL_PT_viewport,
     EEVEE_MATERIAL_PT_viewport_settings,
+    MATERIAL_PT_animation,
     MATERIAL_PT_custom_props,
 )
 

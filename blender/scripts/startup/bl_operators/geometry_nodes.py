@@ -4,13 +4,9 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import IntProperty, BoolProperty
+from bpy.props import BoolProperty
 
 from bpy.app.translations import pgettext_data as data_
-
-from bpy.props import (
-    EnumProperty,
-)
 
 
 def add_empty_geometry_node_group(name):
@@ -137,7 +133,7 @@ def get_enabled_socket_with_name(sockets, name):
     return None
 
 
-def create_wrapper_group(modifier, old_group):
+def create_wrapper_group(operator, modifier, old_group):
     wrapper_name = old_group.name + ".wrapper"
     group = bpy.data.node_groups.new(wrapper_name, 'GeometryNodeTree')
     group.interface.new_socket(data_("Geometry"), in_out='OUTPUT', socket_type='NodeSocketGeometry')
@@ -233,8 +229,8 @@ def create_wrapper_group(modifier, old_group):
         group.links.new(store_nodes[-1].outputs["Geometry"], group_output_node.inputs[data_("Geometry")])
     else:
         if not first_geometry_output:
-            self.report({'WARNING'}, "Node group must have a geometry output")
-            return {'CANCELLED'}
+            operator.report({'WARNING'}, "Node group must have a geometry output")
+            return None
         group.links.new(first_geometry_output, group_output_node.inputs[data_("Geometry")])
 
     return group
@@ -280,7 +276,9 @@ class MoveModifierToNodes(Operator):
             old_group = modifier.node_group
             if not old_group:
                 continue
-            modifier.node_group = create_wrapper_group(modifier, old_group)
+            new_group = create_wrapper_group(self, modifier, old_group)
+            if new_group:
+                modifier.node_group = new_group
 
         return {'FINISHED'}
 

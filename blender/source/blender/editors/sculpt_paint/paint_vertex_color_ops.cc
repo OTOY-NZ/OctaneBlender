@@ -36,6 +36,7 @@
 
 #include "paint_intern.hh" /* own include */
 #include "sculpt_intern.hh"
+#include "sculpt_undo.hh"
 
 using blender::Array;
 using blender::ColorGeometry4f;
@@ -305,24 +306,27 @@ static void transform_active_color(bContext *C,
                                    wmOperator *op,
                                    const FunctionRef<void(ColorGeometry4f &color)> transform_fn)
 {
+  using namespace blender;
   using namespace blender::ed::sculpt_paint;
+  const Scene &scene = *CTX_data_scene(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &obact = *CTX_data_active_object(C);
 
   /* Ensure valid sculpt state. */
   BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
 
-  undo::push_begin(obact, op);
+  undo::push_begin(scene, obact, op);
 
-  Vector<PBVHNode *> nodes = blender::bke::pbvh::search_gather(*obact.sculpt->pbvh, {});
-  for (PBVHNode *node : nodes) {
-    undo::push_node(obact, node, undo::Type::Color);
-  }
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
-  transform_active_color_data(*BKE_mesh_from_object(&obact), transform_fn);
+  IndexMaskMemory memory;
+  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
+  undo::push_nodes(depsgraph, obact, node_mask, undo::Type::Color);
 
-  for (PBVHNode *node : nodes) {
-    BKE_pbvh_node_mark_update_color(node);
-  }
+  Mesh &mesh = *static_cast<Mesh *>(obact.data);
+  transform_active_color_data(mesh, transform_fn);
+
+  pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
 
   undo::push_end(obact);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &obact);

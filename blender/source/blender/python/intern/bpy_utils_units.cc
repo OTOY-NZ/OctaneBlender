@@ -18,10 +18,10 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "bpy_utils_units.h"
+#include "bpy_utils_units.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
 #include "BKE_unit.hh"
 
@@ -53,6 +53,8 @@ static const char *bpyunits_ucategories_items[] = {
     "POWER",
     "TEMPERATURE",
     "WAVELENGTH",
+    "COLOR_TEMPERATURE",
+    "FREQUENCY",
     nullptr,
 };
 
@@ -69,16 +71,16 @@ static PyStructSequence_Field bpyunits_systems_fields[ARRAY_SIZE(bpyunits_usyste
 static PyStructSequence_Field bpyunits_categories_fields[ARRAY_SIZE(bpyunits_ucategories_items)];
 
 static PyStructSequence_Desc bpyunits_systems_desc = {
-    "bpy.utils.units.systems",                               /* name */
-    "This named tuple contains all predefined unit systems", /* doc */
-    bpyunits_systems_fields,                                 /* fields */
-    ARRAY_SIZE(bpyunits_systems_fields) - 1,
+    /*name*/ "bpy.utils.units.systems",
+    /*doc*/ "This named tuple contains all predefined unit systems",
+    /*fields*/ bpyunits_systems_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(bpyunits_systems_fields) - 1,
 };
 static PyStructSequence_Desc bpyunits_categories_desc = {
-    "bpy.utils.units.categories",                          /* name */
-    "This named tuple contains all predefined unit names", /* doc */
-    bpyunits_categories_fields,                            /* fields */
-    ARRAY_SIZE(bpyunits_categories_fields) - 1,
+    /*name*/ "bpy.utils.units.categories",
+    /*doc*/ "This named tuple contains all predefined unit names",
+    /*fields*/ bpyunits_categories_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(bpyunits_categories_fields) - 1,
 };
 
 /**
@@ -149,16 +151,16 @@ PyDoc_STRVAR(
     "   Convert a given input string into a float value.\n"
     "\n"
     "   :arg unit_system: The unit system, from :attr:`bpy.utils.units.systems`.\n"
-    "   :type unit_system: string\n"
+    "   :type unit_system: str\n"
     "   :arg unit_category: The category of data we are converting (length, area, rotation, "
     "etc.),\n"
     "      from :attr:`bpy.utils.units.categories`.\n"
-    "   :type unit_category: string\n"
+    "   :type unit_category: str\n"
     "   :arg str_input: The string to convert to a float value.\n"
-    "   :type str_input: string\n"
+    "   :type str_input: str\n"
     "   :arg str_ref_unit: A reference string from which to extract a default unit, if none is "
     "found in ``str_input``.\n"
-    "   :type str_ref_unit: string or None\n"
+    "   :type str_ref_unit: str | None\n"
     "   :return: The converted/interpreted value.\n"
     "   :rtype: float\n"
     "   :raises ValueError: if conversion fails to generate a valid Python float value.\n");
@@ -234,11 +236,11 @@ PyDoc_STRVAR(
     "   Convert a given input float value into a string with units.\n"
     "\n"
     "   :arg unit_system: The unit system, from :attr:`bpy.utils.units.systems`.\n"
-    "   :type unit_system: string\n"
+    "   :type unit_system: str\n"
     "   :arg unit_category: The category of data we are converting (length, area, "
     "rotation, etc.),\n"
     "      from :attr:`bpy.utils.units.categories`.\n"
-    "   :type unit_category: string\n"
+    "   :type unit_category: str\n"
     "   :arg value: The value to convert to a string.\n"
     "   :type value: float\n"
     "   :arg precision: Number of digits after the comma.\n"

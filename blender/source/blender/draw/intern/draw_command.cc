@@ -21,6 +21,24 @@
 
 namespace blender::draw::command {
 
+static gpu::Batch *procedural_batch_get(GPUPrimType primitive)
+{
+  switch (primitive) {
+    case GPU_PRIM_POINTS:
+      return drw_cache_procedural_points_get();
+    case GPU_PRIM_LINES:
+      return drw_cache_procedural_lines_get();
+    case GPU_PRIM_TRIS:
+      return drw_cache_procedural_triangles_get();
+    case GPU_PRIM_TRI_STRIP:
+      return drw_cache_procedural_triangle_strips_get();
+    default:
+      /* Add new one as needed. */
+      BLI_assert_unreachable();
+      return nullptr;
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Commands Execution
  * \{ */
@@ -152,8 +170,30 @@ void Draw::execute(RecordingState &state) const
     GPU_batch_resource_id_buf_set(batch, state.resource_id_buf);
   }
 
-  GPU_batch_set_shader(batch, state.shader);
-  GPU_batch_draw_advanced(batch, vertex_first, vertex_len, 0, instance_len);
+  if (is_primitive_expansion()) {
+    /* Expanded drawcall. */
+    IndexRange vert_range = GPU_batch_draw_expanded_parameter_get(
+        batch, GPUPrimType(expand_prim_type), vertex_len, vertex_first);
+    IndexRange expanded_range = {vert_range.start() * expand_prim_len,
+                                 vert_range.size() * expand_prim_len};
+
+    if (expanded_range.is_empty()) {
+      /* Nothing to draw, and can lead to asserts in GPU_batch_bind_as_resources. */
+      return;
+    }
+
+    GPU_batch_bind_as_resources(batch, state.shader);
+
+    gpu::Batch *gpu_batch = procedural_batch_get(GPUPrimType(expand_prim_type));
+    GPU_batch_set_shader(gpu_batch, state.shader);
+    GPU_batch_draw_advanced(
+        gpu_batch, expanded_range.start(), expanded_range.size(), 0, instance_len);
+  }
+  else {
+    /* Regular drawcall. */
+    GPU_batch_set_shader(batch, state.shader);
+    GPU_batch_draw_advanced(batch, vertex_first, vertex_len, 0, instance_len);
+  }
 }
 
 void DrawMulti::execute(RecordingState &state) const
@@ -166,11 +206,19 @@ void DrawMulti::execute(RecordingState &state) const
     const DrawGroup &group = groups[group_index];
 
     if (group.vertex_len > 0) {
-      if (GPU_shader_draw_parameters_support() == false) {
-        GPU_batch_resource_id_buf_set(group.gpu_batch, state.resource_id_buf);
+      gpu::Batch *batch = group.desc.gpu_batch;
+
+      if (GPUPrimType(group.desc.expand_prim_type) != GPU_PRIM_NONE) {
+        /* Bind original batch as resource and use a procedural batch to issue the draw-call. */
+        GPU_batch_bind_as_resources(group.desc.gpu_batch, state.shader);
+        batch = procedural_batch_get(GPUPrimType(group.desc.expand_prim_type));
       }
 
-      GPU_batch_set_shader(group.gpu_batch, state.shader);
+      if (GPU_shader_draw_parameters_support() == false) {
+        GPU_batch_resource_id_buf_set(batch, state.resource_id_buf);
+      }
+
+      GPU_batch_set_shader(batch, state.shader);
 
       constexpr intptr_t stride = sizeof(DrawCommand);
       /* We have 2 indirect command reserved per draw group. */
@@ -179,12 +227,12 @@ void DrawMulti::execute(RecordingState &state) const
       /* Draw negatively scaled geometry first. */
       if (group.len - group.front_facing_len > 0) {
         state.front_facing_set(true);
-        GPU_batch_draw_indirect(group.gpu_batch, indirect_buf, offset);
+        GPU_batch_draw_indirect(batch, indirect_buf, offset);
       }
 
       if (group.front_facing_len > 0) {
         state.front_facing_set(false);
-        GPU_batch_draw_indirect(group.gpu_batch, indirect_buf, offset + stride);
+        GPU_batch_draw_indirect(batch, indirect_buf, offset + stride);
       }
     }
 
@@ -314,8 +362,8 @@ std::string FramebufferBind::serialize() const
 std::string SubPassTransition::serialize() const
 {
   auto to_str = [](GPUAttachmentState state) {
-    return (state != GPU_ATTACHEMENT_IGNORE) ?
-               ((state == GPU_ATTACHEMENT_WRITE) ? "write" : "read") :
+    return (state != GPU_ATTACHMENT_IGNORE) ?
+               ((state == GPU_ATTACHMENT_WRITE) ? "write" : "read") :
                "ignore";
   };
 
@@ -492,7 +540,7 @@ std::string SpecializeConstant::serialize() const
 
 std::string Draw::serialize() const
 {
-  std::string inst_len = (instance_len == uint(-1)) ? "from_batch" : std::to_string(instance_len);
+  std::string inst_len = std::to_string(instance_len);
   std::string vert_len = (vertex_len == uint(-1)) ? "from_batch" : std::to_string(vertex_len);
   std::string vert_first = (vertex_first == uint(-1)) ? "from_batch" :
                                                         std::to_string(vertex_first);
@@ -519,7 +567,7 @@ std::string DrawMulti::serialize(const std::string &line_prefix) const
   uint prefix_sum = 0u;
   for (DrawGroup &group : groups) {
     group.start = prefix_sum;
-    prefix_sum += group.front_proto_len + group.back_proto_len;
+    prefix_sum += group.front_facing_counter + group.back_facing_counter;
   }
 
   std::stringstream ss;
@@ -533,8 +581,8 @@ std::string DrawMulti::serialize(const std::string &line_prefix) const
 
     intptr_t offset = grp.start;
 
-    if (grp.back_proto_len > 0) {
-      for (DrawPrototype &proto : prototypes.slice_safe({offset, grp.back_proto_len})) {
+    if (grp.back_facing_counter > 0) {
+      for (DrawPrototype &proto : prototypes.slice_safe({offset, grp.back_facing_counter})) {
         BLI_assert(proto.group_id == group_index);
         ResourceHandle handle(proto.resource_handle);
         BLI_assert(handle.has_inverted_handedness());
@@ -542,11 +590,11 @@ std::string DrawMulti::serialize(const std::string &line_prefix) const
            << line_prefix << "    .proto(instance_len=" << std::to_string(proto.instance_len)
            << ", resource_id=" << std::to_string(handle.resource_index()) << ", back_face)";
       }
-      offset += grp.back_proto_len;
+      offset += grp.back_facing_counter;
     }
 
-    if (grp.front_proto_len > 0) {
-      for (DrawPrototype &proto : prototypes.slice_safe({offset, grp.front_proto_len})) {
+    if (grp.front_facing_counter > 0) {
+      for (DrawPrototype &proto : prototypes.slice_safe({offset, grp.front_facing_counter})) {
         BLI_assert(proto.group_id == group_index);
         ResourceHandle handle(proto.resource_handle);
         BLI_assert(!handle.has_inverted_handedness());
@@ -729,24 +777,48 @@ void DrawMultiBuf::bind(RecordingState &state,
   for (DrawGroup &group : MutableSpan<DrawGroup>(group_buf_.data(), group_count_)) {
     /* Compute prefix sum of all instance of previous group. */
     group.start = resource_id_count_;
-    resource_id_count_ += group.len * view_len;
+    resource_id_count_ += group.len;
 
     int batch_vert_len, batch_vert_first, batch_base_index, batch_inst_len;
     /* Now that GPUBatches are guaranteed to be finished, extract their parameters. */
-    GPU_batch_draw_parameter_get(
-        group.gpu_batch, &batch_vert_len, &batch_vert_first, &batch_base_index, &batch_inst_len);
+    GPU_batch_draw_parameter_get(group.desc.gpu_batch,
+                                 &batch_vert_len,
+                                 &batch_vert_first,
+                                 &batch_base_index,
+                                 &batch_inst_len);
 
-    group.vertex_len = group.vertex_len == -1 ? batch_vert_len : group.vertex_len;
-    group.vertex_first = group.vertex_first == -1 ? batch_vert_first : group.vertex_first;
+    group.vertex_len = group.desc.vertex_len == 0 ? batch_vert_len : group.desc.vertex_len;
+    group.vertex_first = group.desc.vertex_first == -1 ? batch_vert_first :
+                                                         group.desc.vertex_first;
     group.base_index = batch_base_index;
+    /* Instancing attributes are not supported using the new pipeline since we use the base
+     * instance to set the correct resource_id. Workaround is a storage_buf + gl_InstanceID. */
+    BLI_assert(batch_inst_len == 1);
+    UNUSED_VARS_NDEBUG(batch_inst_len);
+
+    if (group.desc.expand_prim_type != GPU_PRIM_NONE) {
+      /* Expanded drawcall. */
+      IndexRange vert_range = GPU_batch_draw_expanded_parameter_get(
+          group.desc.gpu_batch,
+          GPUPrimType(group.desc.expand_prim_type),
+          group.vertex_len,
+          group.vertex_first);
+
+      group.vertex_first = vert_range.start() * group.desc.expand_prim_len;
+      group.vertex_len = vert_range.size() * group.desc.expand_prim_len;
+      /* Override base index to -1 as the generated drawcall will not use an index buffer and do
+       * the indirection manually inside the shader. */
+      group.base_index = -1;
+    }
 
 #ifdef WITH_METAL_BACKEND
     /* For SSBO vertex fetch, mutate output vertex count by ssbo vertex fetch expansion factor. */
-    if (group.gpu_shader) {
+    if (group.desc.gpu_shader) {
       int num_input_primitives = gpu_get_prim_count_from_type(group.vertex_len,
-                                                              group.gpu_batch->prim_type);
+                                                              group.desc.gpu_batch->prim_type);
       group.vertex_len = num_input_primitives *
-                         GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(group.gpu_shader);
+                         GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(
+                             group.desc.gpu_shader);
       /* Override base index to -1, as all SSBO calls are submitted as non-indexed, with the
        * index buffer indirection handled within the implementation. This is to ensure
        * command generation can correctly assigns baseInstance in the non-indexed formatting. */
@@ -754,19 +826,14 @@ void DrawMultiBuf::bind(RecordingState &state,
     }
 #endif
 
-    /* Instancing attributes are not supported using the new pipeline since we use the base
-     * instance to set the correct resource_id. Workaround is a storage_buf + gl_InstanceID. */
-    BLI_assert(batch_inst_len == 1);
-    UNUSED_VARS_NDEBUG(batch_inst_len);
-
-    /* Now that we got the batch information, we can set the counters to 0. */
+    /* Reset counters to 0 for the GPU. */
     group.total_counter = group.front_facing_counter = group.back_facing_counter = 0;
   }
 
   group_buf_.push_update();
   prototype_buf_.push_update();
   /* Allocate enough for the expansion pass. */
-  resource_id_buf_.get_or_resize(resource_id_count_ * (use_custom_ids ? 2 : 1));
+  resource_id_buf_.get_or_resize(resource_id_count_ * view_len * (use_custom_ids ? 2 : 1));
   /* Two commands per group (inverted and non-inverted scale). */
   command_buf_.get_or_resize(group_count_ * 2);
 
@@ -775,6 +842,7 @@ void DrawMultiBuf::bind(RecordingState &state,
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "prototype_len", prototype_count_);
     GPU_shader_uniform_1i(shader, "visibility_word_per_draw", visibility_word_per_draw);
+    GPU_shader_uniform_1i(shader, "view_len", view_len);
     GPU_shader_uniform_1i(shader, "view_shift", log2_ceil_u(view_len));
     GPU_shader_uniform_1b(shader, "use_custom_ids", use_custom_ids);
     GPU_storagebuf_bind(group_buf_, GPU_shader_get_ssbo_binding(shader, "group_buf"));

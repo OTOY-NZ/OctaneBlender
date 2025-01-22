@@ -9,9 +9,9 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
-#include "bpy_app_ffmpeg.h"
+#include "bpy_app_ffmpeg.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
 #ifdef WITH_FFMPEG
 extern "C" {
@@ -45,10 +45,10 @@ static PyStructSequence_Field app_ffmpeg_info_fields[] = {
 #undef DEF_FFMPEG_LIB_VERSION
 
 static PyStructSequence_Desc app_ffmpeg_info_desc = {
-    "bpy.app.ffmpeg",                                                          /* name */
-    "This module contains information about FFmpeg blender is linked against", /* doc */
-    app_ffmpeg_info_fields,                                                    /* fields */
-    ARRAY_SIZE(app_ffmpeg_info_fields) - 1,
+    /*name*/ "bpy.app.ffmpeg",
+    /*doc*/ "This module contains information about FFmpeg blender is linked against",
+    /*fields*/ app_ffmpeg_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_ffmpeg_info_fields) - 1,
 };
 
 static PyObject *make_ffmpeg_info()

@@ -239,7 +239,8 @@ typedef enum {
   /* Trackballs and programmable buttons. */
   GHOST_kButtonMaskButton6,
   GHOST_kButtonMaskButton7,
-  GHOST_kButtonNum
+
+#define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
 } GHOST_TButton;
 
 typedef enum {
@@ -360,6 +361,12 @@ typedef enum {
   GHOST_kStandardCursorBottomRightCorner,
   GHOST_kStandardCursorBottomLeftCorner,
   GHOST_kStandardCursorCopy,
+  GHOST_kStandardCursorLeftHandle,
+  GHOST_kStandardCursorRightHandle,
+  GHOST_kStandardCursorBothHandles,
+  GHOST_kStandardCursorHandOpen,
+  GHOST_kStandardCursorHandClosed,
+  GHOST_kStandardCursorHandPoint,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -707,12 +714,24 @@ typedef struct {
 } GHOST_DisplaySetting;
 
 typedef struct {
+  /** Index of the GPU device in the list provided by the platform. */
+  int index;
+  /** (PCI) Vendor ID of the GPU. */
+  uint vendor_id;
+  /** Device ID of the GPU provided by the vendor. */
+  uint device_id;
+} GHOST_GPUDevice;
+
+typedef struct {
   int flags;
   GHOST_TDrawingContextType context_type;
+  GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
 
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {
+  /** Identifier of the swap chain image in the swap chain. */
+  uint32_t swap_chain_index;
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
   /** Format of the image. */
@@ -785,6 +804,8 @@ typedef void (*GHOST_XrCustomdataFreeFn)(void *customdata);
 typedef void *(*GHOST_XrGraphicsContextBindFn)(void);
 typedef void (*GHOST_XrGraphicsContextUnbindFn)(GHOST_ContextHandle graphics_context);
 typedef void (*GHOST_XrDrawViewFn)(const struct GHOST_XrDrawViewInfo *draw_view, void *customdata);
+typedef bool (*GHOST_XrPassthroughEnabledFn)(void *customdata);
+typedef void (*GHOST_XrDisablePassthroughFn)(void *customdata);
 
 /**
  * An array of #GHOST_TXrGraphicsBinding items defining the candidate bindings to use.
@@ -933,3 +954,114 @@ typedef struct GHOST_XrControllerModelData {
 #endif /* WITH_XR_OPENXR */
 
 // NOLINTEND: modernize-use-using
+
+/**
+ * NDOF device button event types.
+ *
+ * SpaceMouse devices ship with an internal identifier number for each button.
+ * Deprecated versions of the 3DxWare SDK have a `virtualkeys.h` header file
+ * where some of these numbers are found but it is basically an arbitrary assignment
+ * made by the vendor (3Dconnexion) since the application has the freedom to override as necessary.
+ */
+typedef enum {
+
+  GHOST_NDOF_BUTTON_NONE = -1,
+  /* Used internally, never sent or used as an index. */
+  GHOST_NDOF_BUTTON_INVALID = 0,
+
+  /* These two are available from any 3Dconnexion device. */
+  GHOST_NDOF_BUTTON_MENU = 1,
+  GHOST_NDOF_BUTTON_FIT = 2,
+
+  /* Standard views. */
+  GHOST_NDOF_BUTTON_TOP = 3,
+  GHOST_NDOF_BUTTON_LEFT = 4,
+  GHOST_NDOF_BUTTON_RIGHT = 5,
+  GHOST_NDOF_BUTTON_FRONT = 6,
+  GHOST_NDOF_BUTTON_BOTTOM = 7,
+  GHOST_NDOF_BUTTON_BACK = 8,
+
+  /* 90 degrees rotations. */
+  GHOST_NDOF_BUTTON_ROLL_CW = 9,
+  GHOST_NDOF_BUTTON_ROLL_CCW = 10,
+
+  /* More views. */
+  GHOST_NDOF_BUTTON_ISO1 = 11,
+  GHOST_NDOF_BUTTON_ISO2 = 12,
+
+  /* General-purpose buttons.
+   * Users can assign functions via keymap editor. */
+  GHOST_NDOF_BUTTON_1 = 13,
+  GHOST_NDOF_BUTTON_2 = 14,
+  GHOST_NDOF_BUTTON_3 = 15,
+  GHOST_NDOF_BUTTON_4 = 16,
+  GHOST_NDOF_BUTTON_5 = 17,
+  GHOST_NDOF_BUTTON_6 = 18,
+  GHOST_NDOF_BUTTON_7 = 19,
+  GHOST_NDOF_BUTTON_8 = 20,
+  GHOST_NDOF_BUTTON_9 = 21,
+  GHOST_NDOF_BUTTON_10 = 22,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_ESC = 23,
+  GHOST_NDOF_BUTTON_ALT = 24,
+  GHOST_NDOF_BUTTON_SHIFT = 25,
+  GHOST_NDOF_BUTTON_CTRL = 26,
+
+  /* Device control. */
+  GHOST_NDOF_BUTTON_ROTATE = 27,
+  GHOST_NDOF_BUTTON_PANZOOM = 28,
+  GHOST_NDOF_BUTTON_DOMINANT = 29,
+  GHOST_NDOF_BUTTON_PLUS = 30,
+  GHOST_NDOF_BUTTON_MINUS = 31,
+
+  /* New spin buttons. */
+  GHOST_NDOF_BUTTON_SPIN_CW = 32,
+  GHOST_NDOF_BUTTON_SPIN_CCW = 33,
+  GHOST_NDOF_BUTTON_TILT_CW = 34,
+  GHOST_NDOF_BUTTON_TILT_CCW = 35,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_ENTER = 36,
+  GHOST_NDOF_BUTTON_DELETE = 37,
+
+  /* Keyboard Pro special buttons. */
+  GHOST_NDOF_BUTTON_KBP_F1 = 41,
+  GHOST_NDOF_BUTTON_KBP_F2 = 42,
+  GHOST_NDOF_BUTTON_KBP_F3 = 43,
+  GHOST_NDOF_BUTTON_KBP_F4 = 44,
+  GHOST_NDOF_BUTTON_KBP_F5 = 45,
+  GHOST_NDOF_BUTTON_KBP_F6 = 46,
+  GHOST_NDOF_BUTTON_KBP_F7 = 47,
+  GHOST_NDOF_BUTTON_KBP_F8 = 48,
+  GHOST_NDOF_BUTTON_KBP_F9 = 49,
+  GHOST_NDOF_BUTTON_KBP_F10 = 50,
+  GHOST_NDOF_BUTTON_KBP_F11 = 51,
+  GHOST_NDOF_BUTTON_KBP_F12 = 52,
+
+  /* General-purpose buttons.
+   * Users can assign functions via keymap editor. */
+  GHOST_NDOF_BUTTON_11 = 77,
+  GHOST_NDOF_BUTTON_12 = 78,
+
+  /* Store views. */
+  GHOST_NDOF_BUTTON_V1 = 103,
+  GHOST_NDOF_BUTTON_V2 = 104,
+  GHOST_NDOF_BUTTON_V3 = 105,
+  GHOST_NDOF_BUTTON_SAVE_V1 = 139,
+  GHOST_NDOF_BUTTON_SAVE_V2 = 140,
+  GHOST_NDOF_BUTTON_SAVE_V3 = 141,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_TAB = 175,
+  GHOST_NDOF_BUTTON_SPACE = 176,
+
+  /* Numpad Pro special buttons. */
+  GHOST_NDOF_BUTTON_NP_F1 = 229,
+  GHOST_NDOF_BUTTON_NP_F2 = 230,
+  GHOST_NDOF_BUTTON_NP_F3 = 231,
+  GHOST_NDOF_BUTTON_NP_F4 = 232,
+
+  GHOST_NDOF_BUTTON_USER = 0x10000
+
+} GHOST_NDOF_ButtonT;

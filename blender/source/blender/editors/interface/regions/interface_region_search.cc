@@ -769,7 +769,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
     }
   }
   else {
-    int searchbox_width = UI_searchbox_size_x();
+    int searchbox_width = int(float(UI_searchbox_size_x()) * 1.4f);
 
     /* We should make this wider if there is a path or hint on the right. */
     if (ui_searchbox_item_separator(data) != UI_MENU_ITEM_SEPARATOR_NONE) {
@@ -802,7 +802,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
 
     BLI_rcti_translate(&rect_i, butregion->winrct.xmin, butregion->winrct.ymin);
 
-    int winx = WM_window_pixels_x(win);
+    int winx = WM_window_native_pixel_x(win);
     // winy = WM_window_pixels_y(win);  /* UNUSED */
     // wm_window_get_size(win, &winx, &winy);
 

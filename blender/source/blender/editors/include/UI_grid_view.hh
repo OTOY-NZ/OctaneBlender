@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
@@ -19,9 +21,7 @@
 #include "UI_resources.hh"
 
 struct bContext;
-struct PointerRNA;
 struct uiBlock;
-struct uiButViewItem;
 struct uiLayout;
 struct View2D;
 
@@ -45,7 +45,9 @@ class AbstractGridViewItem : public AbstractViewItem {
  public:
   /* virtual */ ~AbstractGridViewItem() override = default;
 
-  virtual void build_grid_tile(uiLayout &layout) const = 0;
+  virtual void build_grid_tile(const bContext &C, uiLayout &layout) const = 0;
+
+  /* virtual */ std::optional<std::string> debug_name() const override;
 
   AbstractGridView &get_view() const;
 
@@ -168,9 +170,11 @@ class GridViewBuilder {
  public:
   GridViewBuilder(uiBlock &block);
 
-  /** Build \a grid_view into the previously provided block, clipped by \a view_bounds (view space,
-   * typically `View2D.cur`). */
-  void build_grid_view(AbstractGridView &grid_view, const View2D &v2d, uiLayout &layout);
+  void build_grid_view(const bContext &C,
+                       AbstractGridView &grid_view,
+                       const View2D &v2d,
+                       uiLayout &layout,
+                       std::optional<StringRef> search_string = {});
 };
 
 /** \} */
@@ -203,14 +207,10 @@ class PreviewGridItem : public AbstractGridViewItem {
 
   PreviewGridItem(StringRef identifier, StringRef label, int preview_icon_id);
 
-  void build_grid_tile(uiLayout &layout) const override;
+  void build_grid_tile(const bContext &C, uiLayout &layout) const override;
 
-  /**
-   * \note Takes ownership of the operator properties defined in \a op_props.
-   */
   void build_grid_tile_button(uiLayout &layout,
-                              const wmOperatorType *ot = nullptr,
-                              const PointerRNA *op_props = nullptr) const;
+                              BIFIconID override_preview_icon_id = ICON_NONE) const;
 
   /**
    * Set a custom callback to execute when activating this view item. This way users don't have to

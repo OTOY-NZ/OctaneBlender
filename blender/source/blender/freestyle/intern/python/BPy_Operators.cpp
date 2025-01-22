@@ -40,8 +40,7 @@ int Operators_Init(PyObject *module)
   if (PyType_Ready(&Operators_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&Operators_Type);
-  PyModule_AddObject(module, "Operators", (PyObject *)&Operators_Type);
+  PyModule_AddObjectRef(module, "Operators", (PyObject *)&Operators_Type);
 
   return 0;
 }
@@ -528,7 +527,7 @@ PyDoc_STRVAR(
     "      transform as a stroke.\n"
     "   :type pred: :class:`UnaryPredicate1D`\n"
     "   :arg shaders: The list of shaders used to shade the strokes.\n"
-    "   :type shaders: list of :class:`StrokeShader` objects");
+    "   :type shaders: list[:class:`StrokeShader`]");
 
 static PyObject *Operators_create(BPy_Operators * /*self*/, PyObject *args, PyObject *kwds)
 {

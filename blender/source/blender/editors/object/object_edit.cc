@@ -51,7 +51,7 @@
 #include "BKE_effect.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -325,7 +325,7 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "select", true, "Select", "");
+  RNA_def_boolean(ot->srna, "select", true, "Select", "Select revealed objects");
 }
 
 static int object_hide_view_set_exec(bContext *C, wmOperator *op)
@@ -716,6 +716,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
       obedit->mode &= ~OB_MODE_EDIT;
       /* Also happens when mesh is shared across multiple objects. #69834. */
       DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+      /* Leaving edit mode may modify the original object data; tag that as well. */
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     }
     return true;
   }
@@ -738,6 +740,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
 
     /* also flush ob recalc, doesn't take much overhead, but used for particles */
     DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+    /* Leaving edit mode may modify the original object data; tag that as well. */
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 
@@ -936,7 +940,8 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 
   if (!is_mode_set) {
     editmode_enter_ex(bmain, scene, obact, 0);
-    if (obact->mode & mode_flag) {
+    /* Grease Pencil does not support multi-object editing. */
+    if ((obact->type != OB_GREASE_PENCIL) && ((obact->mode & mode_flag) != 0)) {
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
         if ((ob != obact) && (ob->type == obact->type)) {
           editmode_enter_ex(bmain, scene, ob, EM_NO_CONTEXT);
@@ -1680,7 +1685,8 @@ static bool shade_poll(bContext *C)
   if (obact != nullptr) {
     /* Doesn't handle edit-data, sculpt dynamic-topology, or their undo systems. */
     if (obact->mode & (OB_MODE_EDIT | OB_MODE_SCULPT) || obact->data == nullptr ||
-        ID_IS_OVERRIDE_LIBRARY(obact) || ID_IS_OVERRIDE_LIBRARY(obact->data))
+        !ID_IS_EDITABLE(obact) || !ID_IS_EDITABLE(obact->data) || ID_IS_OVERRIDE_LIBRARY(obact) ||
+        ID_IS_OVERRIDE_LIBRARY(obact->data))
     {
       return false;
     }
@@ -2229,7 +2235,7 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
   int index = menu->index;
   LISTBASE_FOREACH (CollectionChild *, child, &menu->collection->children) {
     Collection *collection = child->collection;
-    MoveToCollectionData *submenu = MEM_cnew<MoveToCollectionData>(__func__);
+    MoveToCollectionData *submenu = MEM_new<MoveToCollectionData>(__func__);
     BLI_addtail(&menu->submenus, submenu);
     submenu->collection = collection;
     submenu->index = ++index;
@@ -2241,10 +2247,11 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
 
 static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
 {
-  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
+  LISTBASE_FOREACH_MUTABLE (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_free_recursive(submenu);
+    MEM_delete(submenu);
   }
-  BLI_freelistN(&menu->submenus);
+  BLI_listbase_clear(&menu->submenus);
 }
 
 static void move_to_collection_menus_free(MoveToCollectionData **menu)
@@ -2254,7 +2261,7 @@ static void move_to_collection_menus_free(MoveToCollectionData **menu)
   }
 
   move_to_collection_menus_free_recursive(*menu);
-  MEM_freeN(*menu);
+  MEM_delete(*menu);
   *menu = nullptr;
 }
 
@@ -2353,7 +2360,7 @@ static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent 
    *
    * So we are left with a memory that will necessarily leak. It's a small leak though. */
   if (master_collection_menu == nullptr) {
-    master_collection_menu = MEM_cnew<MoveToCollectionData>(
+    master_collection_menu = MEM_new<MoveToCollectionData>(
         "MoveToCollectionData menu - expected eventual memleak");
   }
 

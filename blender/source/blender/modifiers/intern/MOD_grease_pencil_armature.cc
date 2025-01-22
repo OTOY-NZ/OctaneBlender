@@ -39,7 +39,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_modifiertypes.hh"
@@ -107,6 +107,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Drawing &drawing)
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
   /* The influence flag is where the "invert" flag is stored,
@@ -134,6 +135,7 @@ static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Draw
 
     BKE_armature_deform_coords_with_curves(*amd.object,
                                            *ctx.object,
+                                           &curves.vertex_group_names,
                                            positions.slice(points),
                                            std::nullopt,
                                            std::nullopt,

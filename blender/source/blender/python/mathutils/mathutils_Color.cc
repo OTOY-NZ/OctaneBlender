@@ -10,12 +10,12 @@
 
 #include <Python.h>
 
-#include "mathutils.h"
+#include "mathutils.hh"
 
 #include "BLI_utildefines.h"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
 #ifndef MATH_STANDALONE
 #  include "IMB_colormanagement.hh"
@@ -344,7 +344,7 @@ static PyObject *Color_richcmpr(PyObject *a, PyObject *b, int op)
       return nullptr;
   }
 
-  return Py_INCREF_RET(res);
+  return Py_NewRef(res);
 }
 
 /** \} */
@@ -1200,8 +1200,8 @@ PyDoc_STRVAR(
     "   the OpenColorIO configuration. The notable exception is user interface theming colors, "
     "   which are in sRGB color space.\n"
     "\n"
-    "   :arg rgb: (r, g, b) color values\n"
-    "   :type rgb: 3d vector\n");
+    "   :arg rgb: (red, green, blue) color values where (0, 0, 0) is black & (1, 1, 1) is white.\n"
+    "   :type rgb: Sequence[float]\n");
 PyTypeObject color_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Color",
