@@ -254,6 +254,10 @@ class BlenderID(object):
                 other.id_name, other.is_library, other.library_name)
         return False
 
+    def __repr__(self):
+        return "<BlenderID id_name:%s is_library:%s library_name:%s>" % (self.id_name, self.is_library,
+                                                                         self.library_name)
+
     def is_valid(self):
         return len(self.id_name) > 0
 
@@ -1215,6 +1219,12 @@ def update_octane_viewport_shading_type():
 
 
 def set_all_viewport_shading_type(shading_type="SOLID", tag_redraw=False):
+    shading_type_mapper = {
+        "WIREFRAME": 2,
+        "SOLID": 3,
+        "MATERIAL": 4,
+        "RENDERED": 6,
+    }
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
@@ -1224,7 +1234,7 @@ def set_all_viewport_shading_type(shading_type="SOLID", tag_redraw=False):
                         if view_shading.type != shading_type:
                             view_shading.type = shading_type
                             oct_view_shading = view_shading.octane
-                            oct_view_shading["shading_type"] = view_shading.type
+                            oct_view_shading["shading_type"] = shading_type_mapper[view_shading.type]
                 if tag_redraw:
                     for region in area.regions:
                         region.tag_redraw()

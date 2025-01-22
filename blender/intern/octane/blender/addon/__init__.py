@@ -2,10 +2,10 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.10)",
+    "name": "OctaneBlender (v. 29.12)",
     "author": "OTOY Inc.",
-    "version": (29, 9, 0),
-    "blender": (4, 1, 1),
+    "version": (29, 11, 0),
+    "blender": (4, 2, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -24,7 +24,7 @@ from octane import engine
 from octane import core
 from octane.core.client import OctaneBlender
 from octane.core.frame_buffer import ViewportDrawData, RenderDrawData
-from octane.utils import consts, logger, utility
+from octane.utils import consts, logger, runtime_globals, utility
 
 # Activate the OctaneRender engine
 ACTIVE_RENDER_ENGINE = None
@@ -350,6 +350,7 @@ def register():
     OctaneBlender().init(path, user_path)
     major, minor, patch = bpy.app.version
     OctaneBlender().set_blender_version(major, minor, patch)
+    runtime_globals.register()
     from octane import preferences
     preferences.register()
 
@@ -411,6 +412,8 @@ def unregister():
     uis.unregister()
     nodes.unregister()
     operators_.unregister()
+
+    runtime_globals.unregister()
 
     for cls in classes:
         unregister_class(cls)

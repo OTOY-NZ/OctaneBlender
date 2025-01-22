@@ -12,6 +12,7 @@ from bpy.app.translations import (
 
 import bpy
 from octane import core
+from octane.utils import runtime_globals
 
 BLENDER_VIEW3D_HT_header_draw = None
 
@@ -203,6 +204,12 @@ def OCTANE_VIEW3D_HT_header_draw(self, context):
 
     layout.separator_spacer()
 
+    # Octane specific buttons
+    row = layout.row(align=True)
+    row.operator("octane.focus_picker", text="", icon_value=runtime_globals.OCTANE_ICONS['PICK af'].icon_id)
+    row.operator("octane.whitebalance_picker", text="", icon_value=runtime_globals.OCTANE_ICONS['PICKWB'].icon_id)
+    row.operator("octane.material_picker", text="", icon_value=runtime_globals.OCTANE_ICONS['PICK material'].icon_id)
+
     # Viewport Settings
     layout.popover(
         panel="VIEW3D_PT_object_type_visibility",
@@ -247,7 +254,7 @@ def OCTANE_VIEW3D_HT_header_draw(self, context):
     )
 
     row = layout.row(align=True)
-    if context.engine == "octane":
+    if context.engine == "octane" and core.ENABLE_OCTANE_ADDON_CLIENT:
         oct_shading = shading.octane
         row.prop(oct_shading, "shading_type", text="", expand=True)
     else:
@@ -267,8 +274,8 @@ _CLASSES = [
 def register():
     for cls in _CLASSES:
         register_class(cls)
-    if not core.ENABLE_OCTANE_ADDON_CLIENT:
-        return
+    # if not core.ENABLE_OCTANE_ADDON_CLIENT:
+    #     return
     global BLENDER_VIEW3D_HT_header_draw
     BLENDER_VIEW3D_HT_header_draw = bpy.types.VIEW3D_HT_header.draw
     bpy.types.VIEW3D_HT_header.draw = OCTANE_VIEW3D_HT_header_draw
@@ -277,6 +284,6 @@ def register():
 def unregister():
     for cls in _CLASSES:
         unregister_class(cls)
-    if not core.ENABLE_OCTANE_ADDON_CLIENT:
-        return
+    # if not core.ENABLE_OCTANE_ADDON_CLIENT:
+    #     return
     bpy.types.VIEW3D_HT_header.draw = BLENDER_VIEW3D_HT_header_draw

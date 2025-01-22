@@ -244,7 +244,12 @@ class OctaneBaseImageNode(OctaneBaseNode):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         scene = depsgraph.scene_eval
         is_data_updated = False
+        need_reload = getattr(self, "need_reload", False)
         if self.image:
+            if need_reload:
+                octane_node.need_update = True
+                octane_node.set_attribute_blender_name("a_reload", consts.AttributeType.AT_BOOL, True)
+                setattr(self, "need_reload", False)
             scene_frame_current = scene.frame_current if scene else 0
             if self.image.source in ("FILE", "SEQUENCE",) and self.image.packed_file is None:
                 is_data_updated |= self._update_image_filepath(octane_node, scene_frame_current)

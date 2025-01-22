@@ -62,7 +62,38 @@ enum ShaderGraphType {
 
 enum DependentIDType {
   DEPENDENT_ID_OBJECT = 0,
-  DEPENDENT_ID_COLLECTION = 1
+  DEPENDENT_ID_COLLECTION = 1,
+  DEPENDENT_ID_IMAGE = 2
+};
+
+// Define the structure to hold the dependent name and ID.
+struct GraphDependent {
+  std::string name;
+  DependentIDType id;
+
+  // Constructor to initialize the name and id.
+  GraphDependent(const std::string &name, DependentIDType id) : name(name), id(id) {}
+
+  // Provide a less-than operator to allow usage in a set.
+  bool operator<(const GraphDependent &other) const
+  {
+    if (id != other.id) {
+      return id < other.id;
+    }
+    return name < other.name;
+  }
+
+  // Provide an equality operator.
+  bool operator==(const GraphDependent &other) const
+  {
+    return id == other.id && name == other.name;
+  }
+
+  // Provide an inequality operator.
+  bool operator!=(const GraphDependent &other) const
+  {
+    return !(*this == other);
+  }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +184,7 @@ class ShaderGraph {
     need_subdivision = false;
     has_object_dependency = false;
     has_ramp_node = false;
-    dependent_names.clear();
+    dependents.clear();
   };
   ShaderGraph(ShaderGraphType graphType)
   {
@@ -161,14 +192,13 @@ class ShaderGraph {
     need_subdivision = false;
     has_object_dependency = false;
     has_ramp_node = false;
-    dependent_names.clear();
+    dependents.clear();
   };
   ~ShaderGraph();
 
   ShaderNode *add(ShaderNode *node);
   ShaderNode *output();
   bool is_builtin_image_updated(ShaderGraph &graph);
-  static std::string generate_dependent_name(std::string name, DependentIDType dependent_id_type);
   void add_dependent_name(std::string name, DependentIDType dependent_id_type);
 
   list<ShaderNode *> nodes;
@@ -177,7 +207,7 @@ class ShaderGraph {
   bool need_subdivision;
   bool has_object_dependency;
   bool has_ramp_node;
-  std::unordered_set<std::string> dependent_names;
+  std::set<GraphDependent> dependents;
 
  protected:
 };  // ShaderGraph

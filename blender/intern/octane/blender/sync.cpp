@@ -107,13 +107,15 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   ///* Sync recalc flags from blender to octane. Actual update is done separate,
   // * so we can do it later on if doing it immediate is not suitable. */
   bool experimental = false;
-  std::unordered_set<std::string> updated_id_names;
+  std::set<GraphDependent> updated_dependent_ids;
   depgraph_updated_mesh_names.clear();
+  scene->updated_images.clear();
 
   bool has_updated_objects = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_OBJECT);
   bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
   bool has_updated_shading = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_MATERIAL) ||
                              b_depsgraph.id_type_updated(BL::DriverTarget::id_type_TEXTURE);
+  bool has_updated_image = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_IMAGE);
 
   /* Iterate over all IDs in this depsgraph. */
   for (BL::DepsgraphUpdate &b_update : b_depsgraph.updates) {
@@ -141,8 +143,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       const bool can_have_geometry = object_can_have_geometry(b_ob);
       const bool is_light = !can_have_geometry && object_is_light(b_ob);
 
-      updated_id_names.insert(
-          ShaderGraph::generate_dependent_name(b_ob.name(), DEPENDENT_ID_OBJECT));
+      updated_dependent_ids.insert(GraphDependent(b_ob.name(), DEPENDENT_ID_OBJECT));
 
       if (b_ob.is_instancer() && b_update.is_updated_shading()) {
         /* Needed for e.g. object color updates on instancer. */
@@ -159,8 +160,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
             object_map.set_recalc(b_ob);
           }
 
-          if (updated_geometry ||
-              updated_shading ||
+          if (updated_geometry || updated_shading ||
               (object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
           {
             BL::ID key = (BKE_object_is_modified(b_ob) || b_ob.mode() == b_ob.mode_EDIT) ?
@@ -239,28 +239,32 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     }
     else if (b_id.is_a(&RNA_Collection)) {
       BL::Collection b_col(b_id);
-      updated_id_names.insert(
-          ShaderGraph::generate_dependent_name(b_col.name(), DEPENDENT_ID_COLLECTION));
+      updated_dependent_ids.insert(GraphDependent(b_col.name(), DEPENDENT_ID_COLLECTION));
+    }
+    else if (b_id.is_a(&RNA_Image)) {
+      BL::Image b_img(b_id);
+      updated_dependent_ids.insert(GraphDependent(b_img.name(), DEPENDENT_ID_IMAGE));
+      scene->updated_images.emplace(b_img.name());
     }
   }
 
   /* Updates shader with object dependency if objects changed. */
-  if (has_updated_objects) {
+  if (has_updated_objects || has_updated_image) {
     foreach (Shader *shader, scene->shaders) {
       bool has_object_dependency = false;
       if (shader->graph) {
-        for (auto updated_id_name : updated_id_names) {
-          for (auto dependent_name : shader->graph->dependent_names) {
-            if (updated_id_name == dependent_name) {
-              has_object_dependency = true;
-              break;
+        for (auto graph_dependent : shader->graph->dependents) {
+          for (auto updated_dependent_id : updated_dependent_ids) {
+            if (updated_dependent_id == graph_dependent) {
+              if (updated_dependent_id.id == DEPENDENT_ID_OBJECT ||
+                  updated_dependent_id.id == DEPENDENT_ID_COLLECTION)
+              {
+                shader->has_object_dependency = true;
+              }
+              shader->need_sync_object = true;
             }
           }
         }
-      }
-      if (has_object_dependency) {
-        shader->has_object_dependency = true;
-        shader->need_sync_object = true;
       }
     }
   }
@@ -603,8 +607,7 @@ SessionParams BlenderSync::get_session_params(
   bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
   params.prefer_image_type = static_cast<PreferImageType>(
       get_enum(oct_scene, "prefer_image_type"));
-  params.enable_realtime = params.interactive ?
-      get_boolean(oct_scene, "enable_realtime") : false;
+  params.enable_realtime = params.interactive ? get_boolean(oct_scene, "enable_realtime") : false;
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
   params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
   bool use_global_imager = false;
@@ -1140,7 +1143,8 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   return env_texture_ptr.data ? ((BL::ID)env_texture_ptr).name() : "";
 }
 
-std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id) {
+std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id)
+{
   std::string name;
   if (b_id.ptr.data != NULL) {
     name = b_id.name();

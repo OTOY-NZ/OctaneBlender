@@ -1037,7 +1037,7 @@ class OctaneUniversalCameraStereoOutput(OctaneBaseSocket):
     ]
     default_value: EnumProperty(default="Disabled", update=OctaneBaseSocket.update_node_tree, description="The output rendered in stereo mode", items=items)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1059,7 +1059,7 @@ class OctaneUniversalCameraStereoMode(OctaneBaseSocket):
     ]
     default_value: EnumProperty(default="Off-axis", update=OctaneBaseSocket.update_node_tree, description="The modus operandi for stereo rendering", items=items)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1077,7 +1077,7 @@ class OctaneUniversalCameraStereodist(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.065000, update=OctaneBaseSocket.update_node_tree, description="Distance between the left and right eye in stereo mode [m]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1.000000, precision=3, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1095,7 +1095,7 @@ class OctaneUniversalCameraStereoDistFalloff(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Controls how quickly the eye distance gets reduced towards the poles. This is to reduce eye strain at the poles when the panorama is looked at in an HMD. A value of 1 will reduce the eye distance more or less continuously from equator to the poles, which will create a relaxed viewing experience, but this will also cause flat surfaces to appear curved. A value smaller than 1 keeps the eye distance more or less constant for a larger latitude range above and below the horizon, but will then rapidly reduce the eye distance near the poles. This will keep flat surface flat, but cause more eye strain near the poles (which can be reduced again by setting the pano cutoff latitude to something < 90 degrees)", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1.000000, precision=3, subtype="NONE")
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1113,7 +1113,7 @@ class OctaneUniversalCameraStereoCutoffLatitude(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=90.000000, update=OctaneBaseSocket.update_node_tree, description="The +/- latitude at which the panorama gets cut off, when stereo rendering is enabled. The area with higher latitudes will be blacked out. If set to 90, nothing will be blacked out. If set to 70, an angle of 2x20 degrees will be blacked out at both poles. If set to 0, everything will be blacked out", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1131,7 +1131,7 @@ class OctaneUniversalCameraStereoSwitchEyes(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Swaps left and right eye positions when stereo mode is showing both")
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1149,7 +1149,7 @@ class OctaneUniversalCameraLeftFilter(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 0.000000, 0.812000), update=OctaneBaseSocket.update_node_tree, description="Left eye filter color which is used if the stereo mode is anaglyphic stereo", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 
@@ -1167,7 +1167,7 @@ class OctaneUniversalCameraRightFilter(OctaneBaseSocket):
     octane_socket_type = consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.188000), update=OctaneBaseSocket.update_node_tree, description="Right eye filter color which is used if the stereo mode is anaglyphic stereo", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value = False
-    octane_min_version = 0
+    octane_min_version = 14000004
     octane_end_version = 4294967295
     octane_deprecated = False
 

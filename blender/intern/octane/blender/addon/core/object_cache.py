@@ -122,9 +122,12 @@ class ObjectCache(OctaneNodeCache):
                 self.changed_data_ids.add(BlenderID(dg_update.id))
                 self.need_update = True
             if dg_update.is_updated_geometry:
-                object_data_name = getattr(getattr(dg_update.id, "data", None), "name", "")
-                if len(object_data_name):
-                    self.dg_updated_object_data_names.add(object_data_name)
+                dg_update_id_data = getattr(dg_update.id, "data", None)
+                if dg_update_id_data is not None:
+                    object_data_name = getattr(dg_update_id_data, "name", "")
+                    is_edit_mode = getattr(dg_update_id_data, "is_editmode", False)
+                    if not is_edit_mode and len(object_data_name) > 0:
+                        self.dg_updated_object_data_names.add(object_data_name)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
         is_viewport = depsgraph.mode == "VIEWPORT"

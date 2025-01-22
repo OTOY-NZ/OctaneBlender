@@ -1139,13 +1139,14 @@ class OctaneStandardSurfaceMaterial(bpy.types.Node, OctaneBaseNode):
     octane_static_pin_count = 55
 
     compatibility_mode_infos = [
-        ("Latest (2023.1.1)", "Latest (2023.1.1)", """(null)""", 13000100),
-        ("2023.1 compatibility mode", "2023.1 compatibility mode", """The slope of bump maps is calculated slightly differently, making it more sensitive to the orientation of the UV mapping.""", 13000000),
+        ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000008),
+        ("2023.1.1 compatibility mode", "2023.1.1 compatibility mode", """The coating layer does not color the transmitted light according to the standard.""", 13000100),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """The slope of bump maps is calculated slightly differently, making it more sensitive to the orientation of the UV mapping. This applies in addition to 2023.1.1 compatibility mode behavior.""", 13000000),
         ("2022.1 compatibility mode", "2022.1 compatibility mode", """Legacy behaviour for bump map strength is active and bump map height is ignored. This applies in addition to 2023.1 compatibility mode behavior.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000009, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneStandardSurfaceMaterialGroupBaseLayer", OctaneStandardSurfaceMaterialGroupBaseLayer.bl_label).init()

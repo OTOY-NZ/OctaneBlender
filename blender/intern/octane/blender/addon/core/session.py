@@ -236,7 +236,7 @@ class RenderSession(object):
         update_now = False
         try:
             # update
-            OctaneBlender().set_batch_state(False, update_now)
+            OctaneBlender().set_batch_state(True, update_now)
             self.set_status_msg("Uploading and evaluating scene in Octane...", update_now)
             if self.image_cache.need_update:
                 self.image_cache.update(depsgraph, scene, view_layer, context, update_now)

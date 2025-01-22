@@ -383,3 +383,6 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 # END OCTANE GENERATED CODE BLOCK #
+
+
+OctaneObjectLayerLightPassMask.octane_default_node_name = "OctaneLightIDBitValue"

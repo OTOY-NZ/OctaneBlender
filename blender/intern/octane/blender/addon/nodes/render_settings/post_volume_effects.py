@@ -228,9 +228,17 @@ class OctanePostVolumeEffects(bpy.types.Node, OctaneBaseNode):
     octane_min_version = 13000000
     octane_node_type = consts.NodeType.NT_POST_VOLUME
     octane_socket_list = ["Light beams", "Medium density for postfx light beams", "Fog", "Fog extinction distance", "Fog base level", "Fog half density height", "Fog environment contribution", "Base fog color", "Medium radius", "[Deprecated]Fog strength", "[Deprecated]Fog height descend", ]
-    octane_attribute_list = []
-    octane_attribute_config = {}
+    octane_attribute_list = ["a_compatibility_version", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count = 9
+
+    compatibility_mode_infos = [
+        ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000008),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """Incorrect alpha compositing is used for post volume effects. Fog base color is interpreted in the XYZ color space (with E white point), not linear sRGB.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000009, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctanePostVolumeEffectsPostFxLightBeamsEnabled", OctanePostVolumeEffectsPostFxLightBeamsEnabled.bl_label).init()
@@ -249,6 +257,10 @@ class OctanePostVolumeEffects(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES = [

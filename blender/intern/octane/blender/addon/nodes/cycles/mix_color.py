@@ -6,6 +6,7 @@ from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_socket import OctaneBaseSocket
 from octane.nodes.base_wrapper_node import OctaneScriptNodeWrapper
 from octane.nodes.base_osl import (OctaneOSLBaseBoolSocket, OctaneOSLBaseIntSocket, OctaneOSLBaseFloatSocket,
+                                   OctaneOSLBaseGreyscaleSocket,
                                    OctaneOSLBaseColorSocket, OctaneOSLBaseEnumSocket)
 from octane.utils import utility, consts, runtime_globals
 
@@ -111,7 +112,7 @@ class OctaneOSLBoolSocketMixColorClampResult(OctaneOSLBaseBoolSocket):
     default_value: BoolProperty(default=False, update=update_clamp_result, description="")
 
 
-class OctaneOSLFloatSocketMixColorFactor(OctaneOSLBaseFloatSocket):
+class OctaneOSLFloatSocketMixColorFactor(OctaneOSLBaseGreyscaleSocket):
     bl_idname = "OctaneOSLFloatSocketMixColorFactor"
     bl_label = "Factor"
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Factor")

@@ -66,9 +66,17 @@ class OctanePostProcessingAOV(bpy.types.Node, OctaneBaseNode):
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_AOV_POST_PROCESSING
     octane_socket_list = ["Enabled", "Include environment", ]
-    octane_attribute_list = []
-    octane_attribute_config = {}
+    octane_attribute_list = ["a_compatibility_version", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count = 2
+
+    compatibility_mode_infos = [
+        ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000008),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """When include environment applies, blending on top of the environment is done incorrectly.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000009, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctanePostProcessingAOVEnabled", OctanePostProcessingAOVEnabled.bl_label).init()
@@ -78,6 +86,10 @@ class OctanePostProcessingAOV(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES = [

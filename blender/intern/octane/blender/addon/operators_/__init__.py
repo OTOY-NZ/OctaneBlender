@@ -10,6 +10,7 @@ from . import _object
 from . import scene
 from . import shaders
 from . import utility_functions
+from . import viewport
 
 
 def register():
@@ -23,6 +24,7 @@ def register():
     scene.register()
     shaders.register()
     utility_functions.register()
+    viewport.register()
 
 
 def unregister():
@@ -36,3 +38,4 @@ def unregister():
     scene.unregister()
     shaders.unregister()
     utility_functions.unregister()
+    viewport.unregister()

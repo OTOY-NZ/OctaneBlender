@@ -331,6 +331,10 @@ class NodeTreeCache(OctaneNodeCache):
                             getattr(octane_graph_node.node, "image", None) is not None):
                         image = getattr(octane_graph_node.node, "image", None)
                         node_tree_attributes.image_ids.append(BlenderID(image))
+                        for data_id, dependent_set in self.data_to_dependent[ImageCache.TYPE_NAME].items():
+                            for dependent_id in dependent_set:
+                                if dependent_id.id_name == image.name:
+                                    octane_graph_node.node.need_reload = True
                     # Set object attribute
                     if octane_graph_node.node.bl_idname == "OctaneObjectData":
                         # noinspection PyUnresolvedReferences

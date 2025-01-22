@@ -526,6 +526,9 @@ static bool update_octane_image_data(
     else {
       octane_image_data.sFilePath = image_user_file_path(
           b_image_user, b_image, b_scene.frame_current(), false);
+      if (scene && scene->updated_images.find(b_image.name()) != scene->updated_images.end()) {
+        octane_image_data.bReload = true;
+      }
     }
     b_colorspace_settings.name(
         static_cast<BL::ColorManagedInputColorspaceSettings::name_enum>(current_color_space_type));
@@ -821,6 +824,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                               BL::RenderEngine &b_engine,
                               BL::Scene b_scene,
                               Scene *scene,
+                              ShaderGraph *graph,
                               bool &is_auto_refresh,
                               bool is_addon_node)
 {
@@ -841,6 +845,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              true);
     cur_node->oImageData.iHDRDepthType = get_enum(b_node.ptr, "a_channel_format");
     cur_node->oImageData.iIESMode = get_enum(b_node.ptr, "a_ies_photometry_mode");
+    graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
   }
   else {
     T b_tex_node(b_node);
@@ -857,6 +862,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              false);
     cur_node->oImageData.iHDRDepthType = get_enum(b_node.ptr, "hdr_tex_bit_depth");
     cur_node->oImageData.iIESMode = get_enum(b_node.ptr, "octane_ies_mode");
+    graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
   }
   if (scene && scene->session && scene->session->is_export_mode()) {
     if (cur_node->oImageData.sImageDataMD5Hex != "") {
@@ -1897,6 +1903,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_engine,
         b_scene,
         scene,
+        graph,
         is_auto_refresh,
         bl_idname == "OctaneInstanceColor");
   }
@@ -1909,6 +1916,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_engine,
         b_scene,
         scene,
+        graph,
         is_auto_refresh,
         bl_idname == "OctaneRGBImage");
   }
@@ -1921,6 +1929,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_engine,
         b_scene,
         scene,
+        graph,
         is_auto_refresh,
         bl_idname == "OctaneGreyscaleImage");
   }
@@ -1933,6 +1942,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_engine,
         b_scene,
         scene,
+        graph,
         is_auto_refresh,
         bl_idname == "OctaneAlphaImage");
   }
@@ -1944,6 +1954,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_engine,
         b_scene,
         scene,
+        graph,
         is_auto_refresh,
         bl_idname == "OctaneImageAOVOutput");
   }

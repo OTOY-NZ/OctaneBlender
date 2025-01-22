@@ -1277,24 +1277,6 @@ class OctaneRenderPassesRenderPassCryptomatteCount(OctaneBaseSocket):
     octane_deprecated = False
 
 
-class OctaneRenderPassesRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
-    bl_idname = "OctaneRenderPassesRenderPassCryptomatteSeedFactor"
-    bl_label = "Cryptomatte seed factor"
-    color = consts.OctanePinColor.Int
-    octane_default_node_type = consts.NodeType.NT_INT
-    octane_default_node_name = "OctaneIntValue"
-    octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_SEED_FACTOR
-    octane_pin_name = "renderPassCryptomatteSeedFactor"
-    octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 70
-    octane_socket_type = consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Number of samples to use for seeding Cryptomatte. This gets multiplied with the number of bins.\n\nLow values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
-    octane_hide_value = False
-    octane_min_version = 5000003
-    octane_end_version = 4294967295
-    octane_deprecated = False
-
-
 class OctaneRenderPassesRenderPassCryptomatteInstance(OctaneBaseSocket):
     bl_idname = "OctaneRenderPassesRenderPassCryptomatteInstance"
     bl_label = "Crypto instance ID"
@@ -1304,7 +1286,7 @@ class OctaneRenderPassesRenderPassCryptomatteInstance(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_INSTANCE
     octane_pin_name = "renderPassCryptomatteInstance"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 71
+    octane_pin_index = 70
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels for instances. Note: This cannot generate stable matte IDs")
     octane_hide_value = False
@@ -1322,7 +1304,7 @@ class OctaneRenderPassesRenderPassCryptomatteMaterialNodeName(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME
     octane_pin_name = "renderPassCryptomatteMaterialNodeName"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 72
+    octane_pin_index = 71
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using material node names")
     octane_hide_value = False
@@ -1340,7 +1322,7 @@ class OctaneRenderPassesRenderPassCryptomatteMaterialNode(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE
     octane_pin_name = "renderPassCryptomatteMaterialNode"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 73
+    octane_pin_index = 72
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using distinct material nodes. Note: This cannot generate stable matte IDs")
     octane_hide_value = False
@@ -1358,7 +1340,7 @@ class OctaneRenderPassesRenderPassCryptomatteMaterialPinName(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_MATERIAL_PIN_NAME
     octane_pin_name = "renderPassCryptomatteMaterialPinName"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 74
+    octane_pin_index = 73
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using material pin names")
     octane_hide_value = False
@@ -1376,7 +1358,7 @@ class OctaneRenderPassesRenderPassCryptomatteObjectNodeName(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_OBJECT_NODE_NAME
     octane_pin_name = "renderPassCryptomatteObjectNodeName"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 75
+    octane_pin_index = 74
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using object layer node names")
     octane_hide_value = False
@@ -1394,7 +1376,7 @@ class OctaneRenderPassesRenderPassCryptomatteObjectNode(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_OBJECT_NODE
     octane_pin_name = "renderPassCryptomatteObjectNode"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 76
+    octane_pin_index = 75
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using distinct object layer nodes. Note: This cannot generate stable matte IDs")
     octane_hide_value = False
@@ -1412,7 +1394,7 @@ class OctaneRenderPassesRenderPassCryptomatteObjectPinName(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_OBJECT_PIN_NAME
     octane_pin_name = "renderPassCryptomatteObjectPinName"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 77
+    octane_pin_index = 76
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Cryptomatte channels using object layer pin names")
     octane_hide_value = False
@@ -1430,7 +1412,7 @@ class OctaneRenderPassesRenderPassInfoMaxSamples(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_INFO_MAX_SAMPLES
     octane_pin_name = "renderPassInfoMaxSamples"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 78
+    octane_pin_index = 77
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=128, update=OctaneBaseSocket.update_node_tree, description="The maximum number of samples for the info passes", min=1, max=1024, soft_min=1, soft_max=1024, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -1448,7 +1430,7 @@ class OctaneRenderPassesSamplingMode(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_INFOCHANNEL_SAMPLING_MODE
     octane_pin_name = "samplingMode"
     octane_pin_type = consts.PinType.PT_ENUM
-    octane_pin_index = 79
+    octane_pin_index = 78
     octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Distributed rays", "Distributed rays", "", 0),
@@ -1471,7 +1453,7 @@ class OctaneRenderPassesBump(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_BUMP
     octane_pin_name = "bump"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 80
+    octane_pin_index = 79
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for shading normal output and wireframe shading")
     octane_hide_value = False
@@ -1489,7 +1471,7 @@ class OctaneRenderPassesOpacity(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_OPACITY
     octane_pin_name = "opacity"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 81
+    octane_pin_index = 80
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -1507,7 +1489,7 @@ class OctaneRenderPassesRenderPassGeometricNormal(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_GEOMETRIC_NORMAL
     octane_pin_name = "renderPassGeometricNormal"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 82
+    octane_pin_index = 81
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color for the geometry normal at the position hit by the camera ray")
     octane_hide_value = False
@@ -1525,7 +1507,7 @@ class OctaneRenderPassesRenderPassVertexNormal(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_SMOOTH_NORMAL
     octane_pin_name = "renderPassVertexNormal"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 83
+    octane_pin_index = 82
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color for the smooth normal at the position hit by the camera ray")
     octane_hide_value = False
@@ -1543,7 +1525,7 @@ class OctaneRenderPassesRenderPassShadingNormal(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_SHADING_NORMAL
     octane_pin_name = "renderPassShadingNormal"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 84
+    octane_pin_index = 83
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color for the shading normal at the position hit by the camera ray")
     octane_hide_value = False
@@ -1561,7 +1543,7 @@ class OctaneRenderPassesRenderPassTangentNormal(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_TANGENT_NORMAL
     octane_pin_name = "renderPassTangentNormal"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 85
+    octane_pin_index = 84
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color for the tangent (local) normal at the position hit by the camera ray")
     octane_hide_value = False
@@ -1579,7 +1561,7 @@ class OctaneRenderPassesRenderPassZDepth(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_Z_DEPTH
     octane_pin_name = "renderPassZDepth"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 86
+    octane_pin_index = 85
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a gray value proportional to the camera ray hit distance")
     octane_hide_value = False
@@ -1597,7 +1579,7 @@ class OctaneRenderPassesZDepthMax(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_Z_DEPTH_MAX
     octane_pin_name = "Z_depth_max"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 87
+    octane_pin_index = 86
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum Z-depth value. Background pixels will get this value and and any foreground depths will be clamped at this value. This applies with or without tone mapping, but tone mapping will map the maximum Z-depth to white (0 is mapped to black)", min=0.001000, max=100000.000000, soft_min=0.001000, soft_max=100000.000000, step=1.000000, precision=3, subtype="NONE")
     octane_hide_value = False
@@ -1615,7 +1597,7 @@ class OctaneRenderPassesRenderPassPosition(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_POSITION
     octane_pin_name = "renderPassPosition"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 88
+    octane_pin_index = 87
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns RGB values according the intersection point of the camera ray")
     octane_hide_value = False
@@ -1633,7 +1615,7 @@ class OctaneRenderPassesRenderPassUvCoord(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_UV_COORD
     octane_pin_name = "renderPassUvCoord"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 89
+    octane_pin_index = 88
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns RGB values according to the geometry's texture coordinates")
     octane_hide_value = False
@@ -1651,7 +1633,7 @@ class OctaneRenderPassesUVMax(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_UV_MAX
     octane_pin_name = "UV_max"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 90
+    octane_pin_index = 89
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="UV coordinate value mapped to maximum intensity", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000.000000, step=1.000000, precision=2, subtype="NONE")
     octane_hide_value = False
@@ -1669,7 +1651,7 @@ class OctaneRenderPassesUvSet(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_UV_SET
     octane_pin_name = "uvSet"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 91
+    octane_pin_index = 90
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -1687,7 +1669,7 @@ class OctaneRenderPassesRenderPassTangentU(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_TANGENT_U
     octane_pin_name = "renderPassTangentU"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 92
+    octane_pin_index = 91
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The tangent vector of U texture coordinates (dp/du)")
     octane_hide_value = False
@@ -1705,7 +1687,7 @@ class OctaneRenderPassesRenderPassMotionVector(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_MOTION_VECTOR
     octane_pin_name = "renderPassMotionVector"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 93
+    octane_pin_index = 92
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Renders the motion vectors as 2D vectors in screen space.\nThe X coordinate (stored in the red channel) is the motion to the right in pixels.\nThe Y coordinate (stored in the green channel) is the motion up in pixels.\nWhen enabled, rendering of motion blur is disabled")
     octane_hide_value = False
@@ -1723,7 +1705,7 @@ class OctaneRenderPassesMaxSpeed(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_MAX_SPEED
     octane_pin_name = "maxSpeed"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 94
+    octane_pin_index = 93
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Upper limit of the motion vector which will become 1, when the motion vector pass is imaged. The unit of the motion vector is pixels", min=0.000010, max=10000.000000, soft_min=0.000010, soft_max=10000.000000, step=1.000000, precision=2, subtype="NONE")
     octane_hide_value = False
@@ -1741,7 +1723,7 @@ class OctaneRenderPassesRenderPassMaterialId(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_MATERIAL_ID
     octane_pin_name = "renderPassMaterialId"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 95
+    octane_pin_index = 94
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns RGB values according the material mapped to the geometry")
     octane_hide_value = False
@@ -1759,7 +1741,7 @@ class OctaneRenderPassesRenderPassObjectId(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_OBJECT_ID
     octane_pin_name = "renderPassObjectId"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 96
+    octane_pin_index = 95
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Colors each distinct object in the scene with a color based on its ID")
     octane_hide_value = False
@@ -1777,7 +1759,7 @@ class OctaneRenderPassesRenderPassObjectLayerColor(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_OBJECT_LAYER_COLOR
     octane_pin_name = "renderPassObjectLayerColor"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 97
+    octane_pin_index = 96
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The color specified in the object layer node")
     octane_hide_value = False
@@ -1795,7 +1777,7 @@ class OctaneRenderPassesRenderPassBakingGroupId(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_BAKING_GROUP_ID
     octane_pin_name = "renderPassBakingGroupId"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 98
+    octane_pin_index = 97
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Colors each distinct baking group in the scene with a color based on its ID")
     octane_hide_value = False
@@ -1813,7 +1795,7 @@ class OctaneRenderPassesRenderPassLightPassId(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_LIGHT_PASS_ID
     octane_pin_name = "renderPassLightPassId"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 99
+    octane_pin_index = 98
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Colors emitters based on their light pass ID")
     octane_hide_value = False
@@ -1831,7 +1813,7 @@ class OctaneRenderPassesRenderPassRenderLayerId(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_RENDER_LAYER_ID
     octane_pin_name = "renderPassRenderLayerId"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 100
+    octane_pin_index = 99
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Colors objects on the same layer with the same color based on the render layer ID")
     octane_hide_value = False
@@ -1849,7 +1831,7 @@ class OctaneRenderPassesRenderPassRenderLayerMask(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_RENDER_LAYER_MASK
     octane_pin_name = "renderPassRenderLayerMask"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 101
+    octane_pin_index = 100
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Mask for geometry on the active render layer")
     octane_hide_value = False
@@ -1867,7 +1849,7 @@ class OctaneRenderPassesRenderPassWireframe(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_WIREFRAME
     octane_pin_name = "renderPassWireframe"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 102
+    octane_pin_index = 101
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Wireframe display of the geometry")
     octane_hide_value = False
@@ -1885,7 +1867,7 @@ class OctaneRenderPassesRenderPassAmbientOcclusion(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_AMBIENT_OCCLUSION
     octane_pin_name = "renderPassAmbientOcclusion"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 103
+    octane_pin_index = 102
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color to the camera ray's hit point proportional to the amount of occlusion by other geometry")
     octane_hide_value = False
@@ -1903,7 +1885,7 @@ class OctaneRenderPassesAodist(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_AO_DISTANCE
     octane_pin_name = "aodist"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 104
+    octane_pin_index = 103
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="Ambient occlusion distance", min=0.010000, max=1024.000000, soft_min=0.010000, soft_max=1024.000000, step=1.000000, precision=2, subtype="NONE")
     octane_hide_value = False
@@ -1921,7 +1903,7 @@ class OctaneRenderPassesAoAlphaShadows(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_AO_ALPHA_SHADOWS
     octane_pin_name = "aoAlphaShadows"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 105
+    octane_pin_index = 104
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take into account alpha maps when calculating ambient occlusion")
     octane_hide_value = False
@@ -1939,7 +1921,7 @@ class OctaneRenderPassesRenderPassOpacity(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_OPACITY
     octane_pin_name = "renderPassOpacity"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 106
+    octane_pin_index = 105
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Assigns a color to the camera ray's hit point proportional to the opacity of the geometry")
     octane_hide_value = False
@@ -1957,7 +1939,7 @@ class OctaneRenderPassesRenderPassRoughness(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_ROUGHNESS
     octane_pin_name = "renderPassRoughness"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 107
+    octane_pin_index = 106
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Material roughness at the camera ray's hit point")
     octane_hide_value = False
@@ -1975,7 +1957,7 @@ class OctaneRenderPassesRenderPassIor(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_IOR
     octane_pin_name = "renderPassIor"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 108
+    octane_pin_index = 107
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Material index of refraction at the camera ray's hit point")
     octane_hide_value = False
@@ -1993,7 +1975,7 @@ class OctaneRenderPassesRenderPassDiffuseFilterInfo(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_DIFFUSE_FILTER_INFO
     octane_pin_name = "renderPassDiffuseFilterInfo"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 109
+    octane_pin_index = 108
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The diffuse texture color of the diffuse and glossy material")
     octane_hide_value = False
@@ -2011,7 +1993,7 @@ class OctaneRenderPassesRenderPassReflectionFilterInfo(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_REFLECTION_FILTER_INFO
     octane_pin_name = "renderPassReflectionFilterInfo"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 110
+    octane_pin_index = 109
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The reflection texture color of the specular and glossy material")
     octane_hide_value = False
@@ -2029,7 +2011,7 @@ class OctaneRenderPassesRenderPassRefractionFilterInfo(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_REFRACTION_FILTER_INFO
     octane_pin_name = "renderPassRefractionFilterInfo"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 111
+    octane_pin_index = 110
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The refraction texture color of the specular material")
     octane_hide_value = False
@@ -2047,7 +2029,7 @@ class OctaneRenderPassesRenderPassTransmissionFilterInfo(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_TRANSMISSION_FILTER_INFO
     octane_pin_name = "renderPassTransmissionFilterInfo"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 112
+    octane_pin_index = 111
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The transmission texture color of the diffuse material")
     octane_hide_value = False
@@ -2065,7 +2047,7 @@ class OctaneRenderPassesDistributedTracing(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_DISTRUBUTED_TRACING
     octane_pin_name = "distributedTracing"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 113
+    octane_pin_index = 112
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated)")
     octane_hide_value = False
@@ -2083,7 +2065,7 @@ class OctaneRenderPassesRenderPassInfoStartSamples(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_INFO_START_SAMPLES
     octane_pin_name = "renderPassInfoStartSamples"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 114
+    octane_pin_index = 113
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=0, max=256000, soft_min=0, soft_max=256000, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -2101,7 +2083,7 @@ class OctaneRenderPassesRenderPassEnvironmentMaxSamples(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_ENVIRONMENT_MAX_SAMPLES
     octane_pin_name = "renderPassEnvironmentMaxSamples"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 115
+    octane_pin_index = 114
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=256, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -2119,7 +2101,7 @@ class OctaneRenderPassesFiltersize(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_FILTERSIZE
     octane_pin_name = "filtersize"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 116
+    octane_pin_index = 115
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -2137,7 +2119,7 @@ class OctaneRenderPassesRenderPassAOMaxSamples(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_AO_MAX_SAMPLES
     octane_pin_name = "renderPassAOMaxSamples"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 117
+    octane_pin_index = 116
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=1024, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -2155,7 +2137,7 @@ class OctaneRenderPassesAlphashadows(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_ALPHA_SHADOWS
     octane_pin_name = "alphashadows"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 118
+    octane_pin_index = 117
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated)")
     octane_hide_value = False
@@ -2173,7 +2155,7 @@ class OctaneRenderPassesApplyTonemapping(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_APPLY_TONEMAPPING
     octane_pin_name = "applyTonemapping"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 119
+    octane_pin_index = 118
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated)")
     octane_hide_value = False
@@ -2191,7 +2173,7 @@ class OctaneRenderPassesRenderPassInfoAfterBeauty(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_INFO_AFTER_BEAUTY
     octane_pin_name = "renderPassInfoAfterBeauty"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 120
+    octane_pin_index = 119
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated)")
     octane_hide_value = False
@@ -2209,12 +2191,30 @@ class OctaneRenderPassesRenderPassLayerColorShadows(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_LAYER_COLOR_SHADOWS
     octane_pin_name = "renderPassLayerColorShadows"
     octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 121
+    octane_pin_index = 120
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated)")
     octane_hide_value = False
     octane_min_version = 2200000
     octane_end_version = 3080300
+    octane_deprecated = True
+
+
+class OctaneRenderPassesRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
+    bl_idname = "OctaneRenderPassesRenderPassCryptomatteSeedFactor"
+    bl_label = "[Deprecated]Cryptomatte seed factor"
+    color = consts.OctanePinColor.Int
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
+    octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_SEED_FACTOR
+    octane_pin_name = "renderPassCryptomatteSeedFactor"
+    octane_pin_type = consts.PinType.PT_INT
+    octane_pin_index = 121
+    octane_socket_type = consts.SocketType.ST_INT
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 5000003
+    octane_end_version = 14000008
     octane_deprecated = True
 
 
@@ -2251,7 +2251,7 @@ class OctaneRenderPassesGroupLightingAOVs(OctaneGroupTitleSocket):
 class OctaneRenderPassesGroupCryptomatteAOVs(OctaneGroupTitleSocket):
     bl_idname = "OctaneRenderPassesGroupCryptomatteAOVs"
     bl_label = "[OctaneGroupTitle]Cryptomatte AOVs"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Cryptomatte bins;Cryptomatte seed factor;Crypto instance ID;Crypto material node name;Crypto material node;Crypto material pin name;Crypto object node name;Crypto object node;Crypto object pin name;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Cryptomatte bins;Crypto instance ID;Crypto material node name;Crypto material node;Crypto material pin name;Crypto object node name;Crypto object node;Crypto object pin name;Cryptomatte seed factor;")
 
 
 class OctaneRenderPassesGroupInfoAOVs(OctaneGroupTitleSocket):
@@ -2275,13 +2275,13 @@ class OctaneRenderPasses(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name = ""
     octane_render_pass_description = ""
     octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneRenderPassesGroupBeautyAOVs, OctaneRenderPassesRenderPassesRaw, OctaneRenderPassesRenderPassEmit, OctaneRenderPassesRenderPassEnvironment, OctaneRenderPassesRenderPassDiffuse, OctaneRenderPassesRenderPassDiffuseDirect, OctaneRenderPassesRenderPassDiffuseIndirect, OctaneRenderPassesRenderPassDiffuseFilter, OctaneRenderPassesRenderPassReflection, OctaneRenderPassesRenderPassReflectionDirect, OctaneRenderPassesRenderPassReflectionIndirect, OctaneRenderPassesRenderPassReflectionFilter, OctaneRenderPassesRenderPassRefraction, OctaneRenderPassesRenderPassRefractionFilter, OctaneRenderPassesRenderPassTransmission, OctaneRenderPassesRenderPassTransmissionFilter, OctaneRenderPassesRenderPassSSS, OctaneRenderPassesRenderPassShadow, OctaneRenderPassesRenderPassIrradiance, OctaneRenderPassesRenderPassLightDirection, OctaneRenderPassesRenderPassVolume, OctaneRenderPassesRenderPassVolumeMask, OctaneRenderPassesRenderPassVolumeEmission, OctaneRenderPassesRenderPassVolumeZDepthFront, OctaneRenderPassesRenderPassVolumeZDepthBack, OctaneRenderPassesRenderPassNoise, OctaneRenderPassesGroupDenoiserAOVs, OctaneRenderPassesRenderPassDiffuseDirectDenoiserOutput, OctaneRenderPassesRenderPassDiffuseIndirectDenoiserOutput, OctaneRenderPassesRenderPassReflectionDirectDenoiserOutput, OctaneRenderPassesRenderPassReflectionIndirectDenoiserOutput, OctaneRenderPassesRenderPassEmissionDenoiserOutput, OctaneRenderPassesRenderPassRemainderDenoiserOutput, OctaneRenderPassesRenderPassVolumeDenoiserOutput, OctaneRenderPassesRenderPassVolumeEmissionDenoiserOutput, OctaneRenderPassesGroupPostProcessingAOVs, OctaneRenderPassesRenderPassPostProcessing, OctaneRenderPassesRenderPassPostFxMedia, OctaneRenderPassesPostProcEnvironment, OctaneRenderPassesGroupRenderLayerAOVs, OctaneRenderPassesRenderPassLayerShadows, OctaneRenderPassesRenderPassLayerBlackShadows, OctaneRenderPassesRenderPassLayerReflections, OctaneRenderPassesGroupLightingAOVs, OctaneRenderPassesRenderPassAmbientLight, OctaneRenderPassesRenderPassAmbientLightDirect, OctaneRenderPassesRenderPassAmbientLightIndirect, OctaneRenderPassesRenderPassSunLight, OctaneRenderPassesRenderPassSunLightDirect, OctaneRenderPassesRenderPassSunLightIndirect, OctaneRenderPassesRenderPassLight1, OctaneRenderPassesRenderPassLight1Direct, OctaneRenderPassesRenderPassLight1Indirect, OctaneRenderPassesRenderPassLight2, OctaneRenderPassesRenderPassLight2Direct, OctaneRenderPassesRenderPassLight2Indirect, OctaneRenderPassesRenderPassLight3, OctaneRenderPassesRenderPassLight3Direct, OctaneRenderPassesRenderPassLight3Indirect, OctaneRenderPassesRenderPassLight4, OctaneRenderPassesRenderPassLight4Direct, OctaneRenderPassesRenderPassLight4Indirect, OctaneRenderPassesRenderPassLight5, OctaneRenderPassesRenderPassLight5Indirect, OctaneRenderPassesRenderPassLight5Direct, OctaneRenderPassesRenderPassLight6, OctaneRenderPassesRenderPassLight6Direct, OctaneRenderPassesRenderPassLight6Indirect, OctaneRenderPassesRenderPassLight7, OctaneRenderPassesRenderPassLight7Direct, OctaneRenderPassesRenderPassLight7Indirect, OctaneRenderPassesRenderPassLight8, OctaneRenderPassesRenderPassLight8Direct, OctaneRenderPassesRenderPassLight8Indirect, OctaneRenderPassesGroupCryptomatteAOVs, OctaneRenderPassesRenderPassCryptomatteCount, OctaneRenderPassesRenderPassCryptomatteSeedFactor, OctaneRenderPassesRenderPassCryptomatteInstance, OctaneRenderPassesRenderPassCryptomatteMaterialNodeName, OctaneRenderPassesRenderPassCryptomatteMaterialNode, OctaneRenderPassesRenderPassCryptomatteMaterialPinName, OctaneRenderPassesRenderPassCryptomatteObjectNodeName, OctaneRenderPassesRenderPassCryptomatteObjectNode, OctaneRenderPassesRenderPassCryptomatteObjectPinName, OctaneRenderPassesGroupInfoAOVs, OctaneRenderPassesRenderPassInfoMaxSamples, OctaneRenderPassesSamplingMode, OctaneRenderPassesBump, OctaneRenderPassesOpacity, OctaneRenderPassesRenderPassGeometricNormal, OctaneRenderPassesRenderPassVertexNormal, OctaneRenderPassesRenderPassShadingNormal, OctaneRenderPassesRenderPassTangentNormal, OctaneRenderPassesRenderPassZDepth, OctaneRenderPassesZDepthMax, OctaneRenderPassesRenderPassPosition, OctaneRenderPassesRenderPassUvCoord, OctaneRenderPassesUVMax, OctaneRenderPassesUvSet, OctaneRenderPassesRenderPassTangentU, OctaneRenderPassesRenderPassMotionVector, OctaneRenderPassesMaxSpeed, OctaneRenderPassesRenderPassMaterialId, OctaneRenderPassesRenderPassObjectId, OctaneRenderPassesRenderPassObjectLayerColor, OctaneRenderPassesRenderPassBakingGroupId, OctaneRenderPassesRenderPassLightPassId, OctaneRenderPassesRenderPassRenderLayerId, OctaneRenderPassesRenderPassRenderLayerMask, OctaneRenderPassesRenderPassWireframe, OctaneRenderPassesRenderPassAmbientOcclusion, OctaneRenderPassesAodist, OctaneRenderPassesAoAlphaShadows, OctaneRenderPassesDistributedTracing, OctaneRenderPassesRenderPassInfoStartSamples, OctaneRenderPassesRenderPassEnvironmentMaxSamples, OctaneRenderPassesFiltersize, OctaneRenderPassesRenderPassAOMaxSamples, OctaneRenderPassesAlphashadows, OctaneRenderPassesApplyTonemapping, OctaneRenderPassesRenderPassInfoAfterBeauty, OctaneRenderPassesGroupMaterialAOVs, OctaneRenderPassesRenderPassOpacity, OctaneRenderPassesRenderPassRoughness, OctaneRenderPassesRenderPassIor, OctaneRenderPassesRenderPassDiffuseFilterInfo, OctaneRenderPassesRenderPassReflectionFilterInfo, OctaneRenderPassesRenderPassRefractionFilterInfo, OctaneRenderPassesRenderPassTransmissionFilterInfo, OctaneRenderPassesRenderPassLayerColorShadows, ]
+    octane_socket_class_list = [OctaneRenderPassesGroupBeautyAOVs, OctaneRenderPassesRenderPassesRaw, OctaneRenderPassesRenderPassEmit, OctaneRenderPassesRenderPassEnvironment, OctaneRenderPassesRenderPassDiffuse, OctaneRenderPassesRenderPassDiffuseDirect, OctaneRenderPassesRenderPassDiffuseIndirect, OctaneRenderPassesRenderPassDiffuseFilter, OctaneRenderPassesRenderPassReflection, OctaneRenderPassesRenderPassReflectionDirect, OctaneRenderPassesRenderPassReflectionIndirect, OctaneRenderPassesRenderPassReflectionFilter, OctaneRenderPassesRenderPassRefraction, OctaneRenderPassesRenderPassRefractionFilter, OctaneRenderPassesRenderPassTransmission, OctaneRenderPassesRenderPassTransmissionFilter, OctaneRenderPassesRenderPassSSS, OctaneRenderPassesRenderPassShadow, OctaneRenderPassesRenderPassIrradiance, OctaneRenderPassesRenderPassLightDirection, OctaneRenderPassesRenderPassVolume, OctaneRenderPassesRenderPassVolumeMask, OctaneRenderPassesRenderPassVolumeEmission, OctaneRenderPassesRenderPassVolumeZDepthFront, OctaneRenderPassesRenderPassVolumeZDepthBack, OctaneRenderPassesRenderPassNoise, OctaneRenderPassesGroupDenoiserAOVs, OctaneRenderPassesRenderPassDiffuseDirectDenoiserOutput, OctaneRenderPassesRenderPassDiffuseIndirectDenoiserOutput, OctaneRenderPassesRenderPassReflectionDirectDenoiserOutput, OctaneRenderPassesRenderPassReflectionIndirectDenoiserOutput, OctaneRenderPassesRenderPassEmissionDenoiserOutput, OctaneRenderPassesRenderPassRemainderDenoiserOutput, OctaneRenderPassesRenderPassVolumeDenoiserOutput, OctaneRenderPassesRenderPassVolumeEmissionDenoiserOutput, OctaneRenderPassesGroupPostProcessingAOVs, OctaneRenderPassesRenderPassPostProcessing, OctaneRenderPassesRenderPassPostFxMedia, OctaneRenderPassesPostProcEnvironment, OctaneRenderPassesGroupRenderLayerAOVs, OctaneRenderPassesRenderPassLayerShadows, OctaneRenderPassesRenderPassLayerBlackShadows, OctaneRenderPassesRenderPassLayerReflections, OctaneRenderPassesGroupLightingAOVs, OctaneRenderPassesRenderPassAmbientLight, OctaneRenderPassesRenderPassAmbientLightDirect, OctaneRenderPassesRenderPassAmbientLightIndirect, OctaneRenderPassesRenderPassSunLight, OctaneRenderPassesRenderPassSunLightDirect, OctaneRenderPassesRenderPassSunLightIndirect, OctaneRenderPassesRenderPassLight1, OctaneRenderPassesRenderPassLight1Direct, OctaneRenderPassesRenderPassLight1Indirect, OctaneRenderPassesRenderPassLight2, OctaneRenderPassesRenderPassLight2Direct, OctaneRenderPassesRenderPassLight2Indirect, OctaneRenderPassesRenderPassLight3, OctaneRenderPassesRenderPassLight3Direct, OctaneRenderPassesRenderPassLight3Indirect, OctaneRenderPassesRenderPassLight4, OctaneRenderPassesRenderPassLight4Direct, OctaneRenderPassesRenderPassLight4Indirect, OctaneRenderPassesRenderPassLight5, OctaneRenderPassesRenderPassLight5Indirect, OctaneRenderPassesRenderPassLight5Direct, OctaneRenderPassesRenderPassLight6, OctaneRenderPassesRenderPassLight6Direct, OctaneRenderPassesRenderPassLight6Indirect, OctaneRenderPassesRenderPassLight7, OctaneRenderPassesRenderPassLight7Direct, OctaneRenderPassesRenderPassLight7Indirect, OctaneRenderPassesRenderPassLight8, OctaneRenderPassesRenderPassLight8Direct, OctaneRenderPassesRenderPassLight8Indirect, OctaneRenderPassesGroupCryptomatteAOVs, OctaneRenderPassesRenderPassCryptomatteCount, OctaneRenderPassesRenderPassCryptomatteInstance, OctaneRenderPassesRenderPassCryptomatteMaterialNodeName, OctaneRenderPassesRenderPassCryptomatteMaterialNode, OctaneRenderPassesRenderPassCryptomatteMaterialPinName, OctaneRenderPassesRenderPassCryptomatteObjectNodeName, OctaneRenderPassesRenderPassCryptomatteObjectNode, OctaneRenderPassesRenderPassCryptomatteObjectPinName, OctaneRenderPassesRenderPassCryptomatteSeedFactor, OctaneRenderPassesGroupInfoAOVs, OctaneRenderPassesRenderPassInfoMaxSamples, OctaneRenderPassesSamplingMode, OctaneRenderPassesBump, OctaneRenderPassesOpacity, OctaneRenderPassesRenderPassGeometricNormal, OctaneRenderPassesRenderPassVertexNormal, OctaneRenderPassesRenderPassShadingNormal, OctaneRenderPassesRenderPassTangentNormal, OctaneRenderPassesRenderPassZDepth, OctaneRenderPassesZDepthMax, OctaneRenderPassesRenderPassPosition, OctaneRenderPassesRenderPassUvCoord, OctaneRenderPassesUVMax, OctaneRenderPassesUvSet, OctaneRenderPassesRenderPassTangentU, OctaneRenderPassesRenderPassMotionVector, OctaneRenderPassesMaxSpeed, OctaneRenderPassesRenderPassMaterialId, OctaneRenderPassesRenderPassObjectId, OctaneRenderPassesRenderPassObjectLayerColor, OctaneRenderPassesRenderPassBakingGroupId, OctaneRenderPassesRenderPassLightPassId, OctaneRenderPassesRenderPassRenderLayerId, OctaneRenderPassesRenderPassRenderLayerMask, OctaneRenderPassesRenderPassWireframe, OctaneRenderPassesRenderPassAmbientOcclusion, OctaneRenderPassesAodist, OctaneRenderPassesAoAlphaShadows, OctaneRenderPassesDistributedTracing, OctaneRenderPassesRenderPassInfoStartSamples, OctaneRenderPassesRenderPassEnvironmentMaxSamples, OctaneRenderPassesFiltersize, OctaneRenderPassesRenderPassAOMaxSamples, OctaneRenderPassesAlphashadows, OctaneRenderPassesApplyTonemapping, OctaneRenderPassesRenderPassInfoAfterBeauty, OctaneRenderPassesGroupMaterialAOVs, OctaneRenderPassesRenderPassOpacity, OctaneRenderPassesRenderPassRoughness, OctaneRenderPassesRenderPassIor, OctaneRenderPassesRenderPassDiffuseFilterInfo, OctaneRenderPassesRenderPassReflectionFilterInfo, OctaneRenderPassesRenderPassRefractionFilterInfo, OctaneRenderPassesRenderPassTransmissionFilterInfo, OctaneRenderPassesRenderPassLayerColorShadows, ]
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_RENDER_PASSES
-    octane_socket_list = ["Raw", "Emitters", "Environment", "Diffuse", "Diffuse direct", "Diffuse indirect", "Diffuse filter (beauty)", "Reflection", "Reflection direct", "Reflection indirect", "Reflection filter (beauty)", "Refraction", "Refraction filter (beauty)", "Transmission", "Transmission filter (beauty)", "Subsurface scattering", "Shadow", "Irradiance", "Light direction", "Volume", "Volume mask", "Volume emission", "Volume Z-depth front", "Volume Z-depth back", "Noise", "Denoised diffuse direct", "Denoised diffuse indirect", "Denoised reflection direct", "Denoised reflection indirect", "Denoised emission", "Denoised remainder", "Denoised volume", "Denoised volume emission", "Post processing", "Postfx media", "Include environment", "Layer shadows", "Black layer shadows", "Layer reflections", "Ambient light", "Ambient light direct", "Ambient light indirect", "Sunlight", "Sunlight direct", "Sunlight indirect", "Light ID 1", "Light ID 1 direct", "Light ID 1 indirect", "Light ID 2", "Light ID 2 direct", "Light ID 2 indirect", "Light ID 3", "Light ID 3 direct", "Light ID 3 indirect", "Light ID 4", "Light ID 4 direct", "Light ID 4 indirect", "Light ID 5", "Light ID 5 indirect", "Light ID 5 direct", "Light ID 6", "Light ID 6 direct", "Light ID 6 indirect", "Light ID 7", "Light ID 7 direct", "Light ID 7 indirect", "Light ID 8", "Light ID 8 direct", "Light ID 8 indirect", "Cryptomatte bins", "Cryptomatte seed factor", "Crypto instance ID", "Crypto material node name", "Crypto material node", "Crypto material pin name", "Crypto object node name", "Crypto object node", "Crypto object pin name", "Max samples", "Sampling mode", "Bump and normal mapping", "Opacity threshold", "Normal (geometric)", "Normal (smooth)", "Normal (shading)", "Normal (tangent)", "Z-depth", "Maximum Z-depth", "Position", "UV coordinates", "UV max", "UV coordinate selection", "Texture tangent", "Motion vector", "Max speed", "Material ID", "Object ID", "Object layer color", "Baking group ID", "Light pass ID", "Render layer ID", "Render layer mask", "Wireframe", "Ambient occlusion", "AO distance", "AO alpha shadows", "Opacity", "Roughness", "Index of refraction", "Diffuse filter (info)", "Reflection filter (info)", "Refraction filter (info)", "Transmission filter (info)", "[Deprecated]Distributed ray tracing", "[Deprecated]Start samples", "[Deprecated]Environment max samples", "[Deprecated]Filter size", "[Deprecated]AO max samples", "[Deprecated]AO alpha shadows", "[Deprecated]Tonemap", "[Deprecated]Info after beauty", "[Deprecated]Colored layer shadows", ]
+    octane_socket_list = ["Raw", "Emitters", "Environment", "Diffuse", "Diffuse direct", "Diffuse indirect", "Diffuse filter (beauty)", "Reflection", "Reflection direct", "Reflection indirect", "Reflection filter (beauty)", "Refraction", "Refraction filter (beauty)", "Transmission", "Transmission filter (beauty)", "Subsurface scattering", "Shadow", "Irradiance", "Light direction", "Volume", "Volume mask", "Volume emission", "Volume Z-depth front", "Volume Z-depth back", "Noise", "Denoised diffuse direct", "Denoised diffuse indirect", "Denoised reflection direct", "Denoised reflection indirect", "Denoised emission", "Denoised remainder", "Denoised volume", "Denoised volume emission", "Post processing", "Postfx media", "Include environment", "Layer shadows", "Black layer shadows", "Layer reflections", "Ambient light", "Ambient light direct", "Ambient light indirect", "Sunlight", "Sunlight direct", "Sunlight indirect", "Light ID 1", "Light ID 1 direct", "Light ID 1 indirect", "Light ID 2", "Light ID 2 direct", "Light ID 2 indirect", "Light ID 3", "Light ID 3 direct", "Light ID 3 indirect", "Light ID 4", "Light ID 4 direct", "Light ID 4 indirect", "Light ID 5", "Light ID 5 indirect", "Light ID 5 direct", "Light ID 6", "Light ID 6 direct", "Light ID 6 indirect", "Light ID 7", "Light ID 7 direct", "Light ID 7 indirect", "Light ID 8", "Light ID 8 direct", "Light ID 8 indirect", "Cryptomatte bins", "Crypto instance ID", "Crypto material node name", "Crypto material node", "Crypto material pin name", "Crypto object node name", "Crypto object node", "Crypto object pin name", "Max samples", "Sampling mode", "Bump and normal mapping", "Opacity threshold", "Normal (geometric)", "Normal (smooth)", "Normal (shading)", "Normal (tangent)", "Z-depth", "Maximum Z-depth", "Position", "UV coordinates", "UV max", "UV coordinate selection", "Texture tangent", "Motion vector", "Max speed", "Material ID", "Object ID", "Object layer color", "Baking group ID", "Light pass ID", "Render layer ID", "Render layer mask", "Wireframe", "Ambient occlusion", "AO distance", "AO alpha shadows", "Opacity", "Roughness", "Index of refraction", "Diffuse filter (info)", "Reflection filter (info)", "Refraction filter (info)", "Transmission filter (info)", "[Deprecated]Distributed ray tracing", "[Deprecated]Start samples", "[Deprecated]Environment max samples", "[Deprecated]Filter size", "[Deprecated]AO max samples", "[Deprecated]AO alpha shadows", "[Deprecated]Tonemap", "[Deprecated]Info after beauty", "[Deprecated]Colored layer shadows", "[Deprecated]Cryptomatte seed factor", ]
     octane_attribute_list = []
     octane_attribute_config = {}
-    octane_static_pin_count = 113
+    octane_static_pin_count = 112
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneRenderPassesGroupBeautyAOVs", OctaneRenderPassesGroupBeautyAOVs.bl_label).init()
@@ -2360,7 +2360,6 @@ class OctaneRenderPasses(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderPassesRenderPassLight8Indirect", OctaneRenderPassesRenderPassLight8Indirect.bl_label).init()
         self.inputs.new("OctaneRenderPassesGroupCryptomatteAOVs", OctaneRenderPassesGroupCryptomatteAOVs.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteCount", OctaneRenderPassesRenderPassCryptomatteCount.bl_label).init()
-        self.inputs.new("OctaneRenderPassesRenderPassCryptomatteSeedFactor", OctaneRenderPassesRenderPassCryptomatteSeedFactor.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteInstance", OctaneRenderPassesRenderPassCryptomatteInstance.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteMaterialNodeName", OctaneRenderPassesRenderPassCryptomatteMaterialNodeName.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteMaterialNode", OctaneRenderPassesRenderPassCryptomatteMaterialNode.bl_label).init()
@@ -2368,6 +2367,7 @@ class OctaneRenderPasses(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteObjectNodeName", OctaneRenderPassesRenderPassCryptomatteObjectNodeName.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteObjectNode", OctaneRenderPassesRenderPassCryptomatteObjectNode.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassCryptomatteObjectPinName", OctaneRenderPassesRenderPassCryptomatteObjectPinName.bl_label).init()
+        self.inputs.new("OctaneRenderPassesRenderPassCryptomatteSeedFactor", OctaneRenderPassesRenderPassCryptomatteSeedFactor.bl_label).init()
         self.inputs.new("OctaneRenderPassesGroupInfoAOVs", OctaneRenderPassesGroupInfoAOVs.bl_label).init()
         self.inputs.new("OctaneRenderPassesRenderPassInfoMaxSamples", OctaneRenderPassesRenderPassInfoMaxSamples.bl_label).init()
         self.inputs.new("OctaneRenderPassesSamplingMode", OctaneRenderPassesSamplingMode.bl_label).init()
@@ -2492,7 +2492,6 @@ _CLASSES = [
     OctaneRenderPassesRenderPassLight8Direct,
     OctaneRenderPassesRenderPassLight8Indirect,
     OctaneRenderPassesRenderPassCryptomatteCount,
-    OctaneRenderPassesRenderPassCryptomatteSeedFactor,
     OctaneRenderPassesRenderPassCryptomatteInstance,
     OctaneRenderPassesRenderPassCryptomatteMaterialNodeName,
     OctaneRenderPassesRenderPassCryptomatteMaterialNode,
@@ -2544,6 +2543,7 @@ _CLASSES = [
     OctaneRenderPassesApplyTonemapping,
     OctaneRenderPassesRenderPassInfoAfterBeauty,
     OctaneRenderPassesRenderPassLayerColorShadows,
+    OctaneRenderPassesRenderPassCryptomatteSeedFactor,
     OctaneRenderPassesGroupBeautyAOVs,
     OctaneRenderPassesGroupDenoiserAOVs,
     OctaneRenderPassesGroupPostProcessingAOVs,

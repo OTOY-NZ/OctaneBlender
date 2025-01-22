@@ -71,24 +71,6 @@ class OctaneRenderAOVGroupRenderPassCryptomatteCount(OctaneBaseSocket):
     octane_deprecated = False
 
 
-class OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
-    bl_idname = "OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor"
-    bl_label = "Cryptomatte seed factor"
-    color = consts.OctanePinColor.Int
-    octane_default_node_type = consts.NodeType.NT_INT
-    octane_default_node_name = "OctaneIntValue"
-    octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_SEED_FACTOR
-    octane_pin_name = "renderPassCryptomatteSeedFactor"
-    octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 3
-    octane_socket_type = consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Number of samples to use for seeding Cryptomatte. This gets multiplied with the number of bins.\n\nLow values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
-
-
 class OctaneRenderAOVGroupRenderPassInfoMaxSamples(OctaneBaseSocket):
     bl_idname = "OctaneRenderAOVGroupRenderPassInfoMaxSamples"
     bl_label = "Max info samples"
@@ -98,7 +80,7 @@ class OctaneRenderAOVGroupRenderPassInfoMaxSamples(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_RENDER_PASS_INFO_MAX_SAMPLES
     octane_pin_name = "renderPassInfoMaxSamples"
     octane_pin_type = consts.PinType.PT_INT
-    octane_pin_index = 4
+    octane_pin_index = 3
     octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=128, update=OctaneBaseSocket.update_node_tree, description="The maximum number of samples for the info passes", min=1, max=1024, soft_min=1, soft_max=1024, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -116,7 +98,7 @@ class OctaneRenderAOVGroupSamplingMode(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_INFOCHANNEL_SAMPLING_MODE
     octane_pin_name = "samplingMode"
     octane_pin_type = consts.PinType.PT_ENUM
-    octane_pin_index = 5
+    octane_pin_index = 4
     octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Distributed rays", "Distributed rays", "", 0),
@@ -139,7 +121,7 @@ class OctaneRenderAOVGroupOpacityThreshold(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_OPACITY_THRESHOLD
     octane_pin_name = "opacityThreshold"
     octane_pin_type = consts.PinType.PT_FLOAT
-    octane_pin_index = 6
+    octane_pin_index = 5
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with an opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -148,10 +130,28 @@ class OctaneRenderAOVGroupOpacityThreshold(OctaneBaseSocket):
     octane_deprecated = False
 
 
+class OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
+    bl_idname = "OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor"
+    bl_label = "[Deprecated]Cryptomatte seed factor"
+    color = consts.OctanePinColor.Int
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
+    octane_pin_id = consts.PinID.P_RENDER_PASS_CRYPTOMATTE_SEED_FACTOR
+    octane_pin_name = "renderPassCryptomatteSeedFactor"
+    octane_pin_type = consts.PinType.PT_INT
+    octane_pin_index = 6
+    octane_socket_type = consts.SocketType.ST_INT
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 14000008
+    octane_deprecated = True
+
+
 class OctaneRenderAOVGroupGroupOptions(OctaneGroupTitleSocket):
     bl_idname = "OctaneRenderAOVGroupGroupOptions"
     bl_label = "[OctaneGroupTitle]Options"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Raw;Cryptomatte bins;Cryptomatte seed factor;Max info samples;Info sampling mode;Info opacity threshold;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Raw;Cryptomatte bins;Max info samples;Info sampling mode;Info opacity threshold;")
 
 
 class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
@@ -163,13 +163,13 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name = ""
     octane_render_pass_description = ""
     octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneRenderAOVGroupEnabled, OctaneRenderAOVGroupGroupOptions, OctaneRenderAOVGroupRenderPassesRaw, OctaneRenderAOVGroupRenderPassCryptomatteCount, OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor, OctaneRenderAOVGroupRenderPassInfoMaxSamples, OctaneRenderAOVGroupSamplingMode, OctaneRenderAOVGroupOpacityThreshold, ]
+    octane_socket_class_list = [OctaneRenderAOVGroupEnabled, OctaneRenderAOVGroupGroupOptions, OctaneRenderAOVGroupRenderPassesRaw, OctaneRenderAOVGroupRenderPassCryptomatteCount, OctaneRenderAOVGroupRenderPassInfoMaxSamples, OctaneRenderAOVGroupSamplingMode, OctaneRenderAOVGroupOpacityThreshold, OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor, ]
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_RENDER_AOV_GROUP
-    octane_socket_list = ["Enabled", "Raw", "Cryptomatte bins", "Cryptomatte seed factor", "Max info samples", "Info sampling mode", "Info opacity threshold", ]
+    octane_socket_list = ["Enabled", "Raw", "Cryptomatte bins", "Max info samples", "Info sampling mode", "Info opacity threshold", "[Deprecated]Cryptomatte seed factor", ]
     octane_attribute_list = ["a_aov_count", ]
     octane_attribute_config = {"a_aov_count": [consts.AttributeID.A_AOV_COUNT, "aovCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
-    octane_static_pin_count = 7
+    octane_static_pin_count = 6
 
     a_aov_count: IntProperty(name="Aov count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of render AOV inputs. Changing this value and evaluating the node will update the number of render AOV inputs")
 
@@ -178,10 +178,10 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderAOVGroupGroupOptions", OctaneRenderAOVGroupGroupOptions.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupRenderPassesRaw", OctaneRenderAOVGroupRenderPassesRaw.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupRenderPassCryptomatteCount", OctaneRenderAOVGroupRenderPassCryptomatteCount.bl_label).init()
-        self.inputs.new("OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor", OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupRenderPassInfoMaxSamples", OctaneRenderAOVGroupRenderPassInfoMaxSamples.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupSamplingMode", OctaneRenderAOVGroupSamplingMode.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupOpacityThreshold", OctaneRenderAOVGroupOpacityThreshold.bl_label).init()
+        self.inputs.new("OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor", OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
     @classmethod
@@ -193,10 +193,10 @@ _CLASSES = [
     OctaneRenderAOVGroupEnabled,
     OctaneRenderAOVGroupRenderPassesRaw,
     OctaneRenderAOVGroupRenderPassCryptomatteCount,
-    OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor,
     OctaneRenderAOVGroupRenderPassInfoMaxSamples,
     OctaneRenderAOVGroupSamplingMode,
     OctaneRenderAOVGroupOpacityThreshold,
+    OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor,
     OctaneRenderAOVGroupGroupOptions,
     OctaneRenderAOVGroup,
 ]

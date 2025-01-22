@@ -531,50 +531,50 @@ color node_mix_clamp(color col)
 shader node_mix_color(int blend_type = 0,
                       int use_clamp = 0,
                       int use_clamp_result = 0,
-                      float Factor = 0.5,
+                      color Factor = 0.5,
                       color A = 0.0,
                       color B = 0.0,
                       output color Result = 0.0)
 {
-  float t = (use_clamp) ? clamp(Factor, 0.0, 1.0) : Factor;
+  float t = (use_clamp) ? clamp(luminance(Factor), 0.0, 1.0) : luminance(Factor);
 
-if (blend_type == 0)  // Mix
+  if (blend_type == 0)  // Mix
     Result = mix(A, B, t);
-if (blend_type == 1)  // Add
+  if (blend_type == 1)  // Add
     Result = node_mix_add(t, A, B);
-if (blend_type == 2)  // Multiply
+  if (blend_type == 2)  // Multiply
     Result = node_mix_mul(t, A, B);
-if (blend_type == 3)  // Screen
+  if (blend_type == 3)  // Screen
     Result = node_mix_screen(t, A, B);
-if (blend_type == 4)  // Overlay
+  if (blend_type == 4)  // Overlay
     Result = node_mix_overlay(t, A, B);
-if (blend_type == 5)  // Subtract
+  if (blend_type == 5)  // Subtract
     Result = node_mix_sub(t, A, B);
-if (blend_type == 6)  // Divide
+  if (blend_type == 6)  // Divide
     Result = node_mix_div(t, A, B);
-if (blend_type == 7)  // Difference
+  if (blend_type == 7)  // Difference
     Result = node_mix_diff(t, A, B);
-if (blend_type == 8)  // Exclusion
+  if (blend_type == 8)  // Exclusion
     Result = node_mix_exclusion(t, A, B);
-if (blend_type == 9)  // Darken
+  if (blend_type == 9)  // Darken
     Result = node_mix_dark(t, A, B);
-if (blend_type == 10) // Lighten
+  if (blend_type == 10) // Lighten
     Result = node_mix_light(t, A, B);
-if (blend_type == 11) // Dodge
+  if (blend_type == 11) // Dodge
     Result = node_mix_dodge(t, A, B);
-if (blend_type == 12) // Burn
+  if (blend_type == 12) // Burn
     Result = node_mix_burn(t, A, B);
-if (blend_type == 13) // Hue
+  if (blend_type == 13) // Hue
     Result = node_mix_hue(t, A, B);
-if (blend_type == 14) // Saturation
+  if (blend_type == 14) // Saturation
     Result = node_mix_sat(t, A, B);
-if (blend_type == 15) // Value
+  if (blend_type == 15) // Value
     Result = node_mix_val(t, A, B);
-if (blend_type == 16) // Color
+  if (blend_type == 16) // Color
     Result = node_mix_color(t, A, B);
-if (blend_type == 17) // Soft Light
+  if (blend_type == 17) // Soft Light
     Result = node_mix_soft(t, A, B);
-if (blend_type == 18) // Linear Light
+  if (blend_type == 18) // Linear Light
     Result = node_mix_linear(t, A, B);
 
   if (use_clamp_result)

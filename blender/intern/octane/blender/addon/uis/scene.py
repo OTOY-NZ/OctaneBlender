@@ -516,7 +516,7 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
         layout.use_property_decorate = False
         col = layout.column(align=True)
         col.prop(octane_view_layer, "cryptomatte_pass_channels")
-        col.prop(octane_view_layer, "cryptomatte_seed_factor")
+        # col.prop(octane_view_layer, "cryptomatte_seed_factor")
 
 
 class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):

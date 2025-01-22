@@ -147,6 +147,11 @@ class OctaneTextureNodeCategory(OctaneNodeCategory):
                          consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
 
 
+class OctaneCyclesTextureNodeCategory(OctaneNodeCategory):
+    NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE,
+                         consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.COMPOSITE,
+                         consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
+
 class OctaneTextureLayerNodeCategory(OctaneNodeCategory):
     NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE,
                          consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER,
@@ -1090,6 +1095,19 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneTextureSwitch"),
                     ]
                 ),
+            ]
+        ),
+    ],
+    "OCTANE_CYCLES_TEXTURE_NODE": [
+        OctaneCyclesTextureNodeCategory(
+            "OCTANE_CYCLES_TEXTURE_NODE", "Cycles Texture Wrapper",
+            octane_pin_type=consts.PinType.PT_TEXTURE,
+            items=[
+                OctaneNodeItem("OctaneCyclesMixColorNodeWrapper"),
+                OctaneNodeItem("OctaneCyclesMixFloatNodeWrapper"),
+                OctaneNodeItem("OctaneCyclesMixFloat3NodeWrapper"),
+                OctaneNodeItem("OctaneCyclesNodeMathNodeWrapper"),
+                OctaneNodeItem("OctaneCyclesNodeVectorMathNodeWrapper"),
             ]
         ),
     ],
