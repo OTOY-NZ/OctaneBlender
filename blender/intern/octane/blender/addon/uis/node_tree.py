@@ -16,7 +16,7 @@ class OCTANE_NODE_MT_utility_menu(Menu):
     def draw(self, _context):
         layout = self.layout
         layout.operator("octane.convert_to_octane_node", text="Convert to Octane Node")
-        layout.operator("octane.batch_linking_selected_nodes", text="Batch linking")
+        # layout.operator("octane.batch_linking_selected_nodes", text="Batch linking")
 
 
 def octane_node_utility_menu(self, context):

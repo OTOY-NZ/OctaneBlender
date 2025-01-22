@@ -30,10 +30,17 @@ class OctaneOSLProjection(bpy.types.Node, OctaneScriptNode):
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_PROJ_OSL
     octane_socket_list = []
-    octane_attribute_list = ["a_filename", "a_reload", "a_shader_code", "a_result", ]
-    octane_attribute_config = {"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_shader_code": [consts.AttributeID.A_SHADER_CODE, "shaderCode", consts.AttributeType.AT_STRING], "a_errors": [consts.AttributeID.A_ERRORS, "errors", consts.AttributeType.AT_STRING], "a_result": [consts.AttributeID.A_RESULT, "result", consts.AttributeType.AT_INT], }
+    octane_attribute_list = ["a_compatibility_version", "a_filename", "a_reload", "a_shader_code", "a_result", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], "a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_shader_code": [consts.AttributeID.A_SHADER_CODE, "shaderCode", consts.AttributeType.AT_STRING], "a_errors": [consts.AttributeID.A_ERRORS, "errors", consts.AttributeType.AT_STRING], "a_result": [consts.AttributeID.A_RESULT, "result", consts.AttributeType.AT_INT], }
     octane_static_pin_count = 0
 
+    compatibility_mode_infos = [
+        ("latest", "latest", """(null)""", 14000005),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """Disable single pin creation for vector structs""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="latest", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_shader_code: StringProperty(name="Shader code", default="shader OslProjection(\n    output point uvw = 0)\n{\n    uvw = point(u, v, 0);\n}\n", update=OctaneBaseNode.update_node_tree, description="The OSL code for this node")
@@ -45,6 +52,10 @@ class OctaneOSLProjection(bpy.types.Node, OctaneScriptNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES = [

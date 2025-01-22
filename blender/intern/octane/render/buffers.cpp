@@ -103,7 +103,7 @@ DisplayBuffer::DisplayBuffer(::OctaneEngine::OctaneClient *server, bool linear)
       shared_handler(0),
       gl_texture(0),
       gpu_texture(nullptr),
-      transparent(true), /* todo: determine from background */
+      transparent(false), /* todo: determine from background */
       half_float(linear),
       server(server)
 {

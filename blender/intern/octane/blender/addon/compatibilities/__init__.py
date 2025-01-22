@@ -40,13 +40,16 @@ def check_use_persistent_data():
 
 
 def check_legacy_nodes_in_scene():
+    from octane import core
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return
     from octane.operators_.legacy_node_updater import OCTANE_OT_legacy_node_updater_popup
     # Is legacy node in the scene and not startup file
-    # if len(bpy.data.filepath) > 0:
-    #     found, results = utility.find_legacy_node_in_scene()
-    #     if found:
-    #         OCTANE_OT_legacy_node_updater_popup.results = results
-    #         bpy.ops.octane.legacy_node_updater_popup('INVOKE_DEFAULT')
+    if len(bpy.data.filepath) > 0:
+        found, results = utility.find_legacy_node_in_scene()
+        if found:
+            OCTANE_OT_legacy_node_updater_popup.results = results
+            bpy.ops.octane.legacy_node_updater_popup('INVOKE_DEFAULT')
 
 
 def check_color_management():

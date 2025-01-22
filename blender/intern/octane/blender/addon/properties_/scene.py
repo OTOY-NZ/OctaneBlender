@@ -2169,20 +2169,6 @@ class OctaneRenderPropertyGroup(bpy.types.PropertyGroup):
         description="If enabled, Octane will try to collect and group instances into scatter as much as possible",
         default=True,
     )
-
-    def update_octane_shading_type(self, context):
-        view = context.space_data
-        if view and getattr(view, "shading", False):
-            if view.shading.type != self.octane_shading_type:
-                view.shading.type = self.octane_shading_type
-
-    octane_shading_type: EnumProperty(
-        name="Octane Shading Type",
-        description="",
-        items=octane_shading_type_modes,
-        default="SOLID",
-        update=update_octane_shading_type,
-    )
     meshes_render_types = (
         ('0', "Global", ""),
         ('1', "Scatter", ""),
@@ -3227,6 +3213,34 @@ class OctaneRenderPropertyGroup(bpy.types.PropertyGroup):
         pass
 
 
+class OctaneView3DShadingPropertyGroup(bpy.types.PropertyGroup):
+    def update_shading_type(self, context):
+        view = context.space_data
+        if view and getattr(view, "shading", False):
+            if view.shading.type != self.shading_type:
+                view.shading.type = self.shading_type
+
+    shading_type: EnumProperty(
+        name="Octane Shading Type",
+        description="",
+        items=octane_shading_type_modes,
+        default="SOLID",
+        update=update_shading_type,
+    )
+
+    @classmethod
+    def register(cls):
+        bpy.types.View3DShading.octane = PointerProperty(
+            name="Octane View3DShading Settings",
+            description="Octane View3D shading settings",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        pass
+
+
 class AddPresetRenderPasses(AddPresetBase, Operator):
     """Add Octane Render Passes preset"""
     bl_idname = "render.octane_renderpasses_preset_add"
@@ -3272,6 +3286,7 @@ _CLASSES = [
     OctaneGlobalRenderLayerPropertyGroup,
     OctaneRenderLayerPropertyGroup,
     OctaneRenderPropertyGroup,
+    OctaneView3DShadingPropertyGroup,
     AddPresetRenderPasses,
     AddPresetKernel,
 ]

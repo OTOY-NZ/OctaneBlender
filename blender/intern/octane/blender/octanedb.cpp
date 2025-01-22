@@ -437,6 +437,9 @@ void OctaneCustomNode::UpdateOctaneDBNode(void *data)
   for (auto &socket : oInt3Sockets) {
     sockets.emplace_back(&socket);
   }
+  for (auto &socket : oInt4Sockets) {
+    sockets.emplace_back(&socket);
+  }
   for (auto &socket : oFloatSockets) {
     sockets.emplace_back(&socket);
   }
@@ -444,6 +447,9 @@ void OctaneCustomNode::UpdateOctaneDBNode(void *data)
     sockets.emplace_back(&socket);
   }
   for (auto &socket : oFloat3Sockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oFloat4Sockets) {
     sockets.emplace_back(&socket);
   }
   for (auto &socket : oStringSockets) {

@@ -59,22 +59,22 @@ class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):
         return OctaneOSLBaseSocket.enum_items_container[self.enum_items_str]
 
 
-class OctaneOSLBoolSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLBoolSocket"
+class OctaneOSLBaseBoolSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseBoolSocket"
     bl_label = "OSL Bool Socket"
     color = consts.OctanePinColor.Bool
-    octane_default_node_type = 11
+    octane_default_node_type = consts.NodeType.NT_BOOL
     octane_default_node_name = "OctaneBoolValue"
     octane_pin_type = consts.PinType.PT_BOOL
     octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=base_socket.OctaneBaseSocket.update_node_tree, description="")
 
 
-class OctaneOSLIntSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLIntSocket"
+class OctaneOSLBaseIntSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseIntSocket"
     bl_label = "OSL Int Socket"
     color = consts.OctanePinColor.Int
-    octane_default_node_type = 9
+    octane_default_node_type = consts.NodeType.NT_INT
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_INT
@@ -83,11 +83,11 @@ class OctaneOSLIntSocket(OctaneOSLBaseSocket):
                                description="", min=-2147483647, max=2147483647, step=1, subtype="NONE")
 
 
-class OctaneOSLInt2Socket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLInt2Socket"
+class OctaneOSLBaseInt2Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseInt2Socket"
     bl_label = "OSL Int2 Socket"
     color = consts.OctanePinColor.Int
-    octane_default_node_type = 9
+    octane_default_node_type = consts.NodeType.NT_INT
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_INT2
@@ -97,11 +97,11 @@ class OctaneOSLInt2Socket(OctaneOSLBaseSocket):
                                      min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
-class OctaneOSLInt3Socket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLInt3Socket"
+class OctaneOSLBaseInt3Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseInt3Socket"
     bl_label = "OSL Int3 Socket"
     color = consts.OctanePinColor.Int
-    octane_default_node_type = 9
+    octane_default_node_type = consts.NodeType.NT_INT
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_INT3
@@ -111,11 +111,25 @@ class OctaneOSLInt3Socket(OctaneOSLBaseSocket):
                                      min=-2147483647, max=2147483647, subtype="NONE", size=3)
 
 
-class OctaneOSLFloatSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLFloatSocket"
+class OctaneOSLBaseInt4Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseInt4Socket"
+    bl_label = "OSL Int4 Socket"
+    color = consts.OctanePinColor.Int
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
+    octane_pin_type = consts.PinType.PT_INT
+    octane_socket_type = consts.SocketType.ST_INT4
+    default_value: IntVectorProperty(default=(0, 0, 0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value,
+                                     get=OctaneOSLBaseSocket.get_osl_vector_value,
+                                     update=base_socket.OctaneBaseSocket.update_node_tree, description="",
+                                     min=-2147483647, max=2147483647, subtype="NONE", size=4)
+
+
+class OctaneOSLBaseFloatSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseFloatSocket"
     bl_label = "OSL Float Socket"
     color = consts.OctanePinColor.Float
-    octane_default_node_type = 6
+    octane_default_node_type = consts.NodeType.NT_FLOAT
     octane_default_node_name = "OctaneFloatValue"
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_socket_type = consts.SocketType.ST_FLOAT
@@ -125,11 +139,11 @@ class OctaneOSLFloatSocket(OctaneOSLBaseSocket):
                                  max=2147483647, subtype="NONE")
 
 
-class OctaneOSLFloat2Socket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLFloat2Socket"
+class OctaneOSLBaseFloat2Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseFloat2Socket"
     bl_label = "OSL Float2 Socket"
     color = consts.OctanePinColor.Float
-    octane_default_node_type = 6
+    octane_default_node_type = consts.NodeType.NT_FLOAT
     octane_default_node_name = "OctaneFloatValue"
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_socket_type = consts.SocketType.ST_FLOAT2
@@ -139,11 +153,11 @@ class OctaneOSLFloat2Socket(OctaneOSLBaseSocket):
                                        min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
-class OctaneOSLFloat3Socket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLFloat3Socket"
+class OctaneOSLBaseFloat3Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseFloat3Socket"
     bl_label = "OSL Float3 Socket"
     color = consts.OctanePinColor.Float
-    octane_default_node_type = 6
+    octane_default_node_type = consts.NodeType.NT_FLOAT
     octane_default_node_name = "OctaneFloatValue"
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_socket_type = consts.SocketType.ST_FLOAT3
@@ -154,24 +168,39 @@ class OctaneOSLFloat3Socket(OctaneOSLBaseSocket):
                                        min=-2147483647, max=2147483647, subtype="NONE", size=3)
 
 
-class OctaneOSLEnumSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLEnumSocket"
+class OctaneOSLBaseFloat4Socket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseFloat4Socket"
+    bl_label = "OSL Float4 Socket"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_socket_type = consts.SocketType.ST_FLOAT4
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000, 0.000000),
+                                       set=OctaneOSLBaseSocket.set_osl_vector_value,
+                                       get=OctaneOSLBaseSocket.get_osl_vector_value,
+                                       update=base_socket.OctaneBaseSocket.update_node_tree, description="",
+                                       min=-2147483647, max=2147483647, subtype="NONE", size=4)
+
+
+class OctaneOSLBaseEnumSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseEnumSocket"
     bl_label = "OSL Enum Socket"
     color = consts.OctanePinColor.Enum
-    octane_default_node_type = 57
-    octane_default_node_name = "OctaneEnumValue"
-    octane_pin_type = consts.PinType.PT_ENUM
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
+    octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_ENUM
     default_value: EnumProperty(update=base_socket.OctaneBaseSocket.update_node_tree, description="",
                                 items=OctaneOSLBaseSocket.get_enum_items)
     enum_items_str: StringProperty()
 
 
-class OctaneOSLGreyscaleSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLGreyscaleSocket"
+class OctaneOSLBaseGreyscaleSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseGreyscaleSocket"
     bl_label = "OSL Greyscale Socket"
     color = consts.OctanePinColor.Texture
-    octane_default_node_type = 31
+    octane_default_node_type = consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name = "OctaneGreyscaleColor"
     octane_pin_type = consts.PinType.PT_TEXTURE
     octane_socket_type = consts.SocketType.ST_FLOAT
@@ -179,11 +208,11 @@ class OctaneOSLGreyscaleSocket(OctaneOSLBaseSocket):
                                  min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
 
 
-class OctaneOSLColorSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLColorSocket"
+class OctaneOSLBaseColorSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseColorSocket"
     bl_label = "OSL Color Socket"
     color = consts.OctanePinColor.Texture
-    octane_default_node_type = 33
+    octane_default_node_type = consts.NodeType.NT_TEX_RGB
     octane_default_node_name = "OctaneRGBColor"
     octane_pin_type = consts.PinType.PT_TEXTURE
     octane_socket_type = consts.SocketType.ST_RGBA
@@ -193,11 +222,11 @@ class OctaneOSLColorSocket(OctaneOSLBaseSocket):
                                        subtype="COLOR", size=3)
 
 
-class OctaneOSLStringSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLStringSocket"
+class OctaneOSLBaseStringSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseStringSocket"
     bl_label = "OSL String Socket"
     color = consts.OctanePinColor.String
-    octane_default_node_type = 84
+    octane_default_node_type = consts.NodeType.NT_STRING
     octane_default_node_name = "OctaneStringValue"
     octane_pin_type = consts.PinType.PT_STRING
     octane_socket_type = consts.SocketType.ST_STRING
@@ -206,11 +235,11 @@ class OctaneOSLStringSocket(OctaneOSLBaseSocket):
     options_str: StringProperty()
 
 
-class OctaneOSLFilePathSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLFilePathSocket"
+class OctaneOSLBaseFilePathSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseFilePathSocket"
     bl_label = "OSL FilePath Socket"
     color = consts.OctanePinColor.String
-    octane_default_node_type = 84
+    octane_default_node_type = consts.NodeType.NT_STRING
     octane_default_node_name = "OctaneStringValue"
     octane_pin_type = consts.PinType.PT_STRING
     octane_socket_type = consts.SocketType.ST_STRING
@@ -218,13 +247,88 @@ class OctaneOSLFilePathSocket(OctaneOSLBaseSocket):
                                   subtype="FILE_PATH")
 
 
-class OctaneOSLLinkSocket(OctaneOSLBaseSocket):
-    bl_idname = "OctaneOSLLinkSocket"
+class OctaneOSLBaseLinkSocket(OctaneOSLBaseSocket):
+    bl_idname = "OctaneOSLBaseLinkSocket"
     bl_label = "OSL Link Socket"
     octane_default_node_name = ""
     octane_pin_type = consts.PinType.PT_UNKNOWN
     octane_socket_type = consts.SocketType.ST_LINK
     octane_osl_default_node_name: StringProperty()
+
+
+class OctaneOSLBoolSocket(OctaneOSLBaseBoolSocket):
+    bl_idname = "OctaneOSLBoolSocket"
+    bl_label = "OSL Bool Socket"
+
+
+class OctaneOSLIntSocket(OctaneOSLBaseIntSocket):
+    bl_idname = "OctaneOSLIntSocket"
+    bl_label = "OSL Int Socket"
+
+
+class OctaneOSLInt2Socket(OctaneOSLBaseInt2Socket):
+    bl_idname = "OctaneOSLInt2Socket"
+    bl_label = "OSL Int2 Socket"
+
+
+class OctaneOSLInt3Socket(OctaneOSLBaseInt3Socket):
+    bl_idname = "OctaneOSLInt3Socket"
+    bl_label = "OSL Int3 Socket"
+
+
+class OctaneOSLInt4Socket(OctaneOSLBaseInt4Socket):
+    bl_idname = "OctaneOSLInt4Socket"
+    bl_label = "OSL Int4 Socket"
+
+
+class OctaneOSLFloatSocket(OctaneOSLBaseFloatSocket):
+    bl_idname = "OctaneOSLFloatSocket"
+    bl_label = "OSL Float Socket"
+
+
+class OctaneOSLFloat2Socket(OctaneOSLBaseFloat2Socket):
+    bl_idname = "OctaneOSLFloat2Socket"
+    bl_label = "OSL Float2 Socket"
+
+
+class OctaneOSLFloat3Socket(OctaneOSLBaseFloat3Socket):
+    bl_idname = "OctaneOSLFloat3Socket"
+    bl_label = "OSL Float3 Socket"
+
+
+class OctaneOSLFloat4Socket(OctaneOSLBaseFloat4Socket):
+    bl_idname = "OctaneOSLFloat4Socket"
+    bl_label = "OSL Float4 Socket"
+
+
+class OctaneOSLEnumSocket(OctaneOSLBaseEnumSocket):
+    bl_idname = "OctaneOSLEnumSocket"
+    bl_label = "OSL Enum Socket"
+
+
+class OctaneOSLGreyscaleSocket(OctaneOSLBaseGreyscaleSocket):
+    bl_idname = "OctaneOSLGreyscaleSocket"
+    bl_label = "OSL Greyscale Socket"
+
+
+class OctaneOSLColorSocket(OctaneOSLBaseColorSocket):
+    bl_idname = "OctaneOSLColorSocket"
+    bl_label = "OSL Color Socket"
+
+
+class OctaneOSLStringSocket(OctaneOSLBaseStringSocket):
+    bl_idname = "OctaneOSLStringSocket"
+    bl_label = "OSL String Socket"
+
+
+class OctaneOSLFilePathSocket(OctaneOSLBaseFilePathSocket):
+    bl_idname = "OctaneOSLFilePathSocket"
+    bl_label = "OSL FilePath Socket"
+
+
+class OctaneOSLLinkSocket(OctaneOSLBaseLinkSocket):
+    bl_idname = "OctaneOSLLinkSocket"
+    bl_label = "OSL Link Socket"
 
 
 class OctaneScriptNode(base_node.OctaneBaseNode):
@@ -329,6 +433,10 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             socket_type_blname = "OctaneOSLInt3Socket"
             default_value = [int(v) for v in value.split(" ")]
             use_scope_limitation = True
+        elif socket_pin_type == consts.SocketType.ST_INT4:
+            socket_type_blname = "OctaneOSLInt4Socket"
+            default_value = [int(v) for v in value.split(" ")]
+            use_scope_limitation = True
         elif socket_pin_type == consts.SocketType.ST_FLOAT:
             # noinspection PyBroadException
             try:
@@ -347,6 +455,10 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             use_scope_limitation = True
         elif socket_pin_type == consts.SocketType.ST_FLOAT3:
             socket_type_blname = "OctaneOSLFloat3Socket"
+            default_value = [float(v) for v in value.split(" ")]
+            use_scope_limitation = True
+        elif socket_pin_type == consts.SocketType.ST_FLOAT4:
+            socket_type_blname = "OctaneOSLFloat4Socket"
             default_value = [float(v) for v in value.split(" ")]
             use_scope_limitation = True
         elif socket_pin_type == consts.SocketType.ST_RGBA:
@@ -491,9 +603,11 @@ _CLASSES = [
     OctaneOSLIntSocket,
     OctaneOSLInt2Socket,
     OctaneOSLInt3Socket,
+    OctaneOSLInt4Socket,
     OctaneOSLFloatSocket,
     OctaneOSLFloat2Socket,
     OctaneOSLFloat3Socket,
+    OctaneOSLFloat4Socket,
     OctaneOSLEnumSocket,
     OctaneOSLGreyscaleSocket,
     OctaneOSLColorSocket,

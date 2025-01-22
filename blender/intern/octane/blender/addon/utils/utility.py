@@ -135,11 +135,11 @@ def octane_register_interface_class(classes, socket_interface_classes):
                     ntype.__annotations__["default_value"] = EnumProperty(items=getattr(_class, "items", []))
             elif socket_type == consts.SocketType.ST_INT:
                 ntype.__annotations__["default_value"] = IntProperty()
-            elif socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3):
+            elif socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_INT4):
                 ntype.__annotations__["default_value"] = IntVectorProperty()
             elif socket_type == consts.SocketType.ST_FLOAT:
                 ntype.__annotations__["default_value"] = FloatProperty()
-            elif socket_type in (consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3):
+            elif socket_type in (consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_FLOAT4):
                 ntype.__annotations__["default_value"] = FloatVectorProperty()
             elif socket_type == consts.SocketType.ST_RGBA:
                 ntype.__annotations__["default_value"] = FloatVectorProperty(subtype="COLOR")
@@ -1184,34 +1184,29 @@ def beautifier_nodetree_layout_by_owner(id_data):
 # Scenes
 
 
-def update_octane_viewport_shading_type(shading_type=None):
-    if shading_type is None:
-        for window in bpy.context.window_manager.windows:
-            for area in window.screen.areas:
-                if area.type == "VIEW_3D":
-                    for space in area.spaces:
-                        if space.type == "VIEW_3D":
-                            shading_type = space.shading.type
-                            break
-    if shading_type is not None:
-        scene = bpy.context.scene
-        if getattr(scene, "octane", None) is not None:
-            oct_scene = scene.octane
-            oct_scene.octane_shading_type = shading_type
-
-
-def set_all_viewport_shading_type(shading_type="SOLID", tag_redraw=False):
-    scene = bpy.context.scene
-    oct_scene = scene.octane
-    if oct_scene.octane_shading_type != shading_type:
-        oct_scene.octane_shading_type = shading_type
+def update_octane_viewport_shading_type():
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
                 for space in area.spaces:
                     if space.type == "VIEW_3D":
-                        if space.shading.type != shading_type:
-                            space.shading.type = shading_type
+                        view_shading = space.shading
+                        oct_view_shading = view_shading.octane
+                        if oct_view_shading.shading_type != view_shading.type:
+                            oct_view_shading.shading_type = view_shading.type
+
+
+def set_all_viewport_shading_type(shading_type="SOLID", tag_redraw=False):
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        view_shading = space.shading
+                        if view_shading.type != shading_type:
+                            view_shading.type = shading_type
+                            oct_view_shading = view_shading.octane
+                            oct_view_shading["shading_type"] = view_shading.type
                 if tag_redraw:
                     for region in area.regions:
                         region.tag_redraw()
@@ -1313,25 +1308,29 @@ def find_legacy_node_in_scene():
         if find_legacy_node_in_node_tree(node_tree, legacy_node_dict["NodeGroup"][node_tree]):
             found = True
         if node_tree.library is not None or not found:
-            del legacy_node_dict["NodeGroup"][node_tree]
+            if node_tree in legacy_node_dict["NodeGroup"]:
+                del legacy_node_dict["NodeGroup"][node_tree]
     for material in bpy.data.materials:
         if material.node_tree and material.use_nodes:
             if find_legacy_node_in_node_tree(material.node_tree, legacy_node_dict["Material"][material]):
                 found = True
             if material.library is not None or not found:
-                del legacy_node_dict["Material"][material]
+                if material in legacy_node_dict["Material"]:
+                    del legacy_node_dict["Material"][material]
     for world in bpy.data.worlds:
         if world.node_tree and world.use_nodes:
             if find_legacy_node_in_node_tree(world.node_tree, legacy_node_dict["World"][world]):
                 found = True
             if world.library is not None or not found:
-                del legacy_node_dict["World"][world]
+                if world in legacy_node_dict["World"]:
+                    del legacy_node_dict["World"][world]
     for light in bpy.data.lights:
         if light.node_tree and light.use_nodes:
             if find_legacy_node_in_node_tree(light.node_tree, legacy_node_dict["Light"][light]):
                 found = True
         if light.library is not None or not found:
-            del legacy_node_dict["Light"][light]
+            if light in legacy_node_dict["Light"]:
+                del legacy_node_dict["Light"][light]
     results = []
     if found:
         for node_tree, node_name_list in legacy_node_dict["NodeGroup"].items():

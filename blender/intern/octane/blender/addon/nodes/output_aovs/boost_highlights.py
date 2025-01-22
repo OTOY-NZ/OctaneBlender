@@ -82,7 +82,7 @@ class OctaneOutputAOVsBoostHighlightsThresholdSoftness(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_pin_index = 3
     octane_socket_type = consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The amount of extra input luminance required on top of Threshold to reach the full Multiplier scale factor for each additional input of input luminance. If this is zero, the gradient will change abruptly from 1.0 to Multiplier at Threshold", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1.000000, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The amount of extra input luminance required on top of Threshold to reach the full Multiplier scale factor for each additional unit of input luminance. If this is zero, the gradient will change abruptly from 1.0 to Multiplier at Threshold", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1.000000, precision=2, subtype="NONE")
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 4294967295

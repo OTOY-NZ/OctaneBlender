@@ -1,0 +1,16 @@
+
+shader node_mix_vector(int use_clamp = 0,
+                       int nonuniform = 1,
+                       float Factor = 0.5,
+                       vector Factor3D = 0.5,
+                       vector A = 0.0,
+                       vector B = 0.0,
+                       output vector Result = 0.0)
+{
+  vector f = Factor3D;
+  if (nonuniform != 1) {
+    f = vector(Factor, Factor, Factor);
+  }
+  vector t = (use_clamp) ? clamp(f, 0.0, 1.0) : f;
+  Result = mix(A, B, t);
+}

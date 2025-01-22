@@ -35,8 +35,10 @@ namespace OctaneDataTransferObject {
 		SHOW_ACTIVATION = 7,
 		SAVE_OCTANDB = 8,
 		SHOW_OCTANE_VIEWPORT = 9,
-		CLEAR_RESOURCE_CACHE_SYSTEM = 10,
+		// CLEAR_RESOURCE_CACHE_SYSTEM = 10,
 		RESET_BLENDER_VIEWLAYER = 11,
+		OCTANE_MATERIALX_FETCHER = 500,
+		OCTANE_RESOURCE_CACHE_RESET = 600,
 		TOGGLE_RECORD = 10000,
 		PLAY_RECORD = 10001,
 	};
@@ -2555,9 +2557,11 @@ namespace OctaneDataTransferObject {
 		std::vector<OctaneDTOInt>		oIntSockets;
 		std::vector<OctaneDTOInt2>		oInt2Sockets;
 		std::vector<OctaneDTOInt3>		oInt3Sockets;
+    std::vector<OctaneDTOInt4>		oInt4Sockets;
 		std::vector<OctaneDTOFloat>		oFloatSockets;
 		std::vector<OctaneDTOFloat2>	oFloat2Sockets;
 		std::vector<OctaneDTOFloat3>	oFloat3Sockets;
+    std::vector<OctaneDTOFloat4>	oFloat4Sockets;
 		std::vector<OctaneDTOString>	oStringSockets;
 		std::vector<OctaneDTORGB>		oRGBSockets;
 		std::vector<OctaneDTOShader>	oLinkSockets;
@@ -2578,9 +2582,11 @@ namespace OctaneDataTransferObject {
 			oIntSockets.clear();
 			oInt2Sockets.clear();
 			oInt3Sockets.clear();
+      oInt4Sockets.clear();
 			oFloatSockets.clear();
 			oFloat2Sockets.clear();
 			oFloat3Sockets.clear();
+      oFloat4Sockets.clear();
 			oStringSockets.clear();
 			oRGBSockets.clear();
 			oLinkSockets.clear();
@@ -2594,8 +2600,8 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
-		MSGPACK_DEFINE(sClientNodeName, iOctaneNodeType, sCustomDataHeader, sCustomDataBody, oBoolSockets, oEnumSockets, oIntSockets, oInt2Sockets, oInt3Sockets,
-			oFloatSockets, oFloat2Sockets, oFloat3Sockets, oStringSockets, oRGBSockets, oLinkSockets, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sClientNodeName, iOctaneNodeType, sCustomDataHeader, sCustomDataBody, oBoolSockets, oEnumSockets, oIntSockets, oInt2Sockets, oInt3Sockets, oInt4Sockets,
+			oFloatSockets, oFloat2Sockets, oFloat3Sockets, oFloat4Sockets, oStringSockets, oRGBSockets, oLinkSockets, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneCustomNode
 }
 

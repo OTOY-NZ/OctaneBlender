@@ -43,6 +43,8 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
 
     # noinspection PyAttributeOutsideInit
     def init(self, **kwargs):
+        if "Hide" in kwargs and kwargs["Hide"]:
+            self.hide = True
         # Fix the "default_value" display issue under "template_node_view"
         if self.octane_hide_value:
             self.hide_value = self.octane_hide_value
@@ -60,8 +62,8 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
             if self.is_linked:
                 layout.label(text=text)
             else:
-                if self.octane_socket_type in (
-                        SocketType.ST_INT2, SocketType.ST_INT3, SocketType.ST_FLOAT2, SocketType.ST_FLOAT3):
+                if self.octane_socket_type in (SocketType.ST_INT2, SocketType.ST_INT3, SocketType.ST_INT4,
+                                               SocketType.ST_FLOAT2, SocketType.ST_FLOAT3, SocketType.ST_FLOAT4):
                     # layout in column to enable multiple selections for vector properties
                     layout.column(heading=text).prop(self, "default_value", text="")
                 else:
@@ -152,8 +154,8 @@ class OctaneBaseSocketInterface:
     def draw(self, _context, layout):
         layout.separator()
         if hasattr(self, "default_value"):
-            if self.octane_socket_type in (SocketType.ST_INT2, SocketType.ST_INT3,
-                                           SocketType.ST_FLOAT2, SocketType.ST_FLOAT3):
+            if self.octane_socket_type in (SocketType.ST_INT2, SocketType.ST_INT3, SocketType.ST_INT4,
+                                           SocketType.ST_FLOAT2, SocketType.ST_FLOAT3, SocketType.ST_FLOAT4):
                 # layout in column to enable multiple selections for vector properties
                 layout.column(heading=self.name).prop(self, "default_value", text="")
             else:

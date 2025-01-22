@@ -143,7 +143,7 @@ class RenderSession(object):
             bpy.app.timers.register(self.update_viewport_render_result)
             # Fix the problem that Octane's shading type does not be updated when users use shortcut to start a
             # preview render session
-            utility.update_octane_viewport_shading_type("RENDERED")
+            utility.update_octane_viewport_shading_type()
             OctaneBlender().update_change_manager(False, False)
         self.is_render_started = True
         self.render_start_time = time.time()

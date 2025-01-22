@@ -12,7 +12,7 @@ octane_blender = core.get_octane_blender_binary_module()
 class CArray(object):
     UINT8 = 0
     INT = 1
-    FLOAT = 2    
+    FLOAT = 2
 
 
 class OctaneNode(object):
@@ -22,9 +22,9 @@ class OctaneNode(object):
         elif node_type == consts.NodeType.NT_GEO_MESH:
             self.node = octane_blender.MeshNode(name)
         elif node_type == consts.NodeType.NT_GEO_VOLUME:
-            self.node = octane_blender.VolumeNode(name)            
+            self.node = octane_blender.VolumeNode(name)
         elif node_type == consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE:
-            self.node = octane_blender.GraphNode(name)            
+            self.node = octane_blender.GraphNode(name)
         else:
             self.node = octane_blender.Node(name)
         self.node_type = node_type
@@ -111,7 +111,7 @@ class OctaneNode(object):
                                       consts.NodeType.NT_BLENDER_NODE_MESH,
                                       consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE)):
             self.node.update_to_engine(update_now)
-            
+
     def update_to_engine(self, update_now=False):
         self._update_to_engine(update_now)
         for name, subnode in self.subnodes.items():
@@ -246,8 +246,8 @@ class OctaneRpcNode(object):
         # identifier => CArray
         self.c_arrays = {}
         self.scene_data_identifier = ""
-        self.need_update = False 
-        self.reply_c_array = None       
+        self.need_update = False
+        self.reply_c_array = None
         self.root_et = ElementTree.Element('rpc', type=str(rpc_type))
         ElementTree.SubElement(self.root_et, 'attributes')
         ElementTree.SubElement(self.root_et, 'pins')
@@ -266,8 +266,8 @@ class OctaneRpcNode(object):
         if self.root_et.find("pins") is None:
             ElementTree.SubElement(self.root_et, 'pins')
 
-    def get_error(self):        
-        error_et = self.root_et.find("error")        
+    def get_error(self):
+        error_et = self.root_et.find("error")
         if error_et is not None:
             return error_et.text
         return ""
@@ -278,7 +278,7 @@ class OctaneRpcNode(object):
             name_tree = ElementTree.SubElement(self.root_et, 'name')
         else:
             name_tree = self.root_et.find("name")
-        name_tree.text = str(name)        
+        name_tree.text = str(name)
 
     def get_name(self):
         name_tree = self.root_et.find("name")
@@ -289,7 +289,7 @@ class OctaneRpcNode(object):
     def set_node_type(self, node_type):
         if self.root_et.find("node_type") is None:
             node_type_tree = ElementTree.SubElement(self.root_et, 'node_type')
-        else:            
+        else:
             node_type_tree = self.root_et.find("node_type")
             # Reset attributes and pins if the node type is changed
             if int(node_type_tree.text) != node_type:
@@ -311,7 +311,7 @@ class OctaneRpcNode(object):
             for attribute_et in self.root_et.findall("attributes/attribute"):
                 if attribute_name == attribute_et.get("name"):
                     return True
-        return False        
+        return False
 
     def get_attribute_element(self, attribute_name):
         if self.root_et:
@@ -388,9 +388,9 @@ class OctaneRpcNode(object):
             for pin_et in self.root_et.findall("pins/pin"):
                 if pin_symbol == pin_et.get("symbol"):
                     return True
-        return False 
+        return False
 
-    def get_pin_element(self, pin_symbol):        
+    def get_pin_element(self, pin_symbol):
         if self.root_et:
             for pin_et in self.root_et.findall("pins/pin"):
                 if pin_symbol == pin_et.get("symbol"):
@@ -420,12 +420,16 @@ class OctaneRpcNode(object):
             data_text = "%d %d" % (value[0], value[1])
         elif socket_type == consts.SocketType.ST_INT3:
             data_text = "%d %d %d" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_INT4:
+            data_text = "%d %d %d %d" % (value[0], value[1], value[2], value[3])
         elif socket_type == consts.SocketType.ST_FLOAT:
             data_text = "%f" % value
         elif socket_type == consts.SocketType.ST_FLOAT2:
             data_text = "%f %f" % (value[0], value[1])
         elif socket_type == consts.SocketType.ST_FLOAT3:
             data_text = "%f %f %f" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_FLOAT4:
+            data_text = "%f %f %f %f" % (value[0], value[1], value[2], value[3])
         elif socket_type == consts.SocketType.ST_RGBA:
             data_text = "%f %f %f" % (value[0], value[1], value[2])
         elif socket_type == consts.SocketType.ST_STRING:
@@ -445,11 +449,11 @@ class OctaneRpcNode(object):
                 pin_element.set("is_linked", is_linked_text)
                 need_update = True
             if pin_element.get("link") != link:
-                pin_element.set("link", link)                
+                pin_element.set("link", link)
                 need_update = True
         if need_update:
             self.need_update = True
-        return need_update                
+        return need_update
 
     def __repr__(self):
         return "<OctaneRpcNode name:%s rpc_type:%s need_update:%s>:\n%s\n%s" % \

@@ -5,19 +5,6 @@ from bpy.types import Operator
 
 from octane.utils import consts, logger
 
-COMMAND_TYPES = {
-    'SHOW_NODEGRAPH': 1,
-    'SHOW_NETWORK_PREFERENCE': 2,
-    'STOP_RENDERING': 3,
-    'SHOW_LOG': 4,
-    'SHOW_DEVICE_SETTINGS': 5,
-    'SHOW_OCTANEDB': 6,
-    'ACTIVATE': 7,
-    'SAVE_OCTANEDB': 8,
-    'SHOW_OCTANE_VIEWPORT': 9,
-    'CLEAR_RESOURCE_CACHE_SYSTEM': 10,
-}
-
 
 def set_mesh_resource_cache_tag(obj, is_dirty):
     if obj and obj.type in ('MESH',):

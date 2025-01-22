@@ -183,7 +183,7 @@ class OctaneBaseNode(object):
                 else:
                     creator.new_octane_node(internal_node_et, socket)
             elif internal_node_type == consts.NodeType.NT_INT:
-                int_values = [0, 0, 0]
+                int_values = [0, 0, 0, 0]
                 for idx, int_text in enumerate(internal_node_attr_value.split(" ")):
                     int_values[idx] = int(int_text)
                 if socket.octane_socket_type == consts.SocketType.ST_INT:
@@ -191,11 +191,13 @@ class OctaneBaseNode(object):
                 elif socket.octane_socket_type == consts.SocketType.ST_INT2:
                     socket.default_value = [int_values[0], int_values[1]]
                 elif socket.octane_socket_type == consts.SocketType.ST_INT3:
+                    socket.default_value = [int_values[0], int_values[1], int_values[2]]
+                elif socket.octane_socket_type == consts.SocketType.ST_INT4:
                     socket.default_value = int_values
                 else:
                     creator.new_octane_node(internal_node_et, socket)
             elif internal_node_type == consts.NodeType.NT_FLOAT:
-                float_values = [0, 0, 0]
+                float_values = [0, 0, 0, 0]
                 for idx, float_text in enumerate(internal_node_attr_value.split(" ")):
                     float_values[idx] = float(float_text)
                 if socket.octane_socket_type == consts.SocketType.ST_FLOAT:
@@ -203,6 +205,8 @@ class OctaneBaseNode(object):
                 elif socket.octane_socket_type == consts.SocketType.ST_FLOAT2:
                     socket.default_value = [float_values[0], float_values[1]]
                 elif socket.octane_socket_type == consts.SocketType.ST_FLOAT3:
+                    socket.default_value = [float_values[0], float_values[1], float_values[2]]
+                elif socket.octane_socket_type == consts.SocketType.ST_FLOAT4:
                     socket.default_value = float_values
                 else:
                     creator.new_octane_node(internal_node_et, socket)
@@ -266,17 +270,22 @@ class OctaneBaseNode(object):
                         default_value /= 100.0
                 if is_group_socket:
                     if socket.octane_socket_type in (
-                            consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_FLOAT2,
-                            consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
+                            consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_INT4,
+                            consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_FLOAT4,
+                            consts.SocketType.ST_RGBA):
                         if type(default_value) is int:
-                            default_value = (default_value, 0, 0)
+                            default_value = (default_value, 0, 0, 0)
                         elif type(default_value) is float:
-                            default_value = (default_value, 0.0, 0.0)
+                            default_value = (default_value, 0.0, 0.0, 0.0)
                         elif type(default_value) in (tuple, list):
                             if len(default_value) == 1:
-                                default_value = (default_value[0], 0, 0)
+                                default_value = (default_value[0], 0, 0, 0)
                             elif len(default_value) == 2:
-                                default_value = (default_value[0], default_value[1], 0)
+                                default_value = (default_value[0], default_value[1], 0, 0)
+                            elif len(default_value) == 3:
+                                default_value = (default_value[0], default_value[1], default_value[2], 0)
+                            elif len(default_value) == 4:
+                                default_value = (default_value[0], default_value[1], default_value[2], default_value[3])
                 if is_advanced_pin:
                     if socket.is_octane_proxy_pin():
                         octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX,
@@ -490,12 +499,16 @@ class OctaneBaseNode(object):
                 setattr(socket, "default_value", legacy_data_value[:2])
             elif socket_type == consts.SocketType.ST_INT3:
                 setattr(socket, "default_value", legacy_data_value[:3])
+            elif socket_type == consts.SocketType.ST_INT4:
+                setattr(socket, "default_value", legacy_data_value[:4])
             elif socket_type == consts.SocketType.ST_FLOAT:
                 setattr(socket, "default_value", legacy_data_value[0])
             elif socket_type == consts.SocketType.ST_FLOAT2:
                 setattr(socket, "default_value", legacy_data_value[:2])
             elif socket_type == consts.SocketType.ST_FLOAT3:
                 setattr(socket, "default_value", legacy_data_value[:3])
+            elif socket_type == consts.SocketType.ST_FLOAT4:
+                setattr(socket, "default_value", legacy_data_value[:4])
             elif socket_type == consts.SocketType.ST_RGBA:
                 setattr(socket, "default_value", legacy_data_value[:3])
             elif socket_type == consts.SocketType.ST_STRING:
@@ -616,12 +629,16 @@ class OctaneBaseNode(object):
             data = "%d %d" % (value[0], value[1])
         elif socket_type == consts.SocketType.ST_INT3:
             data = "%d %d %d" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_INT4:
+            data = "%d %d %d %d" % (value[0], value[1], value[2], value[3])
         elif socket_type == consts.SocketType.ST_FLOAT:
             data = value
         elif socket_type == consts.SocketType.ST_FLOAT2:
             data = "%f %f" % (value[0], value[1])
         elif socket_type == consts.SocketType.ST_FLOAT3:
             data = "%f %f %f" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_FLOAT4:
+            data = "%f %f %f %f" % (value[0], value[1], value[2], value[3])
         elif socket_type == consts.SocketType.ST_RGBA:
             data = "%f %f %f" % (value[0], value[1], value[2])
         elif socket_type == consts.SocketType.ST_STRING:
@@ -719,6 +736,9 @@ class OctaneBaseNode(object):
         elif socket_type == consts.SocketType.ST_INT3:
             x, y, z = map(int, value.split())
             _input.default_value = [x, y, z]
+        elif socket_type == consts.SocketType.ST_INT4:
+            x, y, z, w = map(int, value.split())
+            _input.default_value = [x, y, z, w]
         elif socket_type == consts.SocketType.ST_FLOAT:
             _input.default_value = value
         elif socket_type == consts.SocketType.ST_FLOAT2:
@@ -727,6 +747,9 @@ class OctaneBaseNode(object):
         elif socket_type == consts.SocketType.ST_FLOAT3:
             x, y, z = map(float, value.split())
             _input.default_value = [x, y, z]
+        elif socket_type == consts.SocketType.ST_FLOAT4:
+            x, y, z, w = map(float, value.split())
+            _input.default_value = [x, y, z, w]
         elif socket_type == consts.SocketType.ST_RGBA:
             x, y, z = map(float, value.split())
             _input.default_value = [x, y, z]

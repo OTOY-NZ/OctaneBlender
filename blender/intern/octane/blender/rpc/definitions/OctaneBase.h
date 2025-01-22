@@ -8,7 +8,7 @@
 #  define OCTANE_SERVER_MAJOR_VERSION "29"
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#  define OCTANE_SERVER_MINOR_VERSION "7"
+#  define OCTANE_SERVER_MINOR_VERSION "9"
 #endif
 
 #ifdef OCTANE_SERVER
@@ -1267,11 +1267,13 @@ namespace OctaneDataTransferObject {
 		DTO_FLOAT,
 		DTO_FLOAT_2,
 		DTO_FLOAT_3,
+    DTO_FLOAT_4,
 		DTO_RGB,
 		DTO_ENUM,
 		DTO_INT,
 		DTO_INT_2,
 		DTO_INT_3,
+    DTO_INT_4,
 		DTO_STR,
 		DTO_SHADER
 	};
@@ -1343,6 +1345,19 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
 	};
 
+	struct OctaneDTOFloat4 : OctaneDTOBase {		
+		float_4 fVal;
+		OctaneDTOFloat4() : OctaneDTOBase("", DTO_FLOAT_4) { fVal.x = fVal.y = fVal.z = fVal.w = 0; }
+		OctaneDTOFloat4(const std::string &name, bool bUseSocket = true) : OctaneDTOBase(name, DTO_FLOAT_4, bUseSocket) { fVal.x = fVal.y = fVal.z = fVal.w = 0; }
+		inline bool operator==(const float_4& val) { return fVal == val; }
+		inline bool operator!=(const float_4& val) { return fVal != val; }
+		inline OctaneDTOFloat4& operator=(const float_4& val) { fVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOFloat4& other) { return OctaneDTOBase::operator==(other) && fVal == other.fVal; }
+    bool IsSameValue(const OctaneDTOFloat4& other) { return OctaneDTOBase::IsSameValue(other) && fVal == other.fVal; }
+		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOFloat4& obj);
+		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
+	};
+
 	struct OctaneDTORGB : OctaneDTOBase {
 		float_3 fVal;
 		OctaneDTORGB() : OctaneDTOBase("", DTO_RGB) { fVal.x = fVal.y = fVal.z = 0; }
@@ -1406,6 +1421,19 @@ namespace OctaneDataTransferObject {
     inline bool operator==(const OctaneDTOInt3& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
     bool IsSameValue(const OctaneDTOInt3& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOInt3& obj);
+		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
+	};
+
+  	struct OctaneDTOInt4 : OctaneDTOBase {
+		int32_4 iVal;
+		OctaneDTOInt4() : OctaneDTOBase("", DTO_INT_4) { iVal.x = iVal.y = iVal.z = iVal.w = 0; }
+		OctaneDTOInt4(const std::string &name, bool bUseSocket = true) : OctaneDTOBase(name, DTO_INT_4, bUseSocket) { iVal.x = iVal.y = iVal.z = iVal.w =0; }
+		inline bool operator==(const int32_4& val) { return iVal == val; }
+		inline bool operator!=(const int32_4& val) { return iVal != val; }
+		inline OctaneDTOInt4& operator=(const int32_4& val) { iVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOInt4& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
+    bool IsSameValue(const OctaneDTOInt4& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
+		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOInt4& obj);
 		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
 	};
 

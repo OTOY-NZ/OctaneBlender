@@ -104,10 +104,12 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   }
 #endif
 
-  BL::Mesh mesh(PointerRNA_NULL);
-  const bool split_faces = (mesh) && (!enable_subdivision) &&
+  BL::Mesh mesh = (object.type() == BL::Object::type_MESH) ? BL::Mesh(object.data()) :
+                                                            BL::Mesh(PointerRNA_NULL);
+  const bool split_faces = (mesh) && (subdivision_type == Mesh::SUBDIVISION_NONE) &&
                            (static_cast<const ::Mesh *>(mesh.ptr.data)->normals_domain(true) ==
                             blender::bke::MeshNormalDomain::Corner);
+
   if (object.type() == BL::Object::type_MESH) {
     /* TODO: calc_undeformed is not used. */
     mesh = BL::Mesh(object.data());
@@ -147,7 +149,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   return mesh;
 }
 
-static std::string generate_mesh_shader_tag(std::vector<Shader*> &shaders)
+static std::string generate_mesh_shader_tag(std::vector<Shader *> &shaders)
 {
   std::string result = "";
   for (int i = 0; i < shaders.size(); ++i) {
@@ -160,7 +162,7 @@ static std::string generate_mesh_shader_tag(std::vector<Shader*> &shaders)
 
 static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
                                      BL::Object &b_ob,
-                                     std::vector<Shader*> &shaders)
+                                     std::vector<Shader *> &shaders)
 {
   // using milli = std::chrono::milliseconds;
   // auto start = std::chrono::high_resolution_clock::now();
@@ -1167,6 +1169,13 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
       i.z = ((::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr)->iVal.z;
       set_int4(ptr, name, i);
       break;
+    case OctaneDataTransferObject::DTO_INT_4:
+      i.x = ((::OctaneDataTransferObject::OctaneDTOInt4 *)base_dto_ptr)->iVal.x;
+      i.y = ((::OctaneDataTransferObject::OctaneDTOInt4 *)base_dto_ptr)->iVal.y;
+      i.z = ((::OctaneDataTransferObject::OctaneDTOInt4 *)base_dto_ptr)->iVal.z;
+      i.w = ((::OctaneDataTransferObject::OctaneDTOInt4 *)base_dto_ptr)->iVal.w;
+      set_int4(ptr, name, i);
+      break;
     case OctaneDataTransferObject::DTO_FLOAT:
       set_float(ptr, name, ((::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr)->fVal);
       break;
@@ -1181,6 +1190,13 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
       f.y = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.y;
       f.z = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.z;
       f.w = 1.f;
+      set_float4(ptr, name, f);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_4:
+      f.x = ((::OctaneDataTransferObject::OctaneDTOFloat4 *)base_dto_ptr)->fVal.x;
+      f.y = ((::OctaneDataTransferObject::OctaneDTOFloat4 *)base_dto_ptr)->fVal.y;
+      f.z = ((::OctaneDataTransferObject::OctaneDTOFloat4 *)base_dto_ptr)->fVal.z;
+      f.w = ((::OctaneDataTransferObject::OctaneDTOFloat4 *)base_dto_ptr)->fVal.w;
       set_float4(ptr, name, f);
       break;
     case OctaneDataTransferObject::DTO_STR:
@@ -1245,16 +1261,23 @@ static inline bool set_octane_data_transfer_object(
   const char *name = ((is_socket && dto_type != OctaneDataTransferObject::DTO_ENUM) ?
                           "default_value" :
                           base_dto_ptr->sName.c_str());
+  bool is_node_socket = RNA_struct_is_a(ptr.type, &RNA_NodeSocket);
   switch (dto_type) {
     case OctaneDataTransferObject::DTO_ENUM:
-      prop = RNA_struct_find_property(&ptr, name);
-      if (prop != NULL) {
-        // Old style
-        *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+      if (is_node_socket && is_socket && RNA_struct_find_property(&ptr, "default_value") != NULL) {
+        *(::OctaneDataTransferObject::OctaneDTOEnum *)base_dto_ptr = get_enum(ptr,
+                                                                                "default_value");
       }
       else {
-        *(::OctaneDataTransferObject::OctaneDTOEnum *)base_dto_ptr = get_enum(ptr,
-                                                                              "default_value");
+        prop = RNA_struct_find_property(&ptr, name);
+        if (prop != NULL) {
+          // Old style
+          *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+        }
+        else {
+          *(::OctaneDataTransferObject::OctaneDTOEnum *)base_dto_ptr = get_enum(ptr,
+                                                                                "default_value");
+        }
       }
       break;
     case OctaneDataTransferObject::DTO_BOOL:
@@ -1279,6 +1302,11 @@ static inline bool set_octane_data_transfer_object(
       *(::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr =
           ::OctaneDataTransferObject::int32_3(i[0], i[1], i[2]);
       break;
+    case OctaneDataTransferObject::DTO_INT_4:
+      i = get_int4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOInt4 *)base_dto_ptr =
+          ::OctaneDataTransferObject::int32_4(i[0], i[1], i[2], i[3]);
+      break;
     case OctaneDataTransferObject::DTO_FLOAT:
       if (is_percentage_subtype(ptr, name)) {
         *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name) / 100.0;
@@ -1296,6 +1324,11 @@ static inline bool set_octane_data_transfer_object(
       f = get_float4(ptr, name);
       *(::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr =
           ::OctaneDataTransferObject::float_3(f[0], f[1], f[2]);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_4:
+      f = get_float4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOFloat4 *)base_dto_ptr =
+          ::OctaneDataTransferObject::float_4(f[0], f[1], f[2], f[3]);
       break;
     case OctaneDataTransferObject::DTO_STR:
       *(::OctaneDataTransferObject::OctaneDTOString *)base_dto_ptr = get_string(ptr, name);

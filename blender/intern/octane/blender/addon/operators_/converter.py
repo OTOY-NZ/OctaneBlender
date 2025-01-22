@@ -3,7 +3,7 @@
 import bpy
 from bpy.utils import register_class, unregister_class
 from bpy.types import Operator
-from octane.utils.converters import material as material_converters
+from octane.utils.converters import convert_to_octane_material
 from octane.nodes.base_node_tree import NodeTreeHandler
 from octane.uis.widget import OctaneProgressWidget
 
@@ -91,7 +91,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
                         cur_material = getattr(_object.material_slots[idx], "material", None)
                         if cur_material:
                             self.processed_material_names.add(cur_material.name)
-                            material_converters.convert_to_octane_material(_object, idx)
+                            convert_to_octane_material(_object, idx)
                 self.processed_object_names.add(_object.name)
                 current_progress = len(self.processed_object_names) * 100.0 / len(context.scene.objects)
                 current_progress = max(0.01, min(99.0, current_progress))
@@ -116,7 +116,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
         cur_obj = bpy.context.object
         if self.converter_mode == "MATERIAL":
             if cur_obj and len(cur_obj.material_slots):
-                material_converters.convert_to_octane_material(cur_obj, cur_obj.active_material_index)
+                convert_to_octane_material(cur_obj, cur_obj.active_material_index)
             self.complete(context)
             return {"FINISHED"}
         else:
@@ -133,7 +133,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
                             cur_material = getattr(_object.material_slots[idx], "material", None)
                             if cur_material:
                                 self.processed_material_names.add(cur_material.name)
-                                material_converters.convert_to_octane_material(_object, idx)
+                                convert_to_octane_material(_object, idx)
                 self.complete(context)
                 return {"FINISHED"}
 

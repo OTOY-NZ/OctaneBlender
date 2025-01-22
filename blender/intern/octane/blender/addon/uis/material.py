@@ -3,7 +3,7 @@ from bpy.types import Panel
 from bpy.utils import register_class, unregister_class
 from octane.uis.common import OctanePropertyPanel
 from octane.utils import consts, utility
-from octane.utils.converters import material as material_converters
+from octane.utils.converters.common import is_material_convertable
 
 
 class OCTANE_PT_context_material(OctanePropertyPanel, Panel):
@@ -123,7 +123,7 @@ class OCTANE_MATERIAL_PT_converters(OctanePropertyPanel, Panel):
     @classmethod
     def poll(cls, context):
         return ((context.material or context.object) and OctanePropertyPanel.poll(context)
-                and material_converters.is_converter_applicable(context.material))
+                and is_material_convertable(context.material))
 
     def draw(self, _context):
         layout = self.layout

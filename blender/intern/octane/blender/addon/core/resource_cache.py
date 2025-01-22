@@ -52,7 +52,7 @@ def reset_resource_cache(_scene):
         import _octane
         if not is_render_engine_active():
             print("Clear Octane Resource Cache System")
-            _octane.command_to_octane(utility_functions.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
+            _octane.command_to_octane(consts.UtilsFunctionType.OCTANE_RESOURCE_CACHE_RESET)
 
 
 def update_dirty_mesh_names(scene, depsgraph):

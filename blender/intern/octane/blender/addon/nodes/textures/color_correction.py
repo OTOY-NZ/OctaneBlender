@@ -99,7 +99,7 @@ class OctaneColorCorrectionSaturation(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_pin_index = 4
     octane_socket_type = consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Saturation correction", min=0.000000, max=300.000000, soft_min=0.000000, soft_max=300.000000, step=1.000000, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Saturation correction", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=300.000000, step=1.000000, precision=2, subtype="PERCENTAGE")
     octane_hide_value = False
     octane_min_version = 2110000
     octane_end_version = 4294967295

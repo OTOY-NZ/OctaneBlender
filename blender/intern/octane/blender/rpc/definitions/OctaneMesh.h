@@ -330,6 +330,7 @@ namespace OctaneDataTransferObject {
 
 		std::string					sObjectName;
 		std::string					sMeshName;
+		std::string					sScriptGeoName;
 		int32_t						iInstanceSize;
 		MatrixF						oMatrix;
 		std::map<float, MatrixF>	oMotionMatrices;
@@ -341,6 +342,7 @@ namespace OctaneDataTransferObject {
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
 		OctaneObject() : OctaneNodeBase(Octane::ENT_OBJECT, "OctaneObject")
     {
+	  sScriptGeoName = "";
       iInstanceSize = 1;
       iInstanceId = 0;
       iSamplesNum = 1;
@@ -349,6 +351,7 @@ namespace OctaneDataTransferObject {
     bool isSameValue(const OctaneObject& other) {
       return sObjectName == other.sObjectName
         && sMeshName == other.sMeshName
+		&& sScriptGeoName == other.sScriptGeoName
         && iInstanceSize == other.iInstanceSize
         && oMatrix == other.oMatrix
         && oMotionMatrices == other.oMotionMatrices
@@ -358,7 +361,7 @@ namespace OctaneDataTransferObject {
         && iUseObjectLayer == other.iUseObjectLayer
         && oObjectLayer.IsSameValue(other.oObjectLayer);
     }
-		MSGPACK_DEFINE(sObjectName, sMeshName, iInstanceSize, bMovable, iUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sObjectName, sMeshName, sScriptGeoName, iInstanceSize, bMovable, iUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneObjects : public OctaneNodeBase {

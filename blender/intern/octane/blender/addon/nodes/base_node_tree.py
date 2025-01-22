@@ -521,7 +521,7 @@ class NodeTreeHandler:
             if node_tree is not None:
                 if update.id is scene.world:
                     is_active_world_updated = True
-                if update.id is bpy.context.active_object:
+                if update.id is getattr(bpy.context, "active_object", None):
                     is_active_object_updated = True
                 OctaneBaseNodeTree.update_link_validity(node_tree, data_owner, last_op_bl_idname)
         if getattr(bpy.context, "active_object", None) and not is_active_object_updated:
@@ -529,8 +529,8 @@ class NodeTreeHandler:
             data_owner = None
             node_tree = None
             if active_object.active_material and active_object.active_material.use_nodes:
-                data_owner = bpy.context.active_object.active_material
-                node_tree = bpy.context.active_object.active_material.node_tree
+                data_owner = active_object.active_material
+                node_tree = active_object.active_material.node_tree
             if active_object.type == "LIGHT" and active_object.data.use_nodes:
                 data_owner = active_object.data
                 node_tree = active_object.data.node_tree

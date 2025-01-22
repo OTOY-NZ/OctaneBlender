@@ -157,9 +157,13 @@ class OCTANE_OBJECT_PT_motion_blur(OctanePropertyPanel, Panel):
         if ob.type != 'CAMERA':
             row.prop(ob.octane, "use_deform_motion", text="Deformation")
         row.prop(ob.octane, "motion_steps", text="Steps")
-        if ob.octane.use_deform_motion and getattr(getattr(ob, "data", None), "use_auto_smooth", False):
+        if ob.instance_type == 'COLLECTION' and ob.instance_collection:
             row = layout.row()
-            row.label(text="Deformation motion blur may not work on objects with Auto Smooth", icon="INFO")
+            row.operator("octane.sync_motion_blur_to_objects_in_collection",
+                         text="Sync Settings to Children Objects")
+        # if ob.octane.use_deform_motion and getattr(getattr(ob, "data", None), "use_auto_smooth", False):
+        #     row = layout.row()
+        #     row.label(text="Deformation motion blur may not work on objects with Auto Smooth", icon="INFO")
 
 
 _CLASSES = [

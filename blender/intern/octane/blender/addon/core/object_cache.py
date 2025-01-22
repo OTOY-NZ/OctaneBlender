@@ -325,7 +325,8 @@ class ObjectCache(OctaneNodeCache):
                                                 float_attribute_data_list,
                                                 color_attribute_data_list,
                                                 active_uv_layer_index, uv_data,
-                                                mesh.auto_smooth_angle / math.pi * 180.0,
+                                                # mesh.auto_smooth_angle / math.pi * 180.0,
+                                                0.0,
                                                 use_octane_coordinate, show_mesh_data, need_subdivision, winding_order)
             # Octane Subdivision
             if octane_property.open_subd_enable:
@@ -537,13 +538,13 @@ class ObjectCache(OctaneNodeCache):
             if eval_object:
                 mesh = eval_object.to_mesh()
                 if mesh and not need_subdivision:
-                    if mesh.use_auto_smooth:
+                    if True or mesh.use_auto_smooth:
                         # if not mesh.has_custom_normals:
                         #     mesh.calc_normals()
                         mesh.split_faces()
                     mesh.calc_loop_triangles()
-                    if mesh.has_custom_normals:
-                        mesh.calc_normals_split()
+                    # if mesh.has_custom_normals:
+                    #     mesh.calc_normals_split()
             if mesh is None:
                 if eval_object:
                     eval_object.to_mesh_clear()

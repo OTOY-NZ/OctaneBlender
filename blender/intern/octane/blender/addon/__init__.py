@@ -2,7 +2,7 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.7)",
+    "name": "OctaneBlender (v. 29.9)",
     "author": "OTOY Inc.",
     "version": (29, 7, 0),
     "blender": (4, 1, 1),
@@ -180,9 +180,9 @@ class OctaneRender(bpy.types.RenderEngine):
                 frame_data_type = consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA
             render_pass_draw_data = RenderDrawData(render_pass_id, frame_data_type, width, height, render_pass)
             if render_pass_id == consts.RenderPassID.Beauty:
-                combined_np_array = np.empty(shape=(len(combined.rect), 4), dtype=np.float32)
+                combined_np_array = np.empty(len(combined.rect) * 4, dtype=np.float32)
                 combined.rect.foreach_get(combined_np_array)
-                render_pass.rect = combined_np_array
+                render_pass.rect.foreach_set(combined_np_array)
             elif render_pass_id > consts.RenderPassID.Beauty:
                 if render_pass.channels == 4:
                     if utility.is_denoise_render_pass(render_pass_id):
@@ -353,6 +353,7 @@ def register():
     preferences.register()
 
     from octane import compatibilities
+    from octane import utils
     from octane import properties_
     from octane import uis
     from octane import nodes
@@ -360,6 +361,7 @@ def register():
     from octane import engine
     from octane.core import resource_cache
 
+    utils.register()
     properties_.register()
     uis.register()
     nodes.register()
@@ -385,6 +387,7 @@ def register():
 def unregister():
     from bpy.utils import unregister_class
     from octane import compatibilities
+    from octane import utils
     from octane import preferences
     from octane import properties_
     from octane import uis
@@ -402,6 +405,7 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.remove(handlers.octane_depsgraph_update_post_handler)
 
     preferences.unregister()
+    utils.unregister()
     properties_.unregister()
     uis.unregister()
     nodes.unregister()

@@ -78,6 +78,8 @@ class OctanePropertyGroup(bpy.types.PropertyGroup):
                                 octane_socket_type = consts.SocketType.ST_INT2
                             elif property_array_length == 3:
                                 octane_socket_type = consts.SocketType.ST_INT3
+                            elif property_array_length == 4:
+                                octane_socket_type = consts.SocketType.ST_INT4
                         else:
                             octane_socket_type = consts.SocketType.ST_INT
                         octane_pin_type = consts.PinType.PT_INT
@@ -93,6 +95,8 @@ class OctanePropertyGroup(bpy.types.PropertyGroup):
                                 octane_socket_type = consts.SocketType.ST_FLOAT2
                             elif property_array_length == 3:
                                 octane_socket_type = consts.SocketType.ST_FLOAT3
+                            elif property_array_length == 4:
+                                octane_socket_type = consts.SocketType.ST_FLOAT4
                             octane_pin_type = consts.PinType.PT_FLOAT
                             octane_default_node_type = consts.NodeType.NT_FLOAT
                         else:

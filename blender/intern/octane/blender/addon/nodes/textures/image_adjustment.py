@@ -441,7 +441,7 @@ class OctaneImageAdjustmentSaturation(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_pin_index = 21
     octane_socket_type = consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="The saturation adjustment factor", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1.000000, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="The saturation adjustment factor", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1000.000000, step=1.000000, precision=2, subtype="PERCENTAGE")
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 4294967295
@@ -677,9 +677,17 @@ class OctaneImageAdjustment(bpy.types.Node, OctaneBaseNode):
     octane_min_version = 12000003
     octane_node_type = consts.NodeType.NT_TEX_IMAGE_ADJUSTMENT
     octane_socket_list = ["Input image", "Bypass", "Strength", "Hue range", "Affect hue", "Hue range width", "Hue range softness", "Channel mapping", "Red mapping", "Green mapping", "Blue mapping", "Brightness adjustment", "Invert", "Brightness", "Contrast", "Lift", "Pivot", "Inverse gamma", "Gamma", "Color adjustment", "Hue shift", "Saturation", "Tint color", "Tint strength", "Output tint", "Shadows", "Midtones", "Highlights", "Midtone luminance", "Clamp", "Clamp low", "Clamp high", ]
-    octane_attribute_list = []
-    octane_attribute_config = {}
+    octane_attribute_list = ["a_compatibility_version", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count = 32
+
+    compatibility_mode_infos = [
+        ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000005),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """Saturation is adjusted by converting to HSV and multiplying S instead of using a physical method.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneImageAdjustmentInput", OctaneImageAdjustmentInput.bl_label).init()
@@ -725,6 +733,10 @@ class OctaneImageAdjustment(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES = [

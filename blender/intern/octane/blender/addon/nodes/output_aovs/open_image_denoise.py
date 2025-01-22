@@ -89,7 +89,7 @@ class OctaneOutputAOVsOpenImageDenoisePrefilter(OctaneBaseSocket):
 
 class OctaneOutputAOVsOpenImageDenoise(bpy.types.Node, OctaneBaseNode):
     bl_idname = "OctaneOutputAOVsOpenImageDenoise"
-    bl_label = "Open image denoise"
+    bl_label = "Open Image Denoise"
     bl_width_default = 200
     octane_render_pass_id = -1
     octane_render_pass_name = ""

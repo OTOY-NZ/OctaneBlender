@@ -148,6 +148,7 @@ set(ADDON_OPERATOR_FILES
   addon/operators_/legacy_node_updater.py
   addon/operators_/node_tree.py
   addon/operators_/node_tree_header.py
+  addon/operators_/_object.py
   addon/operators_/scene.py
   addon/operators_/shaders.py
   addon/operators_/utility_functions.py
@@ -170,6 +171,7 @@ set(ADDON_NODES_FILES
   addon/nodes/base_color_ramp.py
   addon/nodes/base_curve.py
   addon/nodes/base_lut.py
+  addon/nodes/base_wrapper_node.py
   addon/nodes/base_kernel.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
@@ -207,6 +209,20 @@ set(ADDON_NODES_COMPOSITOR_FILES
     addon/nodes/compositor/clamp_aov_output.py
     addon/nodes/compositor/map_range_aov_output.py
     addon/nodes/compositor/light_mixer_aov_output.py
+)
+
+set(ADDON_NODES_CYCLES_FILES
+    addon/nodes/cycles/__init__.py
+    addon/nodes/cycles/mix_color.py
+    addon/nodes/cycles/mix_float.py
+    addon/nodes/cycles/mix_float3.py
+    addon/nodes/cycles/node_math.py
+    addon/nodes/cycles/node_vector_math.py
+    addon/nodes/cycles/mix_color.osl
+    addon/nodes/cycles/mix_float3.osl
+    addon/nodes/cycles/mix_float.osl
+    addon/nodes/cycles/node_math.osl
+    addon/nodes/cycles/node_vector_math.osl
 )
 
 set(ADDON_NODES_DISPLACEMENT_FILES
@@ -764,7 +780,17 @@ set(ADDON_NODES_UTIL_FILES
 
 set(ADDON_NODES_UTIL_CONVERTER_FILES
     addon/utils/converters/__init__.py
-    addon/utils/converters/material.py
+    addon/utils/converters/common.py
+    addon/utils/converters/outputs.py
+    addon/utils/converters/bsdf_principled.py
+    addon/utils/converters/bump.py
+    addon/utils/converters/displacement.py
+    addon/utils/converters/emission.py
+    addon/utils/converters/image.py
+    addon/utils/converters/mix_node.py
+    addon/utils/converters/normal_map.py
+    addon/utils/converters/node_math.py
+    addon/utils/converters/node_vector_math.py
 )
 
 set(STARTUP_FILES
@@ -818,6 +844,7 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ASSETS}" ${OCTANE_INSTALL_PATH}/a
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_CAMERAS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/cameras)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_COMPOSITOR_FILES}" ${OCTANE_INSTALL_PATH}/nodes/compositor)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_CYCLES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/cycles)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_DISPLACEMENT_FILES}" ${OCTANE_INSTALL_PATH}/nodes/displacement)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_EMISSION_FILES}" ${OCTANE_INSTALL_PATH}/nodes/emission)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_ENVIRONMENTS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/environments)

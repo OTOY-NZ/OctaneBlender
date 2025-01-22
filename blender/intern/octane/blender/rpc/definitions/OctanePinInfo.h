@@ -38,7 +38,7 @@ namespace OctaneDataTransferObject {
 	struct ApiFloatPinInfo
 	{
 		/// The basic data type that is used for float pins and their defaults.
-		typedef OctaneDataTransferObject::float_3 DataT;
+		typedef OctaneDataTransferObject::float_4 DataT;
 
 		/// The maximum dimension of the data that can be read through a float pin.
 		static const uint8_t MAX_DIMS = DataT::DIM_COUNT;
@@ -107,7 +107,7 @@ namespace OctaneDataTransferObject {
 	struct ApiIntPinInfo
 	{
 		/// The basic data type that is used for int pins and their defaults.
-		typedef OctaneDataTransferObject::int32_3 DataT;
+		typedef OctaneDataTransferObject::int32_4 DataT;
 
 		/// The maximum dimension of the data that can be read through an int pin.
 		static const uint8_t MAX_DIMS = DataT::DIM_COUNT;

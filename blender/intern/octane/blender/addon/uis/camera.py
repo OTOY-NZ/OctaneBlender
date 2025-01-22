@@ -200,7 +200,6 @@ class OCTANE_CAMERA_PT_camera_OSL(OctanePropertyPanel, Panel):
 class OCTANE_CAMERA_PT_camera_octane_camera_data_node(OctanePropertyPanel, Panel):
     bl_label = "Camera Data Node"
     bl_parent_id = "OCTANE_CAMERA_PT_camera"
-    bl_options = {"DEFAULT_CLOSED"}
     COMPAT_ENGINES = {"octane"}
 
     @classmethod
@@ -216,8 +215,8 @@ class OCTANE_CAMERA_PT_camera_octane_camera_data_node(OctanePropertyPanel, Panel
         oct_cam = cam.octane
 
         col = layout.column()
-        row = col.row(heading="Front Projection")
-        row.prop(oct_cam, "use_camera_dimension_as_preview_resolution", text="Always use camera resolution")
+        row = col.row(heading="Always use camera resolution")
+        row.prop(oct_cam, "use_camera_dimension_as_preview_resolution", text="")
 
 
 class OCTANE_CAMERA_PT_camera_baking(OctanePropertyPanel, Panel):
@@ -825,7 +824,7 @@ _CLASSES = [
     OCTANE_CAMERA_PT_camera_general_depth_of_field,
     OCTANE_CAMERA_PT_camera_general_stereo,
     OCTANE_CAMERA_PT_camera_OSL,
-    # OCTANE_CAMERA_PT_camera_octane_camera_data_node,
+    OCTANE_CAMERA_PT_camera_octane_camera_data_node,
     OCTANE_CAMERA_PT_camera_baking,
     OCTANE_CAMERA_PT_camera_baking_padding,
     OCTANE_CAMERA_PT_camera_baking_uv_region,

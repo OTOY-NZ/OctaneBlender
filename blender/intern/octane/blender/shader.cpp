@@ -88,6 +88,8 @@ enum class OctaneSocketType {
   ST_RGBA = 9,
   ST_STRING = 10,
   ST_LINK = 11,
+  ST_INT4 = 12,
+  ST_FLOAT4 = 13,
   ST_OUTPUT = 100
 };
 
@@ -105,6 +107,8 @@ static OctaneSocketType legacy_dto_type_to_socekt_type(
       return OctaneSocketType::ST_FLOAT2;
     case OctaneDataTransferObject::DTO_FLOAT_3:
       return OctaneSocketType::ST_FLOAT3;
+    case OctaneDataTransferObject::DTO_FLOAT_4:
+      return OctaneSocketType::ST_FLOAT4;
     case OctaneDataTransferObject::DTO_RGB:
       return OctaneSocketType::ST_RGBA;
     case OctaneDataTransferObject::DTO_ENUM:
@@ -115,6 +119,8 @@ static OctaneSocketType legacy_dto_type_to_socekt_type(
       return OctaneSocketType::ST_INT2;
     case OctaneDataTransferObject::DTO_INT_3:
       return OctaneSocketType::ST_INT3;
+    case OctaneDataTransferObject::DTO_INT_4:
+      return OctaneSocketType::ST_INT4;
     case OctaneDataTransferObject::DTO_STR:
       return OctaneSocketType::ST_STRING;
     case OctaneDataTransferObject::DTO_SHADER:
@@ -1133,9 +1139,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_INT, OctaneDTOInt, oIntSockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_INT2, OctaneDTOInt2, oInt2Sockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_INT3, OctaneDTOInt3, oInt3Sockets);
+        ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_INT4, OctaneDTOInt4, oInt4Sockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT, OctaneDTOFloat, oFloatSockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT2, OctaneDTOFloat2, oFloat2Sockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT3, OctaneDTOFloat3, oFloat3Sockets);
+        ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT4, OctaneDTOFloat4, oFloat4Sockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_STRING, OctaneDTOString, oStringSockets);
         ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FILENAME, OctaneDTOString, oStringSockets);
         if (base_dto_ptr) {
@@ -1237,44 +1245,54 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         if (RNA_struct_find_property(&b_input->ptr, "osl_pin_name") != NULL) {
           octane_name = get_string(b_input->ptr, "osl_pin_name");
           std::string osl_socket_bl_idname = b_input->bl_idname();
-          if (osl_socket_bl_idname == "OctaneOSLBoolSocket") {
-            property_type = OctaneSocketType::ST_BOOL;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLIntSocket") {
-            property_type = OctaneSocketType::ST_INT;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLInt2Socket") {
-            property_type = OctaneSocketType::ST_INT2;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLInt3Socket") {
-            property_type = OctaneSocketType::ST_INT3;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLFloatSocket") {
-            property_type = OctaneSocketType::ST_FLOAT;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLFloat2Socket") {
-            property_type = OctaneSocketType::ST_FLOAT2;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLFloat3Socket") {
-            property_type = OctaneSocketType::ST_FLOAT3;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLEnumSocket") {
-            property_type = OctaneSocketType::ST_ENUM;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLGreyscaleSocket") {
-            property_type = OctaneSocketType::ST_FLOAT;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLColorSocket") {
-            property_type = OctaneSocketType::ST_RGBA;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLStringSocket") {
-            property_type = OctaneSocketType::ST_STRING;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLFilePathSocket") {
-            property_type = OctaneSocketType::ST_STRING;
-          }
-          else if (osl_socket_bl_idname == "OctaneOSLLinkSocket") {
-            property_type = OctaneSocketType::ST_LINK;
+          const std::string OSL_SOCKET_PREFIX = "OctaneOSL";
+          if (string_startswith(osl_socket_bl_idname, OSL_SOCKET_PREFIX)) {
+            osl_socket_bl_idname = osl_socket_bl_idname.substr(OSL_SOCKET_PREFIX.length());
+            if (string_startswith(osl_socket_bl_idname, "Bool")) {
+              property_type = OctaneSocketType::ST_BOOL;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Int4")) {
+              property_type = OctaneSocketType::ST_INT4;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Int3")) {
+              property_type = OctaneSocketType::ST_INT3;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Int2")) {
+              property_type = OctaneSocketType::ST_INT2;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Int")) {
+              property_type = OctaneSocketType::ST_INT;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Float4")) {
+              property_type = OctaneSocketType::ST_FLOAT4;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Float3")) {
+              property_type = OctaneSocketType::ST_FLOAT3;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Float2")) {
+              property_type = OctaneSocketType::ST_FLOAT2;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Float")) {
+              property_type = OctaneSocketType::ST_FLOAT;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Enum")) {
+              property_type = OctaneSocketType::ST_ENUM;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Greyscale")) {
+              property_type = OctaneSocketType::ST_FLOAT;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Color")) {
+              property_type = OctaneSocketType::ST_RGBA;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "String")) {
+              property_type = OctaneSocketType::ST_STRING;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "FilePath")) {
+              property_type = OctaneSocketType::ST_STRING;
+            }
+            else if (string_startswith(osl_socket_bl_idname, "Link")) {
+              property_type = OctaneSocketType::ST_LINK;
+            }
           }
           is_dynamic_pin = true;
         }
@@ -1295,9 +1313,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_INT, OctaneDTOInt, oIntSockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_INT2, OctaneDTOInt2, oInt2Sockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_INT3, OctaneDTOInt3, oInt3Sockets);
+          ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_INT4, OctaneDTOInt4, oInt4Sockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_FLOAT, OctaneDTOFloat, oFloatSockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_FLOAT2, OctaneDTOFloat2, oFloat2Sockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_FLOAT3, OctaneDTOFloat3, oFloat3Sockets);
+          ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_FLOAT4, OctaneDTOFloat4, oFloat4Sockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_STRING, OctaneDTOString, oStringSockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_RGBA, OctaneDTORGB, oRGBSockets);
           ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_LINK, OctaneDTOShader, oLinkSockets);

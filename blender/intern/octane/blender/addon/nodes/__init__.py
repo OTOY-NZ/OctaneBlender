@@ -10,6 +10,7 @@ from . import (
     base_curve,
     base_kernel,
     base_osl,
+    base_wrapper_node,
     base_node_tree,
     node_trees,
     node_items
@@ -18,6 +19,7 @@ from . import render_settings
 
 from . import cameras
 from . import compositor
+from . import cycles
 from . import displacement
 from . import emission
 from . import environments
@@ -55,11 +57,13 @@ def register():
     base_color_ramp.register()
     base_curve.register()
     base_lut.register()
+    base_wrapper_node.register()
     base_node_tree.register()
     node_trees.register()
     # Octane auto generated code
     cameras.register()
     compositor.register()
+    cycles.register()
     displacement.register()
     emission.register()
     environments.register()
@@ -87,6 +91,7 @@ def unregister():
     # Octane auto generated code
     cameras.unregister()
     compositor.unregister()
+    cycles.unregister()
     displacement.unregister()
     emission.unregister()
     environments.unregister()
@@ -115,6 +120,7 @@ def unregister():
     base_switch_input_socket.unregister()
     base_output_node.unregister()
     base_output_socket.unregister()
+    base_wrapper_node.unregister()
     base_osl.unregister()
     base_kernel.unregister()
     base_color_ramp.unregister()

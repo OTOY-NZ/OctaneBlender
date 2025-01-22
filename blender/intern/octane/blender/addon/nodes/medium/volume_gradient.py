@@ -200,7 +200,8 @@ class OctaneVolumeGradientGradientInterpolationType_Override(OctaneVolumeGradien
         ("Smooth step", "Smooth step", "Smooth steps between control points", 3),
         ("Hermite(cardinal)", "Hermite(cardinal)", "Cardinal cubic spline", 4),
     ]
-    default_value: EnumProperty(default="Linear", update=lambda self, context: self.node.update_color_ramp_interpolation(context), description="Determines how colors are blended", items=items) 
+    default_value: EnumProperty(default="Linear", update=lambda self, context: self.node.update_color_ramp_interpolation(context), description="Determines how colors are blended", items=items)
+
 
 class OctaneVolumeGradient_Override(OctaneVolumeGradient):
     bl_width_default = 300
@@ -208,13 +209,14 @@ class OctaneVolumeGradient_Override(OctaneVolumeGradient):
     RAMP_VALUE_INPUT_SOCKET_TYPE = consts.SocketType.ST_FLOAT3
     RAMP_VALUE_INPUT_PIN_TYPE = consts.PinType.PT_FLOAT
     RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE = consts.NodeType.NT_FLOAT
-    
+
     def init(self, context):
-        super().init(context)        
+        super().init(context)
         self.init_octane_color_ramp()
-        
+
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
+
 
 utility.override_class(_CLASSES, OctaneVolumeGradientGradientInterpolationType, OctaneVolumeGradientGradientInterpolationType_Override)
 OctaneVolumeGradient_Override.update_node_definition()

@@ -667,12 +667,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     object->name = object_name;
     object->pass_id = b_ob.pass_index();
     object->octane_object.sObjectName = object->name;
-    if (object->mesh->octane_mesh.sScriptGeoName.size()) {
-      object->octane_object.sMeshName = object->mesh->octane_mesh.sScriptGeoName;
-    }
-    else {
-      object->octane_object.sMeshName = object->mesh->octane_mesh.sMeshName;
-    }
+    object->octane_object.sMeshName = object->mesh->octane_mesh.sMeshName;
+    object->octane_object.sScriptGeoName = object->mesh->octane_mesh.sScriptGeoName;
     object->octane_object.oObjectLayer = object_layer;
     if (!show_self) {
       if (object->mesh) {

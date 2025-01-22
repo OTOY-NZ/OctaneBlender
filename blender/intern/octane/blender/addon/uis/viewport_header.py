@@ -248,9 +248,8 @@ def OCTANE_VIEW3D_HT_header_draw(self, context):
 
     row = layout.row(align=True)
     if context.engine == "octane":
-        scene = context.scene
-        oct_scene = scene.octane
-        row.prop(oct_scene, "octane_shading_type", text="", expand=True)
+        oct_shading = shading.octane
+        row.prop(oct_shading, "shading_type", text="", expand=True)
     else:
         row.prop(shading, "type", text="", expand=True)
     sub = row.row(align=True)
