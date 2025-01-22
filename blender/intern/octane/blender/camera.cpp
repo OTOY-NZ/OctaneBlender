@@ -661,8 +661,8 @@ static void blender_camera_from_view(BlenderCamera *bcam,
   }
   else if (b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_ORTHO) {
     /* orthographic view */
-    bcam->farclip *= 0.5f;
-    bcam->nearclip = -bcam->farclip;
+    bcam->nearclip = b_rv3d.view_distance() - bcam->farclip * 0.5;
+    bcam->farclip = bcam->nearclip + bcam->farclip;
 
     float sensor_size;
     if (bcam->sensor_fit == BlenderCamera::VERTICAL)

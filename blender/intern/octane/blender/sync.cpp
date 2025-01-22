@@ -39,6 +39,9 @@ OCT_NAMESPACE_BEGIN
 static ::Octane::AsPixelGroupMode pixel_group_mode_translator[] = {
     ::Octane::AS_PIXEL_GROUP_NONE, ::Octane::AS_PIXEL_GROUP_2X2, ::Octane::AS_PIXEL_GROUP_4X4};
 
+
+std::unordered_map<std::string, int> BlenderSync::customized_aov_names;
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1171,6 +1174,15 @@ std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id)
 #define MAP_PASS(passname, passtype) \
   if (name == passname) \
     return passtype;
+#define MAP_AOV_PASS(passname, passtype) \
+  if (name == passname) \
+    return passtype; \
+  if (customized_aov_names.find(name) != customized_aov_names.end()) \
+    return static_cast<::Octane::RenderPassId>( \
+        customized_aov_names[name] + ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET - \
+        1); \
+  if (string_startswith(name, passname)) \
+    return passtype;
   /* NOTE: Keep in sync with defined names from DNA_scene_types.h */
   /* Beauty Passes */
   MAP_PASS("Combined", ::Octane::RenderPassId::RENDER_PASS_BEAUTY);
@@ -1335,54 +1347,54 @@ std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id)
   MAP_PASS("ReflectionFilterInfo", ::Octane::RenderPassId::RENDER_PASS_REFLECTION_FILTER_INFO);
   MAP_PASS("RefractionFilterInfo", ::Octane::RenderPassId::RENDER_PASS_REFRACTION_FILTER_INFO);
   MAP_PASS("TransmissionFilterInfo", ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION_FILTER_INFO);
-  MAP_PASS("AOVOutput1",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET));
-  MAP_PASS("AOVOutput2",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 1));
-  MAP_PASS("AOVOutput3",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 2));
-  MAP_PASS("AOVOutput4",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 3));
-  MAP_PASS("AOVOutput5",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 4));
-  MAP_PASS("AOVOutput6",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 5));
-  MAP_PASS("AOVOutput7",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 6));
-  MAP_PASS("AOVOutput8",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 7));
-  MAP_PASS("AOVOutput9",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 8));
-  MAP_PASS("AOVOutput10",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 9));
-  MAP_PASS("AOVOutput11",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 10));
-  MAP_PASS("AOVOutput12",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 11));
-  MAP_PASS("AOVOutput13",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 12));
-  MAP_PASS("AOVOutput14",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 13));
-  MAP_PASS("AOVOutput15",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 14));
-  MAP_PASS("AOVOutput16",
-           static_cast<::Octane::RenderPassId>(
-               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 15));
+  MAP_AOV_PASS("AOVOutput1",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET));
+  MAP_AOV_PASS("AOVOutput2",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 1));
+  MAP_AOV_PASS("AOVOutput3",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 2));
+  MAP_AOV_PASS("AOVOutput4",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 3));
+  MAP_AOV_PASS("AOVOutput5",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 4));
+  MAP_AOV_PASS("AOVOutput6",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 5));
+  MAP_AOV_PASS("AOVOutput7",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 6));
+  MAP_AOV_PASS("AOVOutput8",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 7));
+  MAP_AOV_PASS("AOVOutput9",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 8));
+  MAP_AOV_PASS("AOVOutput10",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 9));
+  MAP_AOV_PASS("AOVOutput11",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 10));
+  MAP_AOV_PASS("AOVOutput12",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 11));
+  MAP_AOV_PASS("AOVOutput13",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 12));
+  MAP_AOV_PASS("AOVOutput14",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 13));
+  MAP_AOV_PASS("AOVOutput15",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 14));
+  MAP_AOV_PASS("AOVOutput16",
+               static_cast<::Octane::RenderPassId>(
+                   ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 15));
   MAP_PASS(
       "CustomAOV1",
       static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 1));

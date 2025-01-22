@@ -643,7 +643,8 @@ void Session::update_status_time(bool show_pause, bool show_done)
                     server->getServerInfo().sNetAddress + "\"";
         break;
     }
-  }
+  }  
+  substatus = std::string(G.octane_blender_full_version) + ". \n" + substatus;
   progress.set_status(status, substatus);
 }  // update_status_time()
 

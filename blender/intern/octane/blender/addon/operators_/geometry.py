@@ -265,9 +265,9 @@ class OCTANE_OT_quick_add_octane_mesh_light(OCTANE_OT_quick_add_octane_light):
 
 
 class OCTANE_OT_quick_add_octane_analytical_light(OCTANE_OT_quick_add_octane_light):
-    """Add an Octane Analytical Light to the scene"""
+    """Add an Octane Analytic Light to the scene"""
     bl_idname = "octane.quick_add_octane_analytical_light"
-    bl_label = "Octane Analytical Light"
+    bl_label = "Octane Analytic Light"
     light_typename = "SUN"
     bl_register = True
     bl_undo = False

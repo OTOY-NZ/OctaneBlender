@@ -1332,14 +1332,19 @@ class OctaneRenderAOVOutputNode_Override_RenderPassItems:
         return OctaneRenderAOVOutputNode_Override_RenderPassItems.render_pass_enums
 
 
-class OctaneRenderAOVOutputNodeComponent(object):    
+class OctaneRenderAOVOutputNodeComponent(object):
 
     def generate_aov_output_pass_configs(self, view_layer, current_render_pass_configs):
         max_aov_output_count = utility.scene_max_aov_output_count(view_layer)
+        customized_aov_output_names = utility.get_customized_aov_output_names(view_layer)
         for aov_output_index in range(1, max_aov_output_count + 1):
             aov_output_pass_id = consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + aov_output_index - 1
-            aov_output_pass_short_name = "AOV Output %d" % aov_output_index
-            aov_output_pass_long_name = "AOV Output %d pass" % aov_output_index
+            if aov_output_index  in customized_aov_output_names:
+                aov_output_pass_short_name = customized_aov_output_names[aov_output_index]
+                aov_output_pass_long_name = "%s pass" % aov_output_pass_short_name
+            else:
+                aov_output_pass_short_name = "AOV Output %d" % aov_output_index
+                aov_output_pass_long_name = "AOV Output %d pass" % aov_output_index
             current_render_pass_configs[aov_output_pass_id] = (aov_output_pass_short_name, aov_output_pass_long_name)
 
     def generate_render_pass_configs(self, node, current_render_pass_configs):
@@ -1365,9 +1370,9 @@ class OctaneRenderAOVOutputNodeComponent(object):
                 if target_node and target_node.is_octane_aov_render_node() and target_node.is_octane_aov_render_node_enabled():
                     self.generate_render_pass_configs(target_node, current_render_pass_configs)
 
-    def enum_preview_render_pass_items(self, view_layer):        
+    def enum_preview_render_pass_items(self, view_layer):
         new_render_pass_configs = {
-            consts.RenderPassID.Beauty: ("Beauty", "Beauty pass"), 
+            consts.RenderPassID.Beauty: ("Beauty", "Beauty pass"),
             consts.RenderPassID.DenoisedBeauty: ("Denoised Beauty", "Denoised beauty pass")
         }
         self.generate_aov_output_pass_configs(view_layer, new_render_pass_configs)
@@ -1413,11 +1418,11 @@ class OctaneRenderAOVOutputNodeComponent(object):
 # The current in-use RenderAOVOutputNode
 class OctaneRenderAOVOutputNode_Override(OctaneRenderAOVOutputNode, OctaneRenderAOVOutputNodeComponent):
     preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVOutputNode_Override_RenderPassItems.enum_preview_render_pass_items)
-    
+
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
         row = layout.row()
-        row.prop(self, "preview_render_pass") 
+        row.prop(self, "preview_render_pass")
 
 
 utility.override_class(_CLASSES, OctaneRenderAOVOutputNode, OctaneRenderAOVOutputNode_Override)
@@ -1459,7 +1464,7 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode, OctaneRend
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
         row = layout.row()
-        row.prop(self, "preview_render_pass") 
+        row.prop(self, "preview_render_pass")
 
     @classmethod
     def poll(cls, node_tree):
@@ -1562,7 +1567,7 @@ class OctaneCompositeAOVLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneOutputAOVLayerSocket", OctaneOutputAOVLayerSocket.bl_label).init()
-    
+
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseOutputNode.poll(node_tree)

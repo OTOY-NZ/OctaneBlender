@@ -193,7 +193,8 @@ class BlenderSync {
                   bool show_particles,
                   std::string object_mesh_name,
                   OctaneDataTransferObject::OctaneObjectLayer &object_layer,
-                  MeshType mesh_type);
+                  MeshType mesh_type,
+                  int mesh_index);
   void sync_light(BL::Object &b_parent,
                   int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                   BL::Object &b_ob,
@@ -248,6 +249,8 @@ class BlenderSync {
   static BL::Node find_active_composite_aov_output(BL::NodeTree &node_tree);
   static int get_render_aov_preview_pass(BL::NodeTree &node_tree);
 
+ public:
+  static std::unordered_map<std::string, int> customized_aov_names;
  private:
   /* variables */
   BL::RenderEngine b_engine;
@@ -265,6 +268,7 @@ class BlenderSync {
   set<float> motion_times;
   /** Remember which geometries come from which objects to be able to sync them after changes. */
   map<void *, set<BL::ID>> instance_geometries_by_object;
+  map<std::string, void *> scatter_node_name_to_blender_id_pointer_map;
   void *world_map;
   bool world_recalc;
   std::string world_custom_node_tree_content_tag;

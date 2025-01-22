@@ -354,12 +354,12 @@ class OctaneLightPropertyGroup(bpy.types.PropertyGroup):
     octane_point_light_types = (
         ("Toon Point", "Toon Point", "Toon Point", 0),
         ("Sphere", "Sphere", "Sphere", 1),
-        ("Analytical", "Analytical", "Analytical", 2),
+        ("Analytic", "Analytic", "Analytic", 2),
     )
     octane_directional_light_types = (
         ("Toon Directional", "Toon Directional", "Toon Directional", 0),
         ("Directional", "Directional", "Directional", 1),
-        ("Analytical", "Analytical", "Analytical", 2),
+        ("Analytical", "Analytic", "Analytic", 2),
     )
     octane_analytical_light_types = (
         ("Quad", "Quad", "Quad", 0),
@@ -382,8 +382,8 @@ class OctaneLightPropertyGroup(bpy.types.PropertyGroup):
         default="Toon Directional",
     )
     octane_analytical_light_type: EnumProperty(
-        name="Octane Analytical Light",
-        description="Use this Light as Octane Analytical Light",
+        name="Octane Analytic Light",
+        description="Use this Light as Octane Analytic Light",
         items=octane_analytical_light_types,
         default="Quad",
     )

@@ -139,7 +139,9 @@ def update_octane_params():
         default_material_id = 0
         logger.exception(e)
     import _octane
+    from octane import OCTANE_BLENDER_FULL_VERSION
     _octane.set_octane_params(default_material_id)
+    _octane.set_octane_blender_full_version(OCTANE_BLENDER_FULL_VERSION)
 
 
 def update_octane_preferences():

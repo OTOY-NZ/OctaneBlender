@@ -747,7 +747,7 @@ def octane_presets_light_menu(self, context):
     self.layout.operator("octane.quick_add_octane_sphere_light", icon="LIGHT_POINT", text="Octane Sphere Light")
     self.layout.operator("octane.quick_add_octane_mesh_light", icon="LIGHT_AREA", text="Octane Mesh Light")
     self.layout.operator("octane.quick_add_octane_directional_light", icon="LIGHT_SUN", text="Octane Directional Light")
-    self.layout.operator("octane.quick_add_octane_analytical_light", icon="LIGHT_AREA", text="Octane Analytical Light")
+    self.layout.operator("octane.quick_add_octane_analytical_light", icon="LIGHT_AREA", text="Octane Analytic Light")
     self.layout.separator()
 
 

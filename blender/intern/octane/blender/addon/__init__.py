@@ -2,10 +2,10 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.17)",
+    "name": "OctaneBlender (v. 29.18.0)",
     "author": "OTOY Inc.",
-    "version": (29, 15, 1),
-    "blender": (4, 2, 1),
+    "version": (29, 18, 0),
+    "blender": (4, 3, 2),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -14,6 +14,10 @@ bl_info = {
     "support": 'OFFICIAL',
     "category": "Render"
 }
+
+OCTANE_SDK_VERSION = "2024.1.2"
+OCTANE_BLENDER_VERSION = "29.18.0"
+OCTANE_BLENDER_FULL_VERSION = f"Octane {OCTANE_SDK_VERSION} - {OCTANE_BLENDER_VERSION}"
 
 import os
 import time
@@ -25,6 +29,7 @@ from octane import core
 from octane.core.client import OctaneBlender
 from octane.core.frame_buffer import ViewportDrawData, RenderDrawData
 from octane.utils import consts, logger, runtime_globals, utility
+
 
 # Activate the OctaneRender engine
 ACTIVE_RENDER_ENGINE = None
@@ -46,6 +51,11 @@ def is_render_engine_active():
 
 def blender_exit():
     pass
+
+
+def status_bar_octane_version_draw(self, context):
+    layout = self.layout
+    layout.label(text=OCTANE_BLENDER_FULL_VERSION)
 
 
 class OctaneRender(bpy.types.RenderEngine):
@@ -177,8 +187,9 @@ class OctaneRender(bpy.types.RenderEngine):
             if is_task_completed or self.test_break():
                 break
             time.sleep(0.5)
+        customized_aov_output_names = utility.get_customized_aov_output_names(layer)
         for render_pass in render_layer.passes:
-            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name)
+            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name, customized_aov_output_names)
             if render_pass.channels == 1:
                 frame_data_type = consts.RenderFrameDataType.RENDER_FRAME_FLOAT_MONO
             else:
@@ -398,6 +409,8 @@ def register():
     )
     bpy.msgbus.publish_rna(key=workspace_change_subscribe_to)
 
+    bpy.types.STATUSBAR_HT_header.append(status_bar_octane_version_draw)
+
 
 def unregister():
     from bpy.utils import unregister_class
@@ -432,3 +445,5 @@ def unregister():
         unregister_class(cls)
 
     bpy.msgbus.clear_by_owner(workspace_change_owner)
+
+    bpy.types.STATUSBAR_HT_header.remove(status_bar_octane_version_draw)

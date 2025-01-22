@@ -31,6 +31,24 @@ class OctaneCompositeNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
                     max_aov_output_count = max(max_aov_output_count, int(target_node.a_aov_count))
         return max_aov_output_count
 
+    def get_customized_aov_output_names(self):
+        customized_aov_output_names = {}
+        if self.active_output_node is None:
+            return customized_aov_output_names
+        if len(self.active_output_node.inputs) == 0 or len(self.active_output_node.inputs[0].links) == 0:
+            return customized_aov_output_names
+        target_node = self.active_output_node.inputs[0].links[0].from_node
+        if target_node and target_node.bl_idname == "OctaneOutputAOVGroupSwitch":
+            target_node = target_node.get_current_input_node_recursively()
+        if target_node is None or not target_node.enable_customized_pass_name:
+            return customized_aov_output_names
+        for idx, input_ in enumerate(target_node.inputs):
+            if input_.bl_idname == "OctaneOutputAOVsOutputAOVGroupMovableInput":
+                if len(input_.customized_pass_name):
+                    offset = idx + 1
+                    customized_aov_output_names[offset] = input_.customized_pass_name
+        return customized_aov_output_names
+
     def update(self):
         super().update()
         self.update_viewport()

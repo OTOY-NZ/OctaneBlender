@@ -86,6 +86,7 @@ def render(engine, depsgraph):
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         import _octane
         if hasattr(engine, "session"):
+            _octane.set_customized_aov_names(utility.get_customized_aov_output_names(depsgraph.view_layer))
             _octane.render(engine.session, depsgraph.as_pointer())
 
 

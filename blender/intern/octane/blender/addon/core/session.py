@@ -456,7 +456,7 @@ class RenderSession(object):
         self.scene_cache.update_camera_motion_blur(depsgraph, scene, view_layer, context, update_now)
         self.object_cache.update_motion_blur(depsgraph, scene, view_layer, context, update_now)
 
-    def export_render_pass(self, _depsgraph, scene, _view_layer, render_layer):
+    def export_render_pass(self, _depsgraph, scene, view_layer, render_layer):
         octane_scene = scene.octane
         enable_octane_output = octane_scene.use_octane_export
         if not enable_octane_output:
@@ -566,6 +566,7 @@ class RenderSession(object):
         # Render Passes
         render_passes_et = ElementTree.SubElement(root_et, "renderPasses")
         is_export_valid = False
+        customized_aov_output_names = utility.get_customized_aov_output_names(view_layer)
         for render_pass in render_layer.passes:
             # Do not include 'Combined' Pass
             if render_pass.name == "Combined":
@@ -573,7 +574,7 @@ class RenderSession(object):
             if octane_scene.exclude_default_beauty_passes and render_pass.name == "Beauty":
                 continue
             render_pass_et = ElementTree.SubElement(render_passes_et, "renderPass")
-            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name)
+            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name, customized_aov_output_names)
             render_pass_filename = processed_file_name
             if consts.OCTANE_EXPORT_OCTANE_PASS_TAG in render_pass_filename:
                 render_pass_filename = render_pass_filename.replace(consts.OCTANE_EXPORT_OCTANE_PASS_TAG,

@@ -1226,7 +1226,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                              bool show_particles,
                              std::string object_mesh_name,
                              OctaneDataTransferObject::OctaneObjectLayer &object_layer,
-                             MeshType mesh_type)
+                             MeshType mesh_type,
+                             int mesh_index)
 {
   BL::ID b_ob_data = b_ob.data();
   bool is_modified = BKE_object_is_modified(b_ob);
@@ -1296,6 +1297,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   std::string b_ob_name = b_ob.name();
   std::string b_ob_data_name = b_ob_data.name();
   std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
+  if (mesh_index > 0) {
+    mesh_name = mesh_name + "_" + std::to_string(mesh_index);
+  }
   if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
     mesh_name = object_mesh_name;
   }

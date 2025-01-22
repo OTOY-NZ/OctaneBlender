@@ -7,6 +7,7 @@ import logging
 import os
 import time
 from collections import deque, defaultdict
+from os import utime
 from xml.etree import ElementTree
 import math
 import mathutils
@@ -1510,19 +1511,29 @@ def get_current_preview_render_pass_id(view_layer):
     return pass_id
 
 
-def get_render_pass_id_by_name(name):
+def get_render_pass_id_by_name(name, customized_aov_output_names):
     if name.startswith(consts.RENDER_PASS_OUTPUT_AOV_NAME):
         pass_id_offset_idx = int(name[len(consts.RENDER_PASS_OUTPUT_AOV_NAME):]) - 1
         return consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + pass_id_offset_idx
+    if name in customized_aov_output_names.values():
+        return consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + customized_aov_output_names.index(name) - 1
     return consts.OCTANE_COMPACT_LONG_NAME_TO_PASS_ID.get(name, consts.RenderPassID.Beauty)
 
 
-def get_render_pass_name_by_id(pass_id):
+def get_render_pass_name_by_id(pass_id, customized_aov_output_names):
     if is_output_aov_render_pass(pass_id):
         offset = pass_id - consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 1
-        pass_name = consts.RENDER_PASS_OUTPUT_AOV_NAME + str(offset)
+        if offset in customized_aov_output_names:
+            pass_name = customized_aov_output_names[offset]
+        else:
+            pass_name = consts.RENDER_PASS_OUTPUT_AOV_NAME + str(offset)
         return pass_name
     return consts.OCTANE_PASS_ID_TO_COMPACT_LONG_NAME.get(pass_id, "")
+
+
+def get_customized_aov_output_names(view_layer):
+    node_tree = find_active_composite_node_tree(view_layer)
+    return node_tree.get_customized_aov_output_names() if node_tree is not None else {}
 
 
 def get_view_layer_render_pass_ids(view_layer):
@@ -1560,8 +1571,9 @@ def add_view_layer_render_passes(scene, engine, view_layer):
             enable_denoiser = False
     render_pass_ids = get_view_layer_render_pass_ids(view_layer)
     engine.register_pass(scene, view_layer, "Combined", 4, "RGBA", 'COLOR')
+    customized_aov_output_names = get_customized_aov_output_names(view_layer)
     for pass_id in render_pass_ids:
-        name = get_render_pass_name_by_id(pass_id)
+        name = get_render_pass_name_by_id(pass_id, customized_aov_output_names)
         is_denoiser = is_denoise_render_pass(pass_id)
         if is_denoiser and not enable_denoiser:
             continue

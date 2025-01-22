@@ -549,7 +549,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
                                  session_params.export_frame_start,
                                  session_params.export_frame_end);
 
-    if (b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
+    if (b_engine.test_break() || b_scene.frame_current() >= session_params.export_frame_end) {
       session->progress.set_status("Transferring scene file...");
       session->server->stopRender(session_params.fps);
     }

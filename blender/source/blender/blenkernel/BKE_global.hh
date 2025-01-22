@@ -191,6 +191,7 @@ struct Global {
   char octane_texture_cache_path[1024];
 
   int octane_default_mat_type;
+  char octane_blender_full_version[1024];
 };
 
 /* **************** GLOBAL ********************* */

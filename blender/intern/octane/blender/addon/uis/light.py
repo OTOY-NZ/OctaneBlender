@@ -26,7 +26,7 @@ class OCTANE_LIGHT_PT_light(OctanePropertyPanel, Panel):
             if oct_light.octane_directional_light_type == "Toon Directional":
                 layout.label(text="Used as Octane Toon Directional Light")
             elif oct_light.octane_directional_light_type == "Analytical":
-                layout.label(text="Used as Octane Analytical Light")
+                layout.label(text="Used as Octane Analytic Light")
             else:
                 layout.label(text="Used as Octane Directional Light")
         if light.type == "POINT":

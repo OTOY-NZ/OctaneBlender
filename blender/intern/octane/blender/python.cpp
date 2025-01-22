@@ -757,6 +757,63 @@ static PyObject *set_octane_params_func(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject *set_octane_blender_full_version_func(PyObject *self, PyObject *args)
+{
+  PyObject *py_octane_blender_full_version;
+  if (!PyArg_ParseTuple(args, "O", &py_octane_blender_full_version)) {
+    return PyBool_FromLong(0);
+  }
+
+  PyObject *path_coerce = NULL;
+  std::string octane_blender_full_version = PyC_UnicodeAsByte(py_octane_blender_full_version,
+                                                              &path_coerce);
+  Py_XDECREF(path_coerce);
+
+  std::strcpy(G.octane_blender_full_version, octane_blender_full_version.c_str());
+  Py_RETURN_NONE;
+}
+
+static PyObject* set_customized_aov_names_func(PyObject* self, PyObject* args) {
+  PyObject *py_dict;
+
+  // Parse the input arguments, expecting a dictionary
+  if (!PyArg_ParseTuple(args, "O", &py_dict)) {
+    PyErr_SetString(PyExc_TypeError, "Expected a dictionary as argument");
+    return NULL;
+  }
+
+  if (!PyDict_Check(py_dict)) {
+    PyErr_SetString(PyExc_TypeError, "Argument must be a dictionary");
+    return NULL;
+  }
+
+  // Clear the existing map
+  BlenderSync::customized_aov_names.clear();
+
+  // Iterate over the dictionary
+  PyObject *key, *value;
+  Py_ssize_t pos = 0;
+
+  while (PyDict_Next(py_dict, &pos, &key, &value)) {
+    // Ensure key is a string and value is an integer
+    if (!PyLong_Check(key) || !PyUnicode_Check(value)) {
+      PyErr_SetString(PyExc_TypeError, "Dictionary must contain integer keys and string values");
+      return NULL;
+    }
+
+    // Convert Python integer and string to C++ types
+    int key_int = static_cast<int>(PyLong_AsLong(key));
+    PyObject *path_coerce = NULL;
+    std::string value_str = PyC_UnicodeAsByte(value, &path_coerce);
+    Py_XDECREF(path_coerce);
+
+    // Insert into the unordered_map
+    BlenderSync::customized_aov_names[value_str] = key_int;
+  }
+
+  Py_RETURN_NONE;
+}
+
 static PyObject *update_octane_server_address_func(PyObject *self, PyObject *args)
 {
   PyObject *address;
@@ -1206,6 +1263,8 @@ static PyMethodDef methods[] = {
     {"heart_beat", heart_beat_func, METH_VARARGS, ""},
     {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},
     {"set_octane_params", set_octane_params_func, METH_VARARGS, ""},
+    {"set_octane_blender_full_version", set_octane_blender_full_version_func, METH_VARARGS, ""},
+    {"set_customized_aov_names", set_customized_aov_names_func, METH_VARARGS, ""},
     {"update_vdb_info", update_vdb_info_func, METH_VARARGS, ""},
     {"orbx_preview", orbx_preview_func, METH_VARARGS, ""},
     {"update_ocio_info", update_ocio_info_func, METH_VARARGS, ""},

@@ -73,6 +73,13 @@ class OctaneOutputAOVsOutputAOVGroupMovableInput(OctaneMovableInput):
     color = consts.OctanePinColor.OutputAOV
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    customized_pass_name: StringProperty(name="Customized Pass Name", default="", update=lambda self, context: utility.update_active_render_aov_node_tree(context.view_layer))
+
+    def draw_prop(self, context, layout, text):
+        super().draw_prop(context, layout, text)
+        if self.node.enable_customized_pass_name:
+            row = layout.row()
+            row.prop(self, "customized_pass_name", text="")
 
 
 class OctaneOutputAOVsOutputAOVGroup_Override(OctaneOutputAOVsOutputAOVGroup):
@@ -80,12 +87,15 @@ class OctaneOutputAOVsOutputAOVGroup_Override(OctaneOutputAOVsOutputAOVGroup):
     DEFAULT_AOV_OUTPUT_COUNT = 1
 
     a_aov_count: IntProperty(name="Aov count", default=1, update=lambda self, context: utility.update_active_render_aov_node_tree(context.view_layer), description="The number of AOV output pins")
+    enable_customized_pass_name: BoolProperty(name="Enable Customized Pass Names", default=False, update=lambda self, context: utility.update_active_render_aov_node_tree(context.view_layer))
 
     def init(self, context):
         super().init(context)
         self.init_movable_inputs(context, OctaneOutputAOVsOutputAOVGroupMovableInput, self.DEFAULT_AOV_OUTPUT_COUNT)
 
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "enable_customized_pass_name")
         self.draw_movable_inputs(context, layout, OctaneOutputAOVsOutputAOVGroupMovableInput, self.MAX_AOV_OUTPUT_COUNT)
 
     @classmethod

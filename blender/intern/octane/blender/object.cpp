@@ -597,6 +597,32 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
     }
   }
+
+  std::string candidate_object_name = object_name;
+  int counter = 1;
+  while (true) {
+    if (scatter_node_name_to_blender_id_pointer_map.find(candidate_object_name) !=
+        scatter_node_name_to_blender_id_pointer_map.end())
+    {
+      if (scatter_node_name_to_blender_id_pointer_map[candidate_object_name] ==
+          b_ob_info.object_data.ptr.data)
+      {
+        break;
+      }
+      else {
+        candidate_object_name = object_name + "_" + std::to_string(counter);
+        counter += 1;
+      }
+    }
+    else {
+      scatter_node_name_to_blender_id_pointer_map[candidate_object_name] =
+          b_ob_info.object_data.ptr.data;
+      break;
+    }
+  }
+
+  object_name = candidate_object_name;
+
   if (use_geometry_node_modifier && preview) {
     scene->object_manager->geo_nodes_object_names.insert(object_name);
   }
@@ -604,7 +630,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   /* test if we need to sync */
   // This would not work for particles(return false even particles updating)
   bool is_object_data_updated = object_map.sync(&object, b_ob, b_parent, key);
-  bool is_object_layer_data_updated = !object_layer.IsSameValue(object->octane_object.oObjectLayer);
+  bool is_object_layer_data_updated = !object_layer.IsSameValue(
+      object->octane_object.oObjectLayer);
   is_object_data_updated |= is_object_layer_data_updated;
   bool need_update = preview ? is_object_data_updated :
                                is_octane_object_required(object_name, b_ob.type(), mesh_type);
@@ -633,7 +660,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                            show_particles,
                            object_mesh_name,
                            object_layer,
-                           mesh_type);
+                           mesh_type,
+                           counter);
   if (object->mesh) {
     object->mesh->enable_offset_transform = RNA_boolean_get(&octane_object,
                                                             "enable_octane_offset_transform");
@@ -802,6 +830,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     mesh_motion_synced.clear();
   }
   instance_geometries_by_object.clear();
+  scatter_node_name_to_blender_id_pointer_map.clear();
 
   /* object loop */
   bool cancel = false;
