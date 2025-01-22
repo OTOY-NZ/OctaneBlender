@@ -125,7 +125,14 @@ static void node_type_tex_oct_dirt_init(bNodeTree *ntree, bNode *node)
 {
   node->oct_custom1 = OCT_POSITION_NORMAL;
   node->oct_custom2 = OCT_DIRT_INCLUDE_ALL;
-} 
+}
+
+void node_type_tex_oct_dirt_update(bNodeTree *ntree, bNode *node)
+{
+  if (node->oct_custom1 == 0) {
+    node->oct_custom1 = OCT_POSITION_NORMAL;
+  }
+}
 
 void register_node_type_tex_oct_dirt(void)
 {
@@ -137,7 +144,7 @@ void register_node_type_tex_oct_dirt(void)
   node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_type_tex_oct_dirt_init);
   // node_type_exec(&ntype, 0, 0, 0);
-  
+  ntype.updatefunc = (node_type_tex_oct_dirt_update);
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_dirt() */

@@ -300,7 +300,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 /** \name Window and View Matrix Calculation
  * \{ */
 
-void view3d_winmatrix_set(Depsgraph *depsgraph,
+void view3d_winmatrix_set(const Depsgraph *depsgraph,
                           ARegion *region,
                           const View3D *v3d,
                           const rcti *rect)
@@ -377,7 +377,7 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
 }
 
-void view3d_viewmatrix_set(Depsgraph *depsgraph,
+void view3d_viewmatrix_set(const Depsgraph *depsgraph,
                            const Scene *scene,
                            const View3D *v3d,
                            RegionView3D *rv3d,
@@ -889,6 +889,16 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     return false;
   }
 
+  /* Apply any running smooth-view values before reading from the viewport. */
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->regiontype == RGN_TYPE_WINDOW) {
+      RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+      if (rv3d->sms) {
+        ED_view3d_smooth_view_force_finish_no_camera_lock(depsgraph, wm, win, scene, v3d, region);
+      }
+    }
+  }
+
   v3d->localvd = static_cast<View3D *>(MEM_mallocN(sizeof(View3D), "localview"));
   *v3d->localvd = blender::dna::shallow_copy(*v3d);
   v3d->local_view_uid = local_view_bit;
@@ -971,6 +981,19 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
     }
   }
 
+  /* Apply any running smooth-view values before reading from the viewport. */
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->regiontype == RGN_TYPE_WINDOW) {
+      RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+      if (rv3d->localvd == nullptr) {
+        continue;
+      }
+      if (rv3d->sms) {
+        ED_view3d_smooth_view_force_finish_no_camera_lock(depsgraph, wm, win, scene, v3d, region);
+      }
+    }
+  }
+
   Object *camera_old = v3d->camera;
   Object *camera_new = v3d->localvd->camera;
 
@@ -996,6 +1019,7 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
         camera_new_rv3d = (rv3d->localvd->persp == RV3D_CAMOB) ? camera_new : nullptr;
 
         rv3d->view = rv3d->localvd->view;
+        rv3d->view_axis_roll = rv3d->localvd->view_axis_roll;
         rv3d->persp = rv3d->localvd->persp;
         rv3d->camzoom = rv3d->localvd->camzoom;
 

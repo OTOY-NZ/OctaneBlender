@@ -13,7 +13,7 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
         self.ocio_config_map = {}
         self.ocio_view_map = {}
         self.octane_color_spaces = {
-            # leading space to ensure these settings are shown on top        
+            # leading space to ensure these settings are shown on top
             " Other": "Other",
             " sRGB": "sRGB",
             " Linear sRGB": "Linear sRGB",
@@ -38,6 +38,19 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
 
     def get_ocio_color_space_collection_config(self):
         return utility.get_preferences(), "ocio_color_space_configs"
+
+    def get_ocio_look_collection_config(self):
+        return utility.get_preferences(), "ocio_look_configs"
+
+    def get_formatted_ocio_look_name(self, value):
+        ocio_look_name = value
+        use_view_look = False
+        if value == " None ":
+            ocio_look_name = ""
+        elif ocio_look_name == " Use view look(s) ":
+            ocio_look_name = "Use view look(s)"
+            use_view_look = True
+        return ocio_look_name, use_view_look
 
     def get_formatted_ocio_color_space_name(self, value):
         return self.current_color_spaces.get(value, "")

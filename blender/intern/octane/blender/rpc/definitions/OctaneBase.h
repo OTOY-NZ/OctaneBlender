@@ -8,7 +8,7 @@
 #  define OCTANE_SERVER_MAJOR_VERSION "29"
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#  define OCTANE_SERVER_MINOR_VERSION "15"
+#  define OCTANE_SERVER_MINOR_VERSION "16"
 #endif
 
 #ifdef OCTANE_SERVER
@@ -1267,15 +1267,16 @@ namespace OctaneDataTransferObject {
 		DTO_FLOAT,
 		DTO_FLOAT_2,
 		DTO_FLOAT_3,
-    DTO_FLOAT_4,
 		DTO_RGB,
 		DTO_ENUM,
 		DTO_INT,
 		DTO_INT_2,
 		DTO_INT_3,
-    DTO_INT_4,
 		DTO_STR,
-		DTO_SHADER
+		DTO_SHADER,
+    DTO_FLOAT_4,
+    DTO_RGBA,
+    DTO_INT_4,
 	};
 
 	struct OctaneDTOBase {

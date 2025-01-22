@@ -91,6 +91,12 @@ class ExportRenderPassMode:
     EXPORT_RENDER_PASS_MODE_DEEP_EXR = 2
 
 
+class ExportSceneMode:
+    NONE = 0
+    ALEMBIC = 1
+    ORBX = 2
+
+
 class ImageSaveFormat:
     IMAGE_SAVE_FORMAT_PNG_8 = 0
     IMAGE_SAVE_FORMAT_PNG_16 = 1
@@ -193,6 +199,9 @@ class LegacyDTOType:
     DTO_INT_3 = 9
     DTO_STR = 10
     DTO_SHADER = 11
+    DTO_FLOAT_4 = 12
+    DTO_RGBA = 13
+    DTO_INT_4 = 14
 
 
 # Socket type

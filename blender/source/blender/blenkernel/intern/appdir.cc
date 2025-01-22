@@ -129,7 +129,7 @@ static char *blender_version_decimal(const int version)
 const char *BKE_appdir_folder_default()
 {
 #ifndef WIN32
-  return BLI_getenv("HOME");
+  return BKE_appdir_folder_home();
 #else  /* Windows */
   static char documentfolder[FILE_MAXDIR];
 
@@ -237,7 +237,9 @@ bool BKE_appdir_font_folder_default(char *dir, size_t dir_maxncpy)
     BLI_strncpy_wchar_as_utf8(test_dir, wpath, sizeof(test_dir));
   }
 #elif defined(__APPLE__)
-  STRNCPY(test_dir, BLI_expand_tilde("~/Library/Fonts"));
+  if (const char *fonts_dir = BLI_expand_tilde("~/Library/Fonts")) {
+    STRNCPY(test_dir, fonts_dir);
+  }
 #else
   STRNCPY(test_dir, "/usr/share/fonts");
 #endif

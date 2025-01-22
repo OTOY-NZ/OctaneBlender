@@ -36,16 +36,6 @@ class OCTANE_OT_convert_to_octane_material(Operator):
         default="MATERIAL",
     )
 
-    def set_progress(self, context, show, value):
-        if show:
-            OctaneProgressWidget.show(context)
-            OctaneProgressWidget.set_progress(context, value)
-            OctaneProgressWidget.update(context)
-        else:
-            OctaneProgressWidget.set_progress(context, 0)
-            OctaneProgressWidget.update(context)
-            OctaneProgressWidget.hide()
-
     def start(self, _context):
         self.__class__.IS_OPERATOR_RUNNING = True
 
@@ -55,7 +45,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
         self.processed_object_names = set()
         self.processed_material_names = set()
         OctaneProgressWidget.set_task_text(context, "Octane Material Converter")
-        self.set_progress(context, True, 0)
+        OctaneProgressWidget.update_widget(context, True, 0)
         context.window_manager.modal_handler_add(self)
         self.timer = context.window_manager.event_timer_add(0.1, window=context.window)
 
@@ -67,7 +57,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
     def complete_modal_operator(self, context):
         self.complete(context)
         context.window_manager.event_timer_remove(self.timer)
-        self.set_progress(context, False, 0)
+        OctaneProgressWidget.update_widget(context, False, 0)
         self.__class__.IS_OPERATOR_RUNNING = False
 
     @classmethod
@@ -97,7 +87,7 @@ class OCTANE_OT_convert_to_octane_material(Operator):
                 self.processed_object_names.add(_object.name)
                 current_progress = len(self.processed_object_names) * 100.0 / len(context.scene.objects)
                 current_progress = max(0.01, min(99.0, current_progress))
-                self.set_progress(context, True, current_progress)
+                OctaneProgressWidget.update_widget(context, True, current_progress)
                 NodeTreeHandler.update_node_tree_count(context.scene)
                 done = False
                 break

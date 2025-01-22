@@ -43,7 +43,6 @@
 extern "C" {
 #  include <libavcodec/avcodec.h>
 #  include <libavformat/avformat.h>
-#  include <libavutil/cpu.h>
 #  include <libavutil/imgutils.h>
 #  include <libavutil/rational.h>
 #  include <libswscale/swscale.h>
@@ -374,12 +373,7 @@ static int startffmpeg(ImBufAnim *anim)
   anim->pFrameRGB->width = anim->x;
   anim->pFrameRGB->height = anim->y;
 
-  /* Note: even if av_frame_get_buffer suggests to pass 0 for alignment,
-   * as of ffmpeg 6.1/7.0 it does not use correct alignment for AVX512
-   * CPU (frame.c get_video_buffer ends up always using 32 alignment,
-   * whereas it should have used 64). Reported upstream:
-   * https://trac.ffmpeg.org/ticket/11116 */
-  const size_t align = av_cpu_max_align();
+  const size_t align = ffmpeg_get_buffer_alignment();
   if (av_frame_get_buffer(anim->pFrameRGB, align) < 0) {
     fprintf(stderr, "Could not allocate frame data.\n");
     avcodec_free_context(&anim->pCodecCtx);
@@ -407,6 +401,9 @@ static int startffmpeg(ImBufAnim *anim)
   }
 
   if (anim->ib_flags & IB_animdeinterlace) {
+    anim->pFrameDeinterlaced->format = anim->pCodecCtx->pix_fmt;
+    anim->pFrameDeinterlaced->width = anim->pCodecCtx->width;
+    anim->pFrameDeinterlaced->height = anim->pCodecCtx->height;
     av_image_fill_arrays(
         anim->pFrameDeinterlaced->data,
         anim->pFrameDeinterlaced->linesize,
@@ -1137,7 +1134,7 @@ static ImBuf *ffmpeg_fetchibuf(ImBufAnim *anim, int position, IMB_Timecode_Type 
   ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, planes, 0);
 
   /* Allocate the storage explicitly to ensure the memory is aligned. */
-  const size_t align = av_cpu_max_align();
+  const size_t align = ffmpeg_get_buffer_alignment();
   uint8_t *buffer_data = static_cast<uint8_t *>(
       MEM_mallocN_aligned(size_t(4) * anim->x * anim->y, align, "ffmpeg ibuf"));
   IMB_assign_byte_buffer(cur_frame_final, buffer_data, IB_TAKE_OWNERSHIP);
@@ -1176,6 +1173,9 @@ static void free_anim_ffmpeg(ImBufAnim *anim)
     av_frame_free(&anim->pFrame);
     av_frame_free(&anim->pFrame_backup);
     av_frame_free(&anim->pFrameRGB);
+    if (anim->pFrameDeinterlaced->data[0] != nullptr) {
+      MEM_freeN(anim->pFrameDeinterlaced->data[0]);
+    }
     av_frame_free(&anim->pFrameDeinterlaced);
     BKE_ffmpeg_sws_release_context(anim->img_convert_ctx);
   }

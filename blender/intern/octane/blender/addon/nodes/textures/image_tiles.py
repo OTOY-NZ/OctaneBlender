@@ -230,13 +230,29 @@ class OctaneImageTiles_Override(OctaneImageTiles):
 
     support_udim = True
 
+    image_color_format_items = [
+        ("IMAGE_COLOR_KEEP_SOURCE", "Keep source format", "Keep the source format", 0),
+        ("IMAGE_COLOR_RGBA", "RGBA", "Load as RGBA color image", 1),
+        ("IMAGE_COLOR_GREYSCALE", "Greyscale", "Load as greyscale image", 2),
+        ("IMAGE_COLOR_ALPHA", "Alpha", "Load as RGBA and use alpha channel", 3),
+    ]
+
+    def update_a_image_color_format_enum(self, context):
+        self.a_image_color_format = utility.get_enum_int_value(self, "a_image_color_format_enum", 0)
+        self.update_node_tree()
+    a_image_color_format_enum: EnumProperty(name="Load as color type",
+                                            default="IMAGE_COLOR_KEEP_SOURCE",
+                                            update=update_a_image_color_format_enum,
+                                            items=image_color_format_items,
+                                            description="The color format in which the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or grayscale, depending on the format used to save the image file")  # noqa
+
     def init(self, context):
         super().init(context)
         self.init_image_attributes()
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
-        filepath = "" 
+        filepath = ""
         is_data_updated = False
         grid_size = [0, 0]
         if self.image and self.image.source == "TILED" and len(self.image.tiles):

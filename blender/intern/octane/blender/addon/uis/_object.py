@@ -37,15 +37,15 @@ class OCTANE_OBJECT_PT_object_properties_object_layer(OctanePropertyPanel, Panel
         layout = self.layout
         ob = context.object
         octane_object = ob.octane
+        orbx_path = ""
+        is_object_layer_applicable = True
         if ob.data is not None:
-            orbx_path = getattr(ob.data.octane, "imported_orbx_file_path", "")
-            try:
-                is_object_layer_applicable = ob.data.octane.octane_geo_node_collections.is_object_layer_applicable()
-            except:  # noqa
-                is_object_layer_applicable = False
-        else:
-            orbx_path = ""
-            is_object_layer_applicable = False
+            if ob.type == "MESH":
+                orbx_path = getattr(ob.data.octane, "imported_orbx_file_path", "")
+                try:
+                    is_object_layer_applicable = ob.data.octane.octane_geo_node_collections.is_object_layer_applicable()
+                except:  # noqa
+                    is_object_layer_applicable = False
         if not is_object_layer_applicable:
             sub = layout.row(align=True)
             sub.label(text="This object is used as Octane Scatter or SDF Domain.")

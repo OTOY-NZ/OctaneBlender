@@ -217,6 +217,25 @@ class OCTANE_OT_save_as_octanedb(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OCTANE_OT_cancel_progress_task(bpy.types.Operator):
+    """Cancel the current task"""
+    bl_idname = "octane.cancel_progress_task"
+    bl_label = "Cancel Task"
+    bl_register = True
+    bl_undo = False
+
+    @classmethod
+    def poll(cls, _context):
+        return True
+
+    def execute(self, _context):
+        import ctypes
+        # Escape key
+        VK_ESCAPE = 0x1B # noqa
+        ctypes.windll.user32.keybd_event(VK_ESCAPE)
+        return {'FINISHED'}
+
+
 def sync_octane_aov_output_number(_scene):
     try:
         view_layer = bpy.context.view_layer
@@ -268,6 +287,7 @@ _CLASSES = [
     OCTANE_OT_clear_resource_cache,
     OCTANE_OT_toggle_record,
     OCTANE_OT_play_record,
+    OCTANE_OT_cancel_progress_task,
 ]
 
 

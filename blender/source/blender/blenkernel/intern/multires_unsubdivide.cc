@@ -460,9 +460,10 @@ static bool multires_unsubdivide_single_level(BMesh *bm)
 
   bool valid_tag_found = true;
 
-  /* Reset the #BMesh flags as they are used to store data during the un-subdivide process. */
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+  /* Reset the #BMesh flags as they are used to store data during the un-subdivide process.
+   * Un-hiding all faces is important so the entire mesh is handled, see: #126633. */
+  BM_mesh_elem_hflag_disable_all(
+      bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT | BM_ELEM_HIDDEN | BM_ELEM_TAG, false);
 
   /* For each disconnected mesh element ID, search if an un-subdivide solution is possible. The
    * whole un-subdivide process fails if a single disconnected mesh element fails. */
@@ -710,6 +711,7 @@ static void multires_unsubdivide_extract_single_grid_from_face_edge(
 
   const int grid_size = BKE_ccg_gridsize(context->num_new_levels);
   const int unsubdiv_grid_size = grid->grid_size = BKE_ccg_gridsize(context->num_total_levels);
+  BLI_assert(grid->grid_co == nullptr);
   grid->grid_size = unsubdiv_grid_size;
   grid->grid_co = static_cast<float(*)[3]>(MEM_calloc_arrayN(
       unsubdiv_grid_size * unsubdiv_grid_size, sizeof(float[3]), "grids coordinates"));
@@ -927,10 +929,10 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
   BM_mesh_elem_table_ensure(bm_original_mesh, BM_VERT);
 
   /* Disable all flags. */
-  BM_mesh_elem_hflag_disable_all(
-      bm_original_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BM_mesh_elem_hflag_disable_all(
-      bm_original_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+  BM_mesh_elem_hflag_disable_all(bm_original_mesh,
+                                 BM_VERT | BM_EDGE | BM_FACE,
+                                 BM_ELEM_SELECT | BM_ELEM_HIDDEN | BM_ELEM_TAG,
+                                 false);
 
   /* Get the mapping data-layer. */
   context->base_to_orig_vmap = static_cast<const int *>(
@@ -1075,9 +1077,22 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
               faces, corner_verts, base_mesh_face_index, base_mesh_loop_index, corner_x_index);
 
           /* Extract the grid for that loop. */
-          context->base_mesh_grids[base_mesh_loop_index].grid_index = base_mesh_loop_index;
+          MultiresUnsubdivideGrid *grid = &context->base_mesh_grids[base_mesh_loop_index];
+          if (UNLIKELY(grid->grid_co != nullptr)) {
+            /* It's possible this grid has already been initialized which occurs when quads
+             * share two edge, while not so common it happens with "Suzanne's" nose,
+             * see: #126633 & run un-subdivide.
+             *
+             * Continue here instead of breaking as logically: quads sharing 2 edges
+             * will share 3 vertices and those 3 vertices may be attached to any number of quads.
+             * So in this case, continue scanning instead of breaking out of the loop
+             * because the `lb` to extract a grid from has not yet been encountered. */
+            continue;
+          }
+
+          grid->grid_index = base_mesh_loop_index;
           multires_unsubdivide_extract_single_grid_from_face_edge(
-              context, l->f, l->e, !flip_grid, &context->base_mesh_grids[base_mesh_loop_index]);
+              context, l->f, l->e, !flip_grid, grid);
 
           break;
         }
@@ -1135,8 +1150,14 @@ bool multires_unsubdivide_to_basemesh(MultiresUnsubdivideContext *context)
   /* Calculate the final levels for the new grids over base mesh. */
   context->num_total_levels = context->num_new_levels + context->num_original_levels;
 
-  /* Store the new base-mesh as a mesh in context, free bmesh. */
-  context->base_mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+  /* Store the new base-mesh as a mesh in context, free bmesh.
+   * NOTE(@ideasman42): passing the original mesh in the template is important so mesh settings &
+   * vertex groups are kept, see: #93911. */
+  context->base_mesh = BKE_mesh_new_nomain_from_template(original_mesh, 0, 0, 0, 0);
+
+  /* De-select all.
+   * The user-selection has been overwritten and this selection has not been flushed. */
+  BM_mesh_elem_hflag_disable_all(bm_base_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
 
   BMeshToMeshParams bm_to_me_params{};
   bm_to_me_params.calc_object_remap = true;

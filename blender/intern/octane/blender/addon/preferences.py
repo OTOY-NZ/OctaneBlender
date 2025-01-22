@@ -98,21 +98,32 @@ def update_octane_texture_cache_path():
     _octane.update_octane_texture_cache(octane_texture_cache_path)
 
 
-def update_octane_server_address():
+def update_octane_server_address(octane_server_address=None, octane_server_port=None, octane_db_server_port=None):
+    preferences = utility.get_preferences()
+    save_preferences = False
+    if octane_server_address is None:
+        octane_server_address = str(preferences.octane_server_address)
+    else:
+        octane_server_address = str(octane_server_address)
+        preferences.octane_server_address = octane_server_address
+        save_preferences = True
+    if octane_server_port is None:
+        octane_server_port = preferences.octane_server_port
+    else:
+        octane_server_port = int(octane_server_port)
+        preferences.octane_server_port = octane_server_port
+        save_preferences = True
+    if octane_db_server_port is None:
+        octane_db_server_port = preferences.octane_db_server_port
+    else:
+        octane_db_server_port = int(octane_db_server_port)
+        preferences.octane_db_server_port = octane_db_server_port
+        save_preferences = True
+    if save_preferences:
+        bpy.ops.wm.save_userpref()
+    enable_release_octane_license_when_exiting = bool(preferences.enable_relese_octane_license_when_exiting)
     if utility.is_exclusive_addon_mode():
         return
-    try:
-        preferences = utility.get_preferences()
-        octane_server_address = str(preferences.octane_server_address)
-        octane_server_port = preferences.octane_server_port
-        octane_db_server_port = preferences.octane_db_server_port
-        enable_release_octane_license_when_exiting = bool(preferences.enable_relese_octane_license_when_exiting)
-    except Exception as e:
-        octane_server_address = ""
-        octane_server_port = consts.DEFAULT_SERVER_PORT
-        octane_db_server_port = consts.DEFAULT_DB_SERVER_PORT
-        enable_release_octane_license_when_exiting = False
-        logger.exception(e)
     import _octane
     _octane.update_octane_server_address(octane_server_address, octane_server_port, octane_db_server_port,
                                          enable_release_octane_license_when_exiting)

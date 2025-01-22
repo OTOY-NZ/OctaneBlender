@@ -118,7 +118,8 @@ class OctaneBaseNodeTree(object):
                                                                                                        to_socket)
                                 if from_socket_pin_type == to_socket_pin_type:
                                     node_tree.links.new(insert_in_link.from_socket, to_socket)
-                                    node_tree.links.remove(insert_in_link)
+                                    if insert_in_link in set(node_tree.links):
+                                        node_tree.links.remove(insert_in_link)
                                     break
 
     @staticmethod

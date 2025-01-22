@@ -17,6 +17,7 @@ class OctaneProgressWidget(object):
     def draw(self, context):
         if OctaneProgressWidget.get_progress(context) < 100:
             self.layout.prop(context.scene.octane, "octane_task_progress", text=OctaneProgressWidget.task_text)
+            self.layout.operator("octane.cancel_progress_task", icon='CANCEL')
         else:
             OctaneProgressWidget.hide()
 
@@ -49,3 +50,14 @@ class OctaneProgressWidget(object):
         bpy.types.STATUSBAR_HT_header.remove(OctaneProgressWidget.draw)
         OctaneProgressWidget.visibility = False
         OctaneProgressWidget.task_text = ""
+
+    @staticmethod
+    def update_widget(context, show, value):
+        if show:
+            OctaneProgressWidget.show(context)
+            OctaneProgressWidget.set_progress(context, value)
+            OctaneProgressWidget.update(context)
+        else:
+            OctaneProgressWidget.set_progress(context, 0)
+            OctaneProgressWidget.update(context)
+            OctaneProgressWidget.hide()

@@ -1,7 +1,7 @@
 # <pep8 compliant>
 
 import bpy
-
+from octane.utils import consts
 
 def init():
     print("OctaneBlender Engine Init")
@@ -57,7 +57,8 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         import _octane
         engine.session = _octane.create(
-            engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
+            engine.as_pointer(), prefs, data, screen, region, v3d, rv3d,
+            consts.ExportSceneMode.NONE, "", dirty_resources)
 
 
 def free(engine):

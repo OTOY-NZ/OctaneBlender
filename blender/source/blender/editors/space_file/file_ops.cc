@@ -2704,6 +2704,18 @@ static int file_directory_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int file_directory_new_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  /* NOTE: confirm is needed because this operator is invoked
+   * when entering a path from the file selector. Without a confirmation,
+   * a typo will create the path without any prompt. See #128567. */
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(
+        C, op, IFACE_("Create new directory?"), nullptr, IFACE_("Create"), ALERT_ICON_NONE, false);
+  }
+  return file_directory_new_exec(C, op);
+}
+
 void FILE_OT_directory_new(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -2714,6 +2726,7 @@ void FILE_OT_directory_new(wmOperatorType *ot)
   ot->idname = "FILE_OT_directory_new";
 
   /* api callbacks */
+  ot->invoke = file_directory_new_invoke;
   ot->exec = file_directory_new_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
@@ -2723,6 +2736,7 @@ void FILE_OT_directory_new(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "open", false, "Open", "Open new directory");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  WM_operator_properties_confirm_or_exec(ot);
 }
 
 /** \} */
@@ -2750,12 +2764,18 @@ static void file_expand_directory(bContext *C)
       /* While path handling expansion typically doesn't support home directory expansion
        * in Blender, this is a convenience to be able to type in a single character.
        * Even though this is a UNIX convention, it's harmless to expand on WIN32 as well. */
-      char tmpstr[sizeof(params->dir) - 1];
-      STRNCPY(tmpstr, params->dir + 1);
-      BLI_path_join(params->dir, sizeof(params->dir), BKE_appdir_folder_home(), tmpstr);
+      if (const char *home_dir = BKE_appdir_folder_home()) {
+        char tmpstr[sizeof(params->dir) - 1];
+        STRNCPY(tmpstr, params->dir + 1);
+        BLI_path_join(params->dir, sizeof(params->dir), home_dir, tmpstr);
+      }
+      else {
+        /* Fall back to the default root. */
+        params->dir[0] = '\0';
+      }
     }
 
-    else if (params->dir[0] == '\0')
+    if (params->dir[0] == '\0')
 #ifndef WIN32
     {
       params->dir[0] = '/';

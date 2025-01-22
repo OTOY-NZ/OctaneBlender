@@ -242,7 +242,8 @@ class LinkResolver {
   std::string get_link_node_name(BL::NodeSocket &b_socket, std::string prefix_name);
   std::string get_output_node_name(std::string identifier);
   std::string get_output_node_name(BL::NodeSocket &b_socket, std::string prefix_name);
-  void get_mapping_socket_identifier(std::string identifier, std::string& mapping_socket_identifier);
+  void get_mapping_socket_identifier(std::string identifier,
+                                     std::string &mapping_socket_identifier);
   std::string get_mapping_socket_identifier(BL::NodeSocket &b_socket, std::string prefix_name);
 
  private:
@@ -405,8 +406,9 @@ void LinkResolver::get_mapping_socket_identifier(std::string identifier,
     return;
   }
   auto &linked_socket_data = sockets[linked_socket_identifier];
-  if (linked_socket_data.node_type == SocketData::NodeType::GROUP_INTPUT 
-      && linked_socket_data.socket_data_type == SocketData::SocketDataType::OUTPUT) {
+  if (linked_socket_data.node_type == SocketData::NodeType::GROUP_INTPUT &&
+      linked_socket_data.socket_data_type == SocketData::SocketDataType::OUTPUT)
+  {
     mapping_socket_identifier = linked_socket_data.mapping_from_socket_identifier;
     return;
   }
@@ -961,7 +963,9 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              false);
     cur_node->oImageData.iHDRDepthType = get_enum(b_node.ptr, "hdr_tex_bit_depth");
     cur_node->oImageData.iIESMode = get_enum(b_node.ptr, "octane_ies_mode");
-    graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
+    if (b_image.ptr.data != NULL) {
+      graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
+    }    
   }
   if (scene && scene->session && scene->session->is_export_mode()) {
     if (cur_node->oImageData.sImageDataMD5Hex != "") {
@@ -1215,7 +1219,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-      // clang-format off
+// clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1301,6 +1305,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
       for (BL::NodeSocket &b_input : b_node.inputs) {
+        if (!b_input.enabled()) {
+          continue;
+        }
         std::string socket_name = b_input.identifier();
         std::string octane_name = socket_name;
         bool is_static_pin = false;
@@ -1435,6 +1442,23 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
 #undef ADD_OCTANE_ATTR_DTO
 #undef ADD_OCTANE_PIN_DTO
     }
+    if (bl_idname == "OctaneTime") {
+      is_auto_refresh = true;
+      ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+          (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+      for (auto &float3Socket : octane_node->oFloat3Sockets) {
+        if (float3Socket.sName == "a_value") {
+          ::Scene *scene = (::Scene *)b_scene.ptr.data;
+          float ctime = scene->r.cfra;
+          ctime += scene->r.subframe;
+          ctime *= scene->r.framelen;
+          //float3Socket.fVal.x = ctime;
+          //float3Socket.fVal.y = 0;
+          //float3Socket.fVal.z = 0;
+          break;
+        }
+      }
+    }
     if (bl_idname == "OctaneOCIOColorSpace") {
       OctaneDataTransferObject::OctaneNodeBase *cur_node =
           OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
@@ -1447,6 +1471,19 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       ::OctaneDataTransferObject::OctaneOcioColorSpace *octane_node =
           (::OctaneDataTransferObject::OctaneOcioColorSpace *)(node->oct_node);
       octane_node->sOcioName.sVal = char_array;
+    }
+    if (bl_idname == "OctaneOCIOLook") {
+      OctaneDataTransferObject::OctaneNodeBase *cur_node =
+          OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+              "OctaneOCIOLook");
+      cur_node->sName = node->oct_node->sName;
+      delete node->oct_node;
+      node->oct_node = cur_node;
+      char char_array[512];
+      RNA_string_get(&b_node.ptr, "formatted_ocio_look_name", char_array);
+      ::OctaneDataTransferObject::OctaneOCIOLook *octane_node =
+          (::OctaneDataTransferObject::OctaneOCIOLook *)(node->oct_node);
+      octane_node->sOcioLookName.sVal = char_array;
     }
     if (bl_idname == "OctaneVertexDisplacement") {
       graph->need_subdivision = true;
@@ -1935,6 +1972,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           }
           pNode->iGridSize.iVal.x = grid_size_x;
           pNode->iGridSize.iVal.y = grid_size_y;
+          pNode->iImportType = get_enum(b_node.ptr, "a_channel_format");
+          pNode->iIESMode = get_enum(b_node.ptr, "a_ies_photometry_mode");
+          pNode->iColorType = get_int(b_node.ptr, "a_image_color_format");
         }
       }
       else {
@@ -3633,7 +3673,9 @@ bool BlenderSync::use_geonodes_modifiers(BL::Object &b_ob)
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_NODES) {
       BL::NodesModifier nodes_mod(b_mod->ptr);
-      if (nodes_mod.node_group().name() == "Smooth by Angle") {
+      std::string node_group_name = nodes_mod.node_group().name();
+      bool is_auto_smooth_geonodes = string_startswith(node_group_name, "Smooth by Angle");
+      if (is_auto_smooth_geonodes) {
         continue;
       }
       if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {

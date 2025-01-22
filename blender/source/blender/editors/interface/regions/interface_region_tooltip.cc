@@ -1034,7 +1034,7 @@ static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
                                 {},
                                 UI_TIP_STYLE_MONO,
                                 UI_TIP_LC_PYTHON,
-                                true);
+                                (data->fields.size() > 0));
     }
 
     if (but->rnapoin.owner_id) {
@@ -1064,7 +1064,7 @@ static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
 
     uchar rgb_hex_uchar[4];
     rgba_float_to_uchar(rgb_hex_uchar, color);
-    const std::string hex_st = fmt::format("Hex: {:X}{:X}{:X}{:X}",
+    const std::string hex_st = fmt::format("Hex: {:02X}{:02X}{:02X}{:02X}",
                                            int(rgb_hex_uchar[0]),
                                            int(rgb_hex_uchar[1]),
                                            int(rgb_hex_uchar[2]),
@@ -1176,7 +1176,7 @@ static uiTooltipData *ui_tooltip_data_from_gizmo(bContext *C, wmGizmo *gz)
               {},
               UI_TIP_STYLE_HEADER,
               UI_TIP_LC_VALUE,
-              true);
+              false);
         }
 
         /* Shortcut */

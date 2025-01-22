@@ -92,6 +92,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneReadVDBTexture);
 
 		OCTANE_NODE_CREATOR(OctaneOcioColorSpace);
+		OCTANE_NODE_CREATOR(OctaneOCIOLook);
 
 		OCTANE_NODE_CREATOR(OctaneCustomNode);
 #undef OCTANE_NODE_CREATOR

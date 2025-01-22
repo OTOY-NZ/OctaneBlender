@@ -858,6 +858,7 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
       if (mesh_cage->runtime->edit_mesh) {
         mesh->runtime->edit_mesh = mesh_cage->runtime->edit_mesh;
         mesh->runtime->is_original_bmesh = true;
+        mesh->runtime->deformed_only = mesh_cage->runtime->deformed_only;
         if (mesh_cage->runtime->edit_data) {
           mesh->runtime->edit_data = std::make_unique<EditMeshData>(
               *mesh_cage->runtime->edit_data);
@@ -1132,7 +1133,10 @@ static void object_get_datamask(const Depsgraph &depsgraph,
     if (ob.mode & OB_MODE_WEIGHT_PAINT) {
       r_mask.vmask |= CD_MASK_MDEFORMVERT;
     }
+  }
 
+  /* Multiple objects can be in edit-mode at once. */
+  if (actob && (actob->mode & OB_MODE_EDIT)) {
     if (ob.mode & OB_MODE_EDIT) {
       r_mask.vmask |= CD_MASK_MVERT_SKIN;
     }

@@ -332,6 +332,8 @@ class OctaneBaseImageNode(OctaneBaseNode):
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "image", new="image.new", open="image.open")
         if self.image:
+            if hasattr(self, "a_image_color_format_enum"):
+                layout.row().prop(self, "a_image_color_format_enum")
             layout.row().prop(self, "a_ies_photometry_mode")
             layout.row().prop(self, "a_channel_format")
             layout.row().prop(self.image, "source")

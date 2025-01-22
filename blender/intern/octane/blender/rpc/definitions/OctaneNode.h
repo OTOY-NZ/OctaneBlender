@@ -1584,7 +1584,10 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tTransform,
 		(OctaneDTOShader)	tProjection,
 		(OctaneDTORGB)		fEmptyTileColor,
-		(OctaneDTOInt2)		iGridSize
+		(OctaneDTOInt2)		iGridSize,
+		(OctaneDTOInt)		iImportType,
+		(OctaneDTOInt)		iIESMode,
+		(OctaneDTOInt)		iColorType
 		)
 		std::vector<std::string>	sFiles;
 
@@ -1608,7 +1611,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(iHDRDepthType, iGridSizeX, iGridSizeY, iStart, iDigits, fPower, sColorSpace, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, fEmptyTileColor, iGridSize, sFiles, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(iImportType, iIESMode, iColorType, iHDRDepthType, iGridSizeX, iGridSizeY, iStart, iDigits, fPower, sColorSpace, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, fEmptyTileColor, iGridSize, sFiles, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneImageTileTexture
 
 	struct OctaneInstanceColorTexture : public OctaneBaseImageNode {
@@ -2542,6 +2545,21 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(sOcioName, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneOcioColorSpace
+
+	struct OctaneOCIOLook : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOString)	sOcioLookName
+		)
+
+		OctaneOCIOLook() :
+			OctaneNodeBase(Octane::NT_OCIO_LOOK, "OctaneOCIOLook")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		MSGPACK_DEFINE(sOcioLookName, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneOCIOLook
 
 	struct OctaneCustomNode : public OctaneNodeBase{
 		REFLECTABLE

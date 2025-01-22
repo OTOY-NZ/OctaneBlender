@@ -478,7 +478,8 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       /* Save quit.blend. */
       Main *bmain = CTX_data_main(C);
       char filepath[FILE_MAX];
-      const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
+      int fileflags = G.fileflags & ~G_FILE_COMPRESS;
+      fileflags |= G_FILE_RECOVER_WRITE;
 
       BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
@@ -719,4 +720,11 @@ void WM_exit(bContext *C, const int exit_code)
 void WM_script_tag_reload()
 {
   UI_interface_tag_script_reload();
+
+  /* Any operators referenced by gizmos may now be a dangling pointer.
+   *
+   * While it is possible to inspect the gizmos it's simpler to re-create them,
+   * especially for script reloading - where we can accept slower logic
+   * for the sake of simplicity, see #126852. */
+  WM_gizmoconfig_update_tag_reinit_all();
 }

@@ -38,6 +38,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 
@@ -45,8 +46,8 @@
 #include <boost/algorithm/string_regex.hpp>
 
 #include "blender/octanedb.h"
-#include "blender/session.h"
 #include "blender/server/octane_client.h"
+#include "blender/session.h"
 #include "render/camera.h"
 #include "render/environment.h"
 #include "render/graph.h"
@@ -1234,83 +1235,6 @@ bool BlenderSession::update_octane_custom_node(const std::string server_address,
   return ret;
 }
 
-static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
-{
-  OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
-
-  data->stop = &worker_status->stop;
-  data->do_update = &worker_status->do_update;
-  data->progress = &worker_status->progress;
-
-  data->b_engine.update_progress(0.01f);
-
-  int cur_frame = data->b_scene.frame_current();
-  int first_frame = data->b_scene.frame_start();
-  int last_frame = data->b_scene.frame_end();
-
-  DEG_graph_build_from_view_layer(data->m_depsgraph);
-  BKE_scene_graph_update_tagged(data->m_depsgraph, data->m_main);
-
-  G.is_rendering = true;
-  G.is_break = false;
-  BKE_spacedata_draw_locks(true);
-  std::string export_path(data->export_path);
-  std::unordered_set<std::string> dirty_resources;
-  BlenderSession *session = new BlenderSession(data->b_engine,
-                                               data->b_userpref,
-                                               data->b_data,
-                                               data->export_type,
-                                               export_path,
-                                               dirty_resources);
-
-  if (!G.is_break) {
-    for (int f = first_frame; f <= last_frame; ++f) {
-      if (f >= first_frame) {
-        data->m_scene->r.cfra = f;
-        data->m_scene->r.subframe = f - data->m_scene->r.cfra;
-        BKE_scene_graph_update_for_newframe(data->m_depsgraph);
-
-        session->reset_session(data->b_data, data->b_depsgraph);
-        session->sync->sync_recalc(data->b_depsgraph);
-        session->render(data->b_depsgraph);
-        data->b_engine.update_progress(((float)(f - first_frame + 1) - 0.5f) /
-                                       (last_frame - first_frame + 1));
-      }
-
-      if (G.is_break) {
-        data->was_canceled = true;
-        break;
-      }
-    }
-  }
-  else {
-    data->was_canceled = true;
-  }
-  delete session;
-
-  if (cur_frame != data->b_scene.frame_current()) {
-    data->m_scene->r.cfra = cur_frame;
-    data->m_scene->r.subframe = cur_frame - data->m_scene->r.cfra;
-    BKE_scene_graph_update_for_newframe(data->m_depsgraph);
-  }
-}
-
-static void export_endjob(void *customdata)
-{
-  OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
-  data->b_engine.update_progress(1.0f);
-
-  BKE_spacedata_draw_locks(false);
-  G.is_rendering = false;
-  DEG_graph_free(data->m_depsgraph);
-  data->export_mutex->unlock();
-
-  if (data->was_canceled) {
-    if (BLI_exists(data->export_path))
-      BLI_delete(data->export_path, false, false);
-  }
-}
-
 static void render_progress_update(void *rjv, float progress)
 {
   OctaneExportJobData *rj = (OctaneExportJobData *)rjv;
@@ -1321,27 +1245,27 @@ static void render_progress_update(void *rjv, float progress)
   }
 }
 
-bool BlenderSession::export_scene(BL::Scene &b_scene,
-                                  bContext *context,
-                                  BL::Preferences &b_userpref,
-                                  BL::BlendData &b_data,
-                                  std::string export_path,
-                                  BlenderSession::ExportType export_type)
+BlenderSession *BlenderSession::create_export_scene(BL::Scene &b_scene,
+                                                    bContext *context,
+                                                    BL::Preferences &b_userpref,
+                                                    BL::BlendData &b_data,
+                                                    std::string export_path,
+                                                    BlenderSession::ExportType export_type)
 {
   static std::mutex export_mutex;
   bool result = false;
   if (!export_mutex.try_lock()) {
-    return result;
+    return NULL;
   }
   // Create context params
   ::Main *m_main = CTX_data_main(context);
   ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
-  // Create depsgraph  
+  // Create depsgraph
   ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
   PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph);
   BL::Depsgraph b_depsgraph(depsgraphptr);
-  // Create engine  
+  // Create engine
   BL::RenderSettings rs = b_scene.render();
   // Create render
   Render *re = RE_NewRender(b_scene.name().c_str());
@@ -1365,35 +1289,18 @@ bool BlenderSession::export_scene(BL::Scene &b_scene,
   PointerRNA engineptr = RNA_pointer_create(NULL, &RNA_RenderEngine, engine);
   BL::RenderEngine b_engine(engineptr);
 
-  OctaneExportJobData *job;
-  job = static_cast<OctaneExportJobData *>(MEM_callocN(sizeof(OctaneExportJobData), "export job"));
-  job->b_data = b_data;
-  job->b_userpref = b_userpref;
-  job->b_scene = b_scene;
-  job->b_engine = b_engine;
-  job->b_depsgraph = b_depsgraph;
-  job->m_main = m_main;
-  job->m_scene = m_scene;
-  job->m_viewlayer = m_viewlayer;
-  job->m_depsgraph = m_depsgraph;
-  job->export_mutex = &export_mutex;
-  job->export_type = export_type;
-  job->was_canceled = false;
-  strcpy(job->export_path, export_path.c_str());
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(context),
-                              CTX_wm_window(context),
-                              (::Scene *)b_scene.ptr.data,
-                              export_type == ExportType::ORBX ? "Octane ORBX export" :
-                                                                "Octane alembic export",
-                              WM_JOB_PROGRESS,
-                              WM_JOB_TYPE_RENDER);
-  WM_jobs_customdata_set(wm_job, job, MEM_freeN);
-  unsigned int note = 4 << 24 | 3 << 16;  // NC_SCENE | ND_FRAME
-  WM_jobs_timer(wm_job, 0.1, note, note);
-  WM_jobs_callbacks(wm_job, export_startjob, NULL, NULL, export_endjob);
-  RE_progress_cb(re, job, render_progress_update);
-  WM_jobs_start(CTX_wm_manager(context), wm_job);
-  return result;
+  std::unordered_set<std::string> dirty_resources;
+  BlenderSession *session = new BlenderSession(
+      b_engine, b_userpref, b_data, export_type, export_path, dirty_resources);
+  export_mutex.unlock();
+  return session;
+}
+
+void BlenderSession::export_current_frame(BL::BlendData &b_data, BL::Depsgraph &b_depsgraph)
+{
+  reset_session(b_data, b_depsgraph);
+  sync->sync_recalc(b_depsgraph);
+  render(b_depsgraph);
 }
 
 bool BlenderSession::export_localdb(BL::Scene &b_scene,
@@ -1411,11 +1318,11 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   ::Main *m_main = CTX_data_main(context);
   ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
-  // Create depsgraph  
+  // Create depsgraph
   ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
   PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph);
   BL::Depsgraph b_depsgraph(depsgraphptr);
-  // Create engine  
+  // Create engine
   BL::RenderSettings rs = b_scene.render();
   // Create render
   Render *re = RE_NewRender(b_scene.name().c_str());
@@ -1516,7 +1423,8 @@ static void get_octanedb_startjob(void *customdata, wmJobWorkerStatus *worker_st
 
   worker_status->progress = 0.0f;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(data->server_address, G.octane_db_server_port, server);
+  bool ret = BlenderSession::connect_to_server(
+      data->server_address, G.octane_db_server_port, server);
   if (!ret) {
     WM_report(RPT_ERROR, "Fail to connect to OctaneDB!");
     return;

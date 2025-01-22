@@ -22,14 +22,14 @@
 #include <cstdlib>
 
 #include "MEM_guardedalloc.h"
-#include "RNA_types.hh"
 #include "RNA_access.hh"
 #include "RNA_blender_cpp.h"
+#include "RNA_types.hh"
 
-#include "util/string.h"
-#include "render/passes.h"
-#include "blender/util.h"
 #include "blender/sync.h"
+#include "blender/util.h"
+#include "render/passes.h"
+#include "util/string.h"
 #include <mutex>
 
 OCT_NAMESPACE_BEGIN
@@ -87,6 +87,8 @@ class BlenderSession {
   /* interactive updates */
   void synchronize(BL::Depsgraph &b_depsgraph);
 
+  void export_current_frame(BL::BlendData &b_data, BL::Depsgraph &b_depsgraph);
+
   // drawing
   bool draw(int w, int h);
   void tag_redraw();
@@ -110,12 +112,12 @@ class BlenderSession {
                           const std::string &osl_path,
                           const std::string &osl_code,
                           std::string &info);
-  static bool export_scene(BL::Scene &b_scene,
-                           bContext *context,
-                           BL::Preferences &b_userpref,
-                           BL::BlendData &b_data,
-                           std::string export_path,
-                           ExportType export_type);
+  static BlenderSession *create_export_scene(BL::Scene &b_scene,
+                                             bContext *context,
+                                             BL::Preferences &b_userpref,
+                                             BL::BlendData &b_data,
+                                             std::string export_path,
+                                             ExportType export_type);
   static bool export_localdb(BL::Scene &b_scene,
                              bContext *context,
                              BL::Preferences &b_userpref,
@@ -124,9 +126,9 @@ class BlenderSession {
   static bool heart_beat(std::string server_address);
   static bool get_octanedb(bContext *context, std::string server_address);
   static bool generate_orbx_proxy_preview(const std::string server_address,
-                                  const std::string orbx_path,
-                                  const std::string abc_path,
-                                  const float fps);
+                                          const std::string orbx_path,
+                                          const std::string abc_path,
+                                          const float fps);
   static bool resolve_octane_vdb_info(const std::string server_address,
                                       PointerRNA &oct_mesh,
                                       BL::BlendData &b_data,
@@ -143,7 +145,7 @@ class BlenderSession {
   static bool update_octane_custom_node(const std::string server_address,
                                         std::string command,
                                         std::string data,
-                                        std::string& result);
+                                        std::string &result);
 
   Session *session;
   Scene *scene;
@@ -222,6 +224,7 @@ struct OctaneExportJobData {
   BL::RenderEngine b_engine;
   BL::Depsgraph b_depsgraph;
   ::Main *m_main;
+  ::wmWindowManager *m_wm;
   ::Scene *m_scene;
   ::Depsgraph *m_depsgraph;
   ::ViewLayer *m_viewlayer;

@@ -63,3 +63,40 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 # END OCTANE GENERATED CODE BLOCK #
+
+
+from octane.utils import ocio
+
+
+class OctaneOCIOLook_Override(OctaneOCIOLook):
+    BLENDER_ATTRIBUTE_COLOR_SPACE_NAME = "COLOR_SPACE_NAME"
+
+    def a_ocio_look_name_set(self, value):
+        self["ocio_look_name"] = value
+        self.formatted_ocio_look_name, _ = ocio.OctaneOCIOManagement().get_formatted_ocio_look_name(value)
+
+    def a_ocio_look_name_get(self):
+        return self.get("ocio_look_name", "")
+
+    ocio_look_name: StringProperty(name="Color space", set=a_ocio_look_name_set,
+                                   get=a_ocio_look_name_get,
+                                   description="If using the selected OCIO view's default look(s), this value is ignored. Otherwise, the name of the OCIO look to apply with the selected OCIO view, or empty to apply no look")
+    formatted_ocio_look_name: StringProperty(name="Formatted ocio look name", update=OctaneBaseNode.update_node_tree)
+
+    def init(self, context):
+        super().init(context)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        col = layout.column(align=True)
+        preference, collection_name = ocio.OctaneOCIOManagement().get_ocio_look_collection_config()
+        col.prop_search(self, "ocio_look_name", preference, collection_name)
+
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
+        ocio_look_name, use_view_look = ocio.OctaneOCIOManagement().get_formatted_ocio_look_name(self.ocio_look_name)
+        octane_node.set_attribute_id(consts.AttributeID.A_OCIO_USE_VIEW_LOOK, use_view_look)
+        octane_node.set_attribute_id(consts.AttributeID.A_OCIO_LOOK_NAME, ocio_look_name)
+
+
+utility.override_class(_CLASSES, OctaneOCIOLook, OctaneOCIOLook_Override)

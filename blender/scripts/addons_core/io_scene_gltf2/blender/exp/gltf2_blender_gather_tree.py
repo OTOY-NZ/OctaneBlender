@@ -175,7 +175,8 @@ class VExportTree:
         # add to parent if needed
         if parent_uuid is not None:
             self.add_children(parent_uuid, node.uuid)
-            if self.nodes[parent_uuid].blender_type == VExportNode.INST_COLLECTION or original_object is not None:
+            if (self.nodes[parent_uuid].blender_type == VExportNode.INST_COLLECTION or original_object is not None) or (self.nodes[parent_uuid].blender_type !=
+                                                                                                                        VExportNode.COLLECTION and self.nodes[parent_uuid].blender_object is not None and self.nodes[parent_uuid].blender_object.is_instancer is True):
                 self.nodes[parent_uuid].children_type[node.uuid] = VExportNode.CHILDREN_IS_IN_COLLECTION if is_children_in_collection is True else VExportNode.CHILDREN_REAL
         else:
             self.roots.append(node.uuid)
@@ -448,7 +449,9 @@ class VExportTree:
                     dupli_world_matrix=mat)
 
         # Geometry Nodes instances
-        if self.export_settings['gltf_gn_mesh'] is True:
+        # Make sure to not check instances for instanced collection, because we
+        # will export what's inside the collection twice
+        if self.export_settings['gltf_gn_mesh'] is True and node.blender_type == VExportNode.OBJECT:
             # Do not force export as empty
             # Because GN graph can have both geometry and instances
             depsgraph = bpy.context.evaluated_depsgraph_get()

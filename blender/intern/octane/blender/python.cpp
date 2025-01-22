@@ -127,11 +127,13 @@ static PyObject *py_is_shared_surface_supported(PyObject * /*self*/, PyObject * 
 
 static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 {
-  PyObject *pyengine, *pypreferences, *pydata, *pyscreen, *pyregion, *pyv3d, *pyrv3d;
+  PyObject *pyengine, *pypreferences, *pydata, *pyscreen, *pyregion, *pyv3d, *pyrv3d,
+      *py_export_path;
+  int octane_export_type;
   PyObject *py_resource_list = NULL;
 
   if (!PyArg_ParseTuple(args,
-                        "OOOOOOOO",
+                        "OOOOOOOiOO",
                         &pyengine,
                         &pypreferences,
                         &pydata,
@@ -139,14 +141,18 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                         &pyregion,
                         &pyv3d,
                         &pyrv3d,
-                        &py_resource_list)) {
+                        &octane_export_type,
+                        &py_export_path,
+                        &py_resource_list))
+  {
     return NULL;
   }
 
   /* RNA */
   ID *bScreen = (ID *)PyLong_AsVoidPtr(pyscreen);
 
-  PointerRNA engineptr = RNA_pointer_create(NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine));
+  PointerRNA engineptr = RNA_pointer_create(
+      NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine));
   BL::RenderEngine engine(engineptr);
 
   PointerRNA preferencesptr = RNA_pointer_create(
@@ -156,16 +162,24 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
   PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData data(dataptr);
 
-  PointerRNA regionptr = RNA_pointer_create(bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion));
+  PointerRNA regionptr = RNA_pointer_create(
+      bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion));
   BL::Region region(regionptr);
 
-  PointerRNA v3dptr = RNA_pointer_create(bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d));
+  PointerRNA v3dptr = RNA_pointer_create(
+      bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d));
   BL::SpaceView3D v3d(v3dptr);
 
-  PointerRNA rv3dptr = RNA_pointer_create(bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d));
+  PointerRNA rv3dptr = RNA_pointer_create(
+      bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d));
   BL::RegionView3D rv3d(rv3dptr);
 
-  std::string export_path("");
+  BlenderSession::ExportType export_type = static_cast<BlenderSession::ExportType>(
+      octane_export_type);
+
+  PyObject *path_coerce = NULL;
+  std::string export_path = PyC_UnicodeAsByte(py_export_path, &path_coerce);
+  Py_XDECREF(path_coerce);
 
   std::unordered_set<std::string> dirty_resources;
   if (py_resource_list && PyList_Size(py_resource_list)) {
@@ -193,14 +207,14 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                                  rv3d,
                                  width,
                                  height,
-                                 BlenderSession::ExportType::NONE,
+                                 export_type,
                                  export_path,
                                  dirty_resources);
   }
   else {
     /* offline session or preview render */
     session = new BlenderSession(
-        engine, preferences, data, BlenderSession::ExportType::NONE, export_path, dirty_resources);
+        engine, preferences, data, export_type, export_path, dirty_resources);
   }
 
   return PyLong_FromVoidPtr(session);
@@ -222,7 +236,8 @@ static PyObject *render_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph));
+  PointerRNA depsgraphptr = RNA_pointer_create(
+      NULL, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -263,7 +278,8 @@ static PyObject *sync_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
+  PointerRNA depsgraphptr = RNA_pointer_create(
+      NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -287,7 +303,8 @@ static PyObject *reset_func(PyObject * /*self*/, PyObject *args)
   PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData b_data(dataptr);
 
-  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
+  PointerRNA depsgraphptr = RNA_pointer_create(
+      NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -311,7 +328,8 @@ static PyObject *command_to_octane_func(PyObject *self, PyObject *args)
                        &PyList_Type,
                        &py_float_list,
                        &PyList_Type,
-                       &py_str_list)) {
+                       &py_str_list))
+  {
     std::vector<int> int_params;
     std::vector<float> float_params;
     std::vector<std::string> str_params;
@@ -355,11 +373,11 @@ static PyObject *osl_compile_func(PyObject *self, PyObject *args)
   PyObject *py_osl_identifier = NULL, *pynodegroup = NULL, *pynode = NULL, *py_osl_path = NULL,
            *py_osl_code = NULL;
   if (PyArg_ParseTuple(
-          args, "OOOOO", &py_osl_identifier, &pynodegroup, &pynode, &py_osl_path, &py_osl_code)) {
+          args, "OOOOO", &py_osl_identifier, &pynodegroup, &pynode, &py_osl_path, &py_osl_code))
+  {
     /* RNA */
-    PointerRNA nodeptr = RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
-                       &RNA_ShaderNode,
-                       (void *)PyLong_AsVoidPtr(pynode));
+    PointerRNA nodeptr = RNA_pointer_create(
+        (ID *)PyLong_AsVoidPtr(pynodegroup), &RNA_ShaderNode, (void *)PyLong_AsVoidPtr(pynode));
     PyObject *path_coerce = NULL;
     std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
     std::string osl_path = PyC_UnicodeAsByte(py_osl_path, &path_coerce);
@@ -367,7 +385,8 @@ static PyObject *osl_compile_func(PyObject *self, PyObject *args)
     Py_XDECREF(path_coerce);
     Py_BEGIN_ALLOW_THREADS;
     if (BlenderSession::osl_compile(
-            G.octane_server_address, osl_identifier, nodeptr, osl_path, osl_code, info)) {
+            G.octane_server_address, osl_identifier, nodeptr, osl_path, osl_code, info))
+    {
       PyTuple_SET_ITEM(rets, 0, Py_True);
     }
     else {
@@ -397,9 +416,8 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
   std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
   Py_XDECREF(path_coerce);
   /* RNA */
-  PointerRNA nodeptr = RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
-                     &RNA_ShaderNode,
-                     (void *)PyLong_AsVoidPtr(pynode));
+  PointerRNA nodeptr = RNA_pointer_create(
+      (ID *)PyLong_AsVoidPtr(pynodegroup), &RNA_ShaderNode, (void *)PyLong_AsVoidPtr(pynode));
   BL::ShaderNode b_node(nodeptr);
   OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
   if (OSLManager::Instance().query_osl(osl_identifier, oslNodeInfo)) {
@@ -578,7 +596,7 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
   Py_RETURN_FALSE;
 }
 
-static PyObject *export_func(PyObject * /*self*/, PyObject *args)
+static PyObject *create_export_scene_func(PyObject * /*self*/, PyObject *args)
 {
   int octane_export_type;
   PyObject *pyscene, *pycontext, *pypreferences, *pydata, *py_path;
@@ -590,8 +608,9 @@ static PyObject *export_func(PyObject * /*self*/, PyObject *args)
                         &pypreferences,
                         &pydata,
                         &py_path,
-                        &octane_export_type)) {
-    return NULL;
+                        &octane_export_type))
+  {
+    Py_RETURN_NONE;
   }
 
   PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
@@ -610,14 +629,36 @@ static PyObject *export_func(PyObject * /*self*/, PyObject *args)
   std::string path = PyC_UnicodeAsByte(py_path, &path_coerce);
   Py_XDECREF(path_coerce);
 
-  Py_BEGIN_ALLOW_THREADS;
-  BlenderSession::export_scene(b_scene,
-                               context,
-                               preferences,
-                               data,
-                               path,
-                               static_cast<BlenderSession::ExportType>(octane_export_type));
-  Py_END_ALLOW_THREADS;
+  BlenderSession *session = BlenderSession::create_export_scene(
+      b_scene,
+      context,
+      preferences,
+      data,
+      path,
+      static_cast<BlenderSession::ExportType>(octane_export_type));
+  if (session != NULL) {
+    return PyLong_FromVoidPtr(session);
+  }
+  Py_RETURN_NONE;
+}
+
+static PyObject* export_current_frame_func(PyObject* /*self*/, PyObject* args) {
+  PyObject *pysession, *pydata, *pydepsgraph;
+
+  if (!PyArg_ParseTuple(args, "OOO", &pysession, &pydata, & pydepsgraph))
+    return NULL;
+
+  BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
+
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
+  BL::BlendData b_data(dataptr);
+
+  PointerRNA depsgraphptr = RNA_pointer_create(
+      NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+
+  session->export_current_frame(b_data, b_depsgraph);
+
   Py_RETURN_NONE;
 }
 
@@ -625,8 +666,8 @@ static PyObject *export_localdb_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *pyscene, *pycontext, *pypreferences, *pydata, *pymaterial;
 
-  if (!PyArg_ParseTuple(
-          args, "OOOOO", &pyscene, &pycontext, &pypreferences, &pydata, &pymaterial)) {
+  if (!PyArg_ParseTuple(args, "OOOOO", &pyscene, &pycontext, &pypreferences, &pydata, &pymaterial))
+  {
     return NULL;
   }
 
@@ -795,7 +836,8 @@ static PyObject *update_ocio_info_func(PyObject *self, PyObject *args)
                         &use_other_config,
                         &use_automatic,
                         &intermediate_color_space_octane,
-                        &py_intermediate_color_space_ocio_name)) {
+                        &py_intermediate_color_space_ocio_name))
+  {
     return PyBool_FromLong(0);
   }
 
@@ -916,7 +958,8 @@ static PyObject *py_add_attribute_info(PyObject *self, PyObject *args)
                         &pyBlenderName,
                         &attributeId,
                         &pyAttributeName,
-                        &attributeType)) {
+                        &attributeType))
+  {
     Py_RETURN_FALSE;
   }
   PyObject *pyCoerce = NULL;
@@ -942,7 +985,8 @@ static PyObject *py_add_pin_info(PyObject *self, PyObject *args)
                         &pinType,
                         &socketType,
                         &defaultNodeType,
-                        &pyDefaultNodeName)) {
+                        &pyDefaultNodeName))
+  {
     Py_RETURN_FALSE;
   }
   PyObject *pyCoerce = NULL;
@@ -977,7 +1021,8 @@ static PyObject *py_add_legacy_data_info(PyObject *self, PyObject *args)
                         &octane_type,
                         &is_internal_data,
                         &internal_data_is_pin,
-                        &internal_data_octane_type)) {
+                        &internal_data_octane_type))
+  {
     Py_RETURN_FALSE;
   }
   PyObject *pyCoerce = NULL;
@@ -1071,7 +1116,7 @@ static PyObject *py_load_color_ramp_data(PyObject *self, PyObject *args)
   PyObject *py_color_ramp_data_list = NULL;
   size_t color_ramp_data_addr;
   if (!PyArg_ParseTuple(
-          args, "iOL", &interpolation_type, & py_color_ramp_data_list, &color_ramp_data_addr))
+          args, "iOL", &interpolation_type, &py_color_ramp_data_list, &color_ramp_data_addr))
   {
     Py_RETURN_FALSE;
   }
@@ -1148,7 +1193,8 @@ static PyMethodDef methods[] = {
     {"command_to_octane", command_to_octane_func, METH_VARARGS, ""},
     {"osl_compile", osl_compile_func, METH_VARARGS, ""},
     {"osl_update_node", osl_update_node_func, METH_VARARGS, ""},
-    {"export", export_func, METH_VARARGS, ""},
+    {"create_export_scene", create_export_scene_func, METH_VARARGS, ""},
+    {"export_current_frame", export_current_frame_func, METH_VARARGS, ""},    
     {"export_localdb", export_localdb_func, METH_VARARGS, ""},
     {"heart_beat", heart_beat_func, METH_VARARGS, ""},
     {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},

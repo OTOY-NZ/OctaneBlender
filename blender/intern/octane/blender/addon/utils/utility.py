@@ -331,7 +331,8 @@ def resolve_octane_format_path(cur_path):
 def get_enum_int_value(data, property_name, default_value):
     property_value = getattr(data, property_name, None)
     if property_value is not None:
-        return data.rna_type.properties[property_name].enum_items[property_value].value
+        if property_value in data.rna_type.properties[property_name].enum_items:
+            return data.rna_type.properties[property_name].enum_items[property_value].value
     return default_value
 
 

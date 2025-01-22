@@ -2,7 +2,7 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.15.1)",
+    "name": "OctaneBlender (v. 29.16)",
     "author": "OTOY Inc.",
     "version": (29, 15, 1),
     "blender": (4, 2, 1),

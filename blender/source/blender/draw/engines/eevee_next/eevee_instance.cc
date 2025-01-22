@@ -206,8 +206,6 @@ void Instance::begin_sync()
   sphere_probes.begin_sync();
   light_probes.begin_sync();
 
-  gpencil_engine_enabled = false;
-
   depth_of_field.sync();
   raytracing.sync();
   motion_blur.sync();
@@ -528,6 +526,14 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
                             std::to_string(sampling.sample_count()) + " samples";
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
+
+    /* Perform render step between samples to allow
+     * flushing of freed GPUBackend resources. */
+    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+      GPU_flush();
+    }
+    GPU_render_step();
+
 #if 0
     /* TODO(fclem) print progression. */
     RE_engine_update_progress(engine, float(sampling.sample_index()) / float(sampling.sample_count()));

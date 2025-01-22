@@ -3611,8 +3611,24 @@ static bool update_cursor_scale(GWL_Cursor &cursor,
 {
   int scale = 0;
   for (const GWL_Output *output : seat_state_pointer->outputs) {
-    if (output->scale > scale) {
-      scale = output->scale;
+    int output_scale_floor = output->scale;
+
+    /* It's important to round down in the case of fractional scale,
+     * otherwise the cursor can be scaled down to be unusably small.
+     * This is especially a problem when:
+     * - The cursor theme has one size (24px for the default cursor).
+     * - The fractional scaling is set just above 1 (typically 125%).
+     *
+     * In this case the `output->scale` is rounded up to 2 and a larger cursor is requested.
+     * It's assumed a large cursor is available but that's not always the case.
+     * When only a smaller cursor is available it's still assumed to be large,
+     * fractional scaling causes the cursor to be scaled down making it ~10px. see #105895. */
+    if (output_scale_floor > 1 && output->has_scale_fractional) {
+      output_scale_floor = std::max(1, output->scale_fractional / FRACTIONAL_DENOMINATOR);
+    }
+
+    if (output_scale_floor > scale) {
+      scale = output_scale_floor;
     }
   }
 
@@ -3740,8 +3756,7 @@ static void pointer_handle_enter(void *data,
   seat->pointer.wl.surface_window = wl_surface;
 
   seat->system->seat_active_set(seat);
-
-  seat->system->cursor_shape_set(win->getCursorShape());
+  win->cursor_shape_refresh();
 
   const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
   seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
@@ -4491,6 +4506,9 @@ static void tablet_tool_handle_proximity_in(void *data,
 
   seat->system->seat_active_set(seat);
 
+  GHOST_WindowWayland *win = ghost_wl_surface_user_data(seat->tablet.wl.surface_window);
+  win->cursor_shape_refresh();
+
   /* Update #GHOST_TabletData. */
   GHOST_TabletData &td = tablet_tool->data;
   /* Reset, to avoid using stale tilt/pressure. */
@@ -4498,10 +4516,6 @@ static void tablet_tool_handle_proximity_in(void *data,
   td.Ytilt = 0.0f;
   /* In case pressure isn't supported. */
   td.Pressure = 1.0f;
-
-  const GHOST_WindowWayland *win = ghost_wl_surface_user_data(seat->tablet.wl.surface_window);
-
-  seat->system->cursor_shape_set(win->getCursorShape());
 }
 static void tablet_tool_handle_proximity_out(void *data,
                                              zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/)
@@ -4741,7 +4755,7 @@ static void tablet_tool_handle_frame(void *data,
     }
 
     if (tablet_tool->proximity == false) {
-      seat->system->cursor_shape_set(win->getCursorShape());
+      win->cursor_shape_refresh();
     }
   }
 

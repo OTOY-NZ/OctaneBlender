@@ -102,3 +102,11 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 # END OCTANE GENERATED CODE BLOCK #
+
+
+class OctaneTime_Override(OctaneTime):
+    def auto_refresh(self):
+        return consts.AutoRefreshStrategy.FRAME_CHANGE
+
+
+utility.override_class(_CLASSES, OctaneTime, OctaneTime_Override)
